@@ -1,0 +1,43 @@
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+
+# --- My PhD OS: never commit user data or build output ---
+# local databases
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+# exported backups and imported calendars (private data)
+*.backup.json
+backups/
+imports/
+*.ics
+!tests/fixtures/**/*.ics
+# build artifacts and installers
+out/
+dist/
+release/
+build/**/*.dmg
+build/**/*.exe
+build/**/*.AppImage
+# test output
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+.eslintcache
+# logs
+logs/
+*.log
+npm-debug.log*
+# platform temp files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~

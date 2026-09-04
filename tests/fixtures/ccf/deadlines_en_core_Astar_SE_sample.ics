@@ -1,0 +1,193 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//会议截止日历//ccfddl.com//
+BEGIN:VTIMEZONE
+TZID:UTC-12:00
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZNAME:UTC-12:00
+TZOFFSETFROM:-1200
+TZOFFSETTO:-1200
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:ASE 2022 Deadline [Abstract Submission]
+DTSTART;TZID="UTC-12:00":20220429T235959
+DTEND;TZID="UTC-12:00":20220430T000059
+DTSTAMP:20260904T153052Z
+UID:d67e8eb0-0457-4cba-bfd9-673154847102
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: September 26- October 01\, 2022\n📍 Location: Ann Arbor\, 
+ Michigan\, United States\n⏰ Original Deadline (AoE): 2022-04-29 23:59:59
+ \nCategory: 软件工程/系统软件/程序设计语言 (SE)\nCCF A\, COR
+ E A*\, THCPL A\nConference Website: https://conf.researchr.org/home/ase-20
+ 22\nDBLP Index: https://dblp.org/db/conf/kbse
+LOCATION:Ann Arbor\, Michigan\, United States
+URL:https://conf.researchr.org/home/ase-2022
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2022 Deadline [Paper Submission]
+DTSTART;TZID="UTC-12:00":20220506T235959
+DTEND;TZID="UTC-12:00":20220507T000059
+DTSTAMP:20260904T153052Z
+UID:5e04902e-a806-490b-81e2-e2e5b706edb3
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: September 26- October 01\, 2022\n📍 Location: Ann Arbor\, 
+ Michigan\, United States\n⏰ Original Deadline (AoE): 2022-05-06 23:59:59
+ \nCategory: 软件工程/系统软件/程序设计语言 (SE)\nCCF A\, COR
+ E A*\, THCPL A\nConference Website: https://conf.researchr.org/home/ase-20
+ 22\nDBLP Index: https://dblp.org/db/conf/kbse
+LOCATION:Ann Arbor\, Michigan\, United States
+URL:https://conf.researchr.org/home/ase-2022
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2023 Abstract Deadline
+DTSTART;TZID="UTC-12:00":20230428T235959
+DTEND;TZID="UTC-12:00":20230429T000059
+DTSTAMP:20260904T153052Z
+UID:dbc2fca9-016f-4cf2-8460-964389f09e67
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: September 11-15\, 2023\n📍 Location: Kirchberg\, Luxembour
+ g\n⏰ Original Deadline (AoE): 2023-04-28 23:59:59\nCategory: 软件工
+ 程/系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConfe
+ rence Website: https://conf.researchr.org/home/ase-2023\nDBLP Index: https
+ ://dblp.org/db/conf/kbse
+LOCATION:Kirchberg\, Luxembourg
+URL:https://conf.researchr.org/home/ase-2023
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2023 Deadline
+DTSTART;TZID="UTC-12:00":20230505T235959
+DTEND;TZID="UTC-12:00":20230506T000059
+DTSTAMP:20260904T153052Z
+UID:54a56663-8a03-4b62-af3f-6ac33cf4cae1
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: September 11-15\, 2023\n📍 Location: Kirchberg\, Luxembour
+ g\n⏰ Original Deadline (AoE): 2023-05-05 23:59:59\nCategory: 软件工
+ 程/系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConfe
+ rence Website: https://conf.researchr.org/home/ase-2023\nDBLP Index: https
+ ://dblp.org/db/conf/kbse
+LOCATION:Kirchberg\, Luxembourg
+URL:https://conf.researchr.org/home/ase-2023
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2024 Abstract Deadline
+DTSTART;TZID="UTC-12:00":20240531T235959
+DTEND;TZID="UTC-12:00":20240601T000059
+DTSTAMP:20260904T153052Z
+UID:a5c03d7c-32e2-4ba1-b4a7-267ba0903a05
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: October 27- November 01\, 2024\n📍 Location: Sacramento\, 
+ California\, United States\n⏰ Original Deadline (AoE): 2024-05-31 23:59:
+ 59\nCategory: 软件工程/系统软件/程序设计语言 (SE)\nCCF A\, C
+ ORE A*\, THCPL A\nConference Website: https://conf.researchr.org/home/ase-
+ 2024\nDBLP Index: https://dblp.org/db/conf/kbse
+LOCATION:Sacramento\, California\, United States
+URL:https://conf.researchr.org/home/ase-2024
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2024 Deadline
+DTSTART;TZID="UTC-12:00":20240607T235959
+DTEND;TZID="UTC-12:00":20240608T000059
+DTSTAMP:20260904T153052Z
+UID:873f1a75-ca1b-4e54-8d5b-0c13dc3923c6
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: October 27- November 01\, 2024\n📍 Location: Sacramento\, 
+ California\, United States\n⏰ Original Deadline (AoE): 2024-06-07 23:59:
+ 59\nCategory: 软件工程/系统软件/程序设计语言 (SE)\nCCF A\, C
+ ORE A*\, THCPL A\nConference Website: https://conf.researchr.org/home/ase-
+ 2024\nDBLP Index: https://dblp.org/db/conf/kbse
+LOCATION:Sacramento\, California\, United States
+URL:https://conf.researchr.org/home/ase-2024
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2025 Deadline
+DTSTART;TZID="UTC-12:00":20250530T235959
+DTEND;TZID="UTC-12:00":20250531T000059
+DTSTAMP:20260904T153052Z
+UID:61a067eb-b205-48b3-aa03-a3d52799d643
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: November 16 - November 20\, 2025\n📍 Location: Seoul\, Sou
+ th Korea\n⏰ Original Deadline (AoE): 2025-05-30 23:59:59\nCategory: 软
+ 件工程/系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A
+ \nConference Website: https://conf.researchr.org/home/ase-2025\nDBLP Index
+ : https://dblp.org/db/conf/kbse
+LOCATION:Seoul\, South Korea
+URL:https://conf.researchr.org/home/ase-2025
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ASE 2026 Deadline
+DTSTART;TZID="UTC-12:00":20260326T235959
+DTEND;TZID="UTC-12:00":20260327T000059
+DTSTAMP:20260904T153052Z
+UID:0cf100cd-45f9-46d3-a9f2-8b20fc7ae51f
+DESCRIPTION:International Conference on Automated Software Engineering\n
+ 🗓️ Date: October 12 - 16\, 2026\n📍 Location: Munich\, Germany\n⏰
+  Original Deadline (AoE): 2026-03-26 23:59:59\nCategory: 软件工程/系
+ 统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConference W
+ ebsite: https://conf.researchr.org/home/ase-2026\nDBLP Index: https://dblp
+ .org/db/conf/kbse
+LOCATION:Munich\, Germany
+URL:https://conf.researchr.org/home/ase-2026
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:FSE 2022 Deadline [paper registration deadline]
+DTSTART;TZID="UTC-12:00":20220310T235959
+DTEND;TZID="UTC-12:00":20220311T000059
+DTSTAMP:20260904T153052Z
+UID:68966260-dc45-4a9f-904d-79adfc335933
+DESCRIPTION:ACM International Conference on the Foundations of Software En
+ gineering\n🗓️ Date: November 14-18\, 2022\n📍 Location: Singapore\n
+ ⏰ Original Deadline (AoE): 2022-03-10 23:59:59\nCategory: 软件工程/
+ 系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConferenc
+ e Website: https://2022.esec-fse.org/\nDBLP Index: https://dblp.org/db/con
+ f/sigsoft
+LOCATION:Singapore
+URL:https://2022.esec-fse.org/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:FSE 2022 Deadline [full paper submission deadline]
+DTSTART;TZID="UTC-12:00":20220317T235959
+DTEND;TZID="UTC-12:00":20220318T000059
+DTSTAMP:20260904T153052Z
+UID:59a5d291-1aae-4b8d-bd90-13082d0f382c
+DESCRIPTION:ACM International Conference on the Foundations of Software En
+ gineering\n🗓️ Date: November 14-18\, 2022\n📍 Location: Singapore\n
+ ⏰ Original Deadline (AoE): 2022-03-17 23:59:59\nCategory: 软件工程/
+ 系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConferenc
+ e Website: https://2022.esec-fse.org/\nDBLP Index: https://dblp.org/db/con
+ f/sigsoft
+LOCATION:Singapore
+URL:https://2022.esec-fse.org/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:FSE 2023 Deadline [paper registration deadline]
+DTSTART;TZID="UTC-12:00":20230126T235959
+DTEND;TZID="UTC-12:00":20230127T000059
+DTSTAMP:20260904T153052Z
+UID:c93db40d-bc74-42c7-9029-256ea287e388
+DESCRIPTION:ACM International Conference on the Foundations of Software En
+ gineering\n🗓️ Date: November 11-17\, 2023\n📍 Location: United Stat
+ es\n⏰ Original Deadline (AoE): 2023-01-26 23:59:59\nCategory: 软件工
+ 程/系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConfe
+ rence Website: https://2023.esec-fse.org/\nDBLP Index: https://dblp.org/db
+ /conf/sigsoft
+LOCATION:United States
+URL:https://2023.esec-fse.org/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:FSE 2023 Deadline [full paper submission deadline]
+DTSTART;TZID="UTC-12:00":20230202T235959
+DTEND;TZID="UTC-12:00":20230203T000059
+DTSTAMP:20260904T153052Z
+UID:821cc4a4-7e16-4d03-b70a-b14a9a88c42c
+DESCRIPTION:ACM International Conference on the Foundations of Software En
+ gineering\n🗓️ Date: November 11-17\, 2023\n📍 Location: United Stat
+ es\n⏰ Original Deadline (AoE): 2023-02-02 23:59:59\nCategory: 软件工
+ 程/系统软件/程序设计语言 (SE)\nCCF A\, CORE A*\, THCPL A\nConfe
+ rence Website: https://2023.esec-fse.org/\nDBLP Index: https://dblp.org/db
+ /conf/sigsoft
+LOCATION:United States
+URL:https://2023.esec-fse.org/
+END:VEVENT
+END:VCALENDAR

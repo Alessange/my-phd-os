@@ -1,0 +1,99 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//会议截止日历//ccfddl.com//
+BEGIN:VTIMEZONE
+TZID:UTC-12:00
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZNAME:UTC-12:00
+TZOFFSETFROM:-1200
+TZOFFSETTO:-1200
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:AAAI 2026 摘要截稿
+DTSTART;TZID="UTC-12:00":20250725T235959
+DTEND;TZID="UTC-12:00":20250726T000059
+DTSTAMP:20260904T153009Z
+UID:a4cb9955-f182-4f8a-9ccb-28b474d56be2
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ 会议时
+ 间: January 20 - 27\, 2026\n📍 会议地点: Singapore EXPO\n⏰ 原始
+ 截止时间 (UTC-12): 2025-07-25 23:59:59\n分类: 人工智能 (AI)\nCCF
+  A\, CORE A*\, THCPL A\n会议官网: https://aaai.org/conference/aaai/aaa
+ i-26/\nDBLP索引: https://dblp.org/db/conf/aaai
+LOCATION:Singapore EXPO
+URL:https://aaai.org/conference/aaai/aaai-26/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAAI 2026 截稿日期
+DTSTART;TZID="UTC-12:00":20250801T235959
+DTEND;TZID="UTC-12:00":20250802T000059
+DTSTAMP:20260904T153009Z
+UID:d7d0a478-74f4-4d45-8760-51e98ff0e294
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ 会议时
+ 间: January 20 - 27\, 2026\n📍 会议地点: Singapore EXPO\n⏰ 原始
+ 截止时间 (UTC-12): 2025-08-01 23:59:59\n分类: 人工智能 (AI)\nCCF
+  A\, CORE A*\, THCPL A\n会议官网: https://aaai.org/conference/aaai/aaa
+ i-26/\nDBLP索引: https://dblp.org/db/conf/aaai
+LOCATION:Singapore EXPO
+URL:https://aaai.org/conference/aaai/aaai-26/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAAI 2027 摘要截稿
+DTSTART;TZID="UTC-12:00":20260721T235959
+DTEND;TZID="UTC-12:00":20260722T000059
+DTSTAMP:20260904T153009Z
+UID:fce3f4b2-673e-4ce2-a0cf-d286e8fc37f1
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ 会议时
+ 间: February 16-23\, 2027\n📍 会议地点: Montréal\, Québec\, Canad
+ a\n⏰ 原始截止时间 (UTC-12): 2026-07-21 23:59:59\n分类: 人工智
+ 能 (AI)\nCCF A\, CORE A*\, THCPL A\n会议官网: https://aaai.org/confer
+ ence/aaai/aaai-27/\nDBLP索引: https://dblp.org/db/conf/aaai
+LOCATION:Montréal\, Québec\, Canada
+URL:https://aaai.org/conference/aaai/aaai-27/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAAI 2027 截稿日期
+DTSTART;TZID="UTC-12:00":20260728T235959
+DTEND;TZID="UTC-12:00":20260729T000059
+DTSTAMP:20260904T153009Z
+UID:dd395cf0-c4ba-46c6-aa2f-27a63c0d9f34
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ 会议时
+ 间: February 16-23\, 2027\n📍 会议地点: Montréal\, Québec\, Canad
+ a\n⏰ 原始截止时间 (UTC-12): 2026-07-28 23:59:59\n分类: 人工智
+ 能 (AI)\nCCF A\, CORE A*\, THCPL A\n会议官网: https://aaai.org/confer
+ ence/aaai/aaai-27/\nDBLP索引: https://dblp.org/db/conf/aaai
+LOCATION:Montréal\, Québec\, Canada
+URL:https://aaai.org/conference/aaai/aaai-27/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:IEEE/ACM CGO 2027 截稿日期 [First Submission]
+DTSTART;TZID="UTC-12:00":20260611T235959
+DTEND;TZID="UTC-12:00":20260612T000059
+DTSTAMP:20260904T153009Z
+UID:4efcccf9-96a2-45c4-bb53-311feb6fa16b
+DESCRIPTION:The International Symposium on Code Generation and Optimizatio
+ n\n🗓️ 会议时间: TBD\n📍 会议地点: Salt Lake City\, Utah\, U
+ SA\n⏰ 原始截止时间 (AoE): 2026-06-11 23:59:59\n分类: 计算机
+ 体系结构/并行与分布计算/存储系统 (DS)\nCCF B\, CORE A\, THC
+ PL B\n会议官网: https://conf.researchr.org/home/cgo-2027\nDBLP索引: 
+ https://dblp.org/db/conf/cgo
+LOCATION:Salt Lake City\, Utah\, USA
+URL:https://conf.researchr.org/home/cgo-2027
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:IEEE/ACM CGO 2027 截稿日期 [Second Submission]
+DTSTART;TZID="UTC-12:00":20260910T235959
+DTEND;TZID="UTC-12:00":20260911T000059
+DTSTAMP:20260904T153009Z
+UID:fd78572b-ff2f-40a4-a4b7-725d6a89f1a0
+DESCRIPTION:The International Symposium on Code Generation and Optimizatio
+ n\n🗓️ 会议时间: TBD\n📍 会议地点: Salt Lake City\, Utah\, U
+ SA\n⏰ 原始截止时间 (AoE): 2026-09-10 23:59:59\n分类: 计算机
+ 体系结构/并行与分布计算/存储系统 (DS)\nCCF B\, CORE A\, THC
+ PL B\n会议官网: https://conf.researchr.org/home/cgo-2027\nDBLP索引: 
+ https://dblp.org/db/conf/cgo
+LOCATION:Salt Lake City\, Utah\, USA
+URL:https://conf.researchr.org/home/cgo-2027
+END:VEVENT
+END:VCALENDAR

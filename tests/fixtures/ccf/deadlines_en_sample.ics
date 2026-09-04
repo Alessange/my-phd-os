@@ -1,0 +1,283 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//会议截止日历//ccfddl.com//
+BEGIN:VTIMEZONE
+TZID:UTC-12:00
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZNAME:UTC-12:00
+TZOFFSETFROM:-1200
+TZOFFSETTO:-1200
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:AAAI 2026 Abstract Deadline
+DTSTART;TZID="UTC-12:00":20250725T235959
+DTEND;TZID="UTC-12:00":20250726T000059
+DTSTAMP:20260904T153030Z
+UID:ddd75d66-6a49-40df-aa3c-9eb9b2ab6248
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ Date: Janu
+ ary 20 - 27\, 2026\n📍 Location: Singapore EXPO\n⏰ Original Deadline (
+ UTC-12): 2025-07-25 23:59:59\nCategory: 人工智能 (AI)\nCCF A\, CORE A*
+ \, THCPL A\nConference Website: https://aaai.org/conference/aaai/aaai-26/
+ \nDBLP Index: https://dblp.org/db/conf/aaai
+LOCATION:Singapore EXPO
+URL:https://aaai.org/conference/aaai/aaai-26/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAAI 2026 Deadline
+DTSTART;TZID="UTC-12:00":20250801T235959
+DTEND;TZID="UTC-12:00":20250802T000059
+DTSTAMP:20260904T153030Z
+UID:f73e3e6d-98a3-45f4-85fd-bf8f9e0e9c59
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ Date: Janu
+ ary 20 - 27\, 2026\n📍 Location: Singapore EXPO\n⏰ Original Deadline (
+ UTC-12): 2025-08-01 23:59:59\nCategory: 人工智能 (AI)\nCCF A\, CORE A*
+ \, THCPL A\nConference Website: https://aaai.org/conference/aaai/aaai-26/
+ \nDBLP Index: https://dblp.org/db/conf/aaai
+LOCATION:Singapore EXPO
+URL:https://aaai.org/conference/aaai/aaai-26/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAAI 2027 Abstract Deadline
+DTSTART;TZID="UTC-12:00":20260721T235959
+DTEND;TZID="UTC-12:00":20260722T000059
+DTSTAMP:20260904T153030Z
+UID:40bd5aef-018b-4966-bef2-baad31572f88
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ Date: Febr
+ uary 16-23\, 2027\n📍 Location: Montréal\, Québec\, Canada\n⏰ Origin
+ al Deadline (UTC-12): 2026-07-21 23:59:59\nCategory: 人工智能 (AI)\nCC
+ F A\, CORE A*\, THCPL A\nConference Website: https://aaai.org/conference/a
+ aai/aaai-27/\nDBLP Index: https://dblp.org/db/conf/aaai
+LOCATION:Montréal\, Québec\, Canada
+URL:https://aaai.org/conference/aaai/aaai-27/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAAI 2027 Deadline
+DTSTART;TZID="UTC-12:00":20260728T235959
+DTEND;TZID="UTC-12:00":20260729T000059
+DTSTAMP:20260904T153030Z
+UID:e381c115-1f38-4c25-a629-a8634903693a
+DESCRIPTION:AAAI Conference on Artificial Intelligence\n🗓️ Date: Febr
+ uary 16-23\, 2027\n📍 Location: Montréal\, Québec\, Canada\n⏰ Origin
+ al Deadline (UTC-12): 2026-07-28 23:59:59\nCategory: 人工智能 (AI)\nCC
+ F A\, CORE A*\, THCPL A\nConference Website: https://aaai.org/conference/a
+ aai/aaai-27/\nDBLP Index: https://dblp.org/db/conf/aaai
+LOCATION:Montréal\, Québec\, Canada
+URL:https://aaai.org/conference/aaai/aaai-27/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:IEEE/ACM CGO 2027 Deadline [First Submission]
+DTSTART;TZID="UTC-12:00":20260611T235959
+DTEND;TZID="UTC-12:00":20260612T000059
+DTSTAMP:20260904T153031Z
+UID:e9ab8539-2b54-4673-be6e-f6dc882fe89a
+DESCRIPTION:The International Symposium on Code Generation and Optimizatio
+ n\n🗓️ Date: TBD\n📍 Location: Salt Lake City\, Utah\, USA\n⏰ Orig
+ inal Deadline (AoE): 2026-06-11 23:59:59\nCategory: 计算机体系结构/
+ 并行与分布计算/存储系统 (DS)\nCCF B\, CORE A\, THCPL B\nConfere
+ nce Website: https://conf.researchr.org/home/cgo-2027\nDBLP Index: https:/
+ /dblp.org/db/conf/cgo
+LOCATION:Salt Lake City\, Utah\, USA
+URL:https://conf.researchr.org/home/cgo-2027
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:IEEE/ACM CGO 2027 Deadline [Second Submission]
+DTSTART;TZID="UTC-12:00":20260910T235959
+DTEND;TZID="UTC-12:00":20260911T000059
+DTSTAMP:20260904T153031Z
+UID:6db8bb64-1ad4-4138-a549-e15eff07b5fa
+DESCRIPTION:The International Symposium on Code Generation and Optimizatio
+ n\n🗓️ Date: TBD\n📍 Location: Salt Lake City\, Utah\, USA\n⏰ Orig
+ inal Deadline (AoE): 2026-09-10 23:59:59\nCategory: 计算机体系结构/
+ 并行与分布计算/存储系统 (DS)\nCCF B\, CORE A\, THCPL B\nConfere
+ nce Website: https://conf.researchr.org/home/cgo-2027\nDBLP Index: https:/
+ /dblp.org/db/conf/cgo
+LOCATION:Salt Lake City\, Utah\, USA
+URL:https://conf.researchr.org/home/cgo-2027
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAMAS 2027 Abstract Deadline
+DTSTART:20261002T115900Z
+DTEND:20261002T120000Z
+DTSTAMP:20260904T153030Z
+UID:c8b89dbd-01f9-46a9-95bc-130ac04ce6ed
+DESCRIPTION:International Conference on Autonomous Agents and Multiagent S
+ ystems\n🗓️ Date: May 03\, 2027\n📍 Location: Hanoi\, Vietnam\n⏰ O
+ riginal Deadline (UTC+0): 2026-10-02 11:59:00\nCategory: 人工智能 (AI)
+ \nCCF B\, CORE A*\, THCPL B\nConference Website: https://openreview.net/gr
+ oup?id=ifaamas.org/AAMAS/2027/Conference\nDBLP Index: https://dblp.org/db/
+ conf/ifaamas
+LOCATION:Hanoi\, Vietnam
+URL:https://openreview.net/group?id=ifaamas.org/AAMAS/2027/Conference
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AAMAS 2027 Deadline
+DTSTART:20261009T115900Z
+DTEND:20261009T120000Z
+DTSTAMP:20260904T153030Z
+UID:134bf6cf-10b2-4411-bcf3-5ec87a4b4716
+DESCRIPTION:International Conference on Autonomous Agents and Multiagent S
+ ystems\n🗓️ Date: May 03\, 2027\n📍 Location: Hanoi\, Vietnam\n⏰ O
+ riginal Deadline (UTC+0): 2026-10-09 11:59:00\nCategory: 人工智能 (AI)
+ \nCCF B\, CORE A*\, THCPL B\nConference Website: https://openreview.net/gr
+ oup?id=ifaamas.org/AAMAS/2027/Conference\nDBLP Index: https://dblp.org/db/
+ conf/ifaamas
+LOCATION:Hanoi\, Vietnam
+URL:https://openreview.net/group?id=ifaamas.org/AAMAS/2027/Conference
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:AISTATS 2022 Deadline
+DTSTART:20211015T115900Z
+DTEND:20211015T120000Z
+DTSTAMP:20260904T153030Z
+UID:34a4d6ca-ce98-468c-b329-a0b79f7a4272
+DESCRIPTION:International Conference on Artificial Intelligence and Statis
+ tics\n🗓️ Date: March 30 - April 1\, 2022\n📍 Location: Valencia\, S
+ pain\n⏰ Original Deadline (UTC+0): 2021-10-15 11:59:00\nCategory: 人工
+ 智能 (AI)\nCCF C\, CORE A\, THCPL B\nConference Website: https://aistats
+ .org/aistats2022/\nDBLP Index: https://dblp.org/db/conf/aistats
+LOCATION:Valencia\, Spain
+URL:https://aistats.org/aistats2022/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ECCV 2026 Abstract Deadline
+DTSTART;TZID="UTC-08:00":20260226T140000
+DTEND;TZID="UTC-08:00":20260226T140100
+DTSTAMP:20260904T153030Z
+UID:37e71f73-9105-497c-91af-ddb94fe46c5d
+DESCRIPTION:European Conference on Computer Vision\n🗓️ Date: Septembe
+ r 8 - 13\, 2026\n📍 Location: Malmö\, Sweden\n⏰ Original Deadline (UT
+ C-8): 2026-02-26 14:00:00\nCategory: 人工智能 (AI)\nCCF B\, CORE A*\, 
+ THCPL A\nConference Website: https://eccv.ecva.net/\nDBLP Index: https://d
+ blp.org/db/conf/eccv
+LOCATION:Malmö\, Sweden
+URL:https://eccv.ecva.net/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ECCV 2026 Deadline
+DTSTART;TZID="UTC-08:00":20260305T140000
+DTEND;TZID="UTC-08:00":20260305T140100
+DTSTAMP:20260904T153030Z
+UID:5078f8b5-4902-4ae8-aabb-747959cb2fb2
+DESCRIPTION:European Conference on Computer Vision\n🗓️ Date: Septembe
+ r 8 - 13\, 2026\n📍 Location: Malmö\, Sweden\n⏰ Original Deadline (UT
+ C-8): 2026-03-05 14:00:00\nCategory: 人工智能 (AI)\nCCF B\, CORE A*\, 
+ THCPL A\nConference Website: https://eccv.ecva.net/\nDBLP Index: https://d
+ blp.org/db/conf/eccv
+LOCATION:Malmö\, Sweden
+URL:https://eccv.ecva.net/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:CICAI 2026 Deadline
+DTSTART;TZID="UTC+08:00":20260608T235959
+DTEND;TZID="UTC+08:00":20260609T000059
+DTSTAMP:20260904T153030Z
+UID:44096a07-7baf-4d2c-95a8-f115f5e0e082
+DESCRIPTION:CAAI International Conference on Artificial Intelligence\n🗓
+ ️ Date: October 17-19\, 2026\n📍 Location: Haining\, Zhejiang\, China
+ \n⏰ Original Deadline (UTC+8): 2026-06-08 23:59:59\nCategory: 人工智
+ 能 (AI)\nConference Website: https://cicai.caai.cn/index.html\nDBLP Index
+ : https://dblp.org/db/conf/cicai
+LOCATION:Haining\, Zhejiang\, China
+URL:https://cicai.caai.cn/index.html
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:NLPCC 2026 Deadline
+DTSTART;TZID="UTC+08:00":20260620T235959
+DTEND;TZID="UTC+08:00":20260621T000059
+DTSTAMP:20260904T153031Z
+UID:03c84840-7927-4476-b466-ca4306cf10dd
+DESCRIPTION:CCF International Conference on Natural Language Processing an
+ d Chinese Computing\n🗓️ Date: November 3-5\, 2026\n📍 Location: Mac
+ au\, China\n⏰ Original Deadline (UTC+8): 2026-06-20 23:59:59\nCategory: 
+ 人工智能 (AI)\nCCF C\nConference Website: http://tcci.ccf.org.cn/confe
+ rence/2026/\nDBLP Index: https://dblp.org/db/conf/nlpcc
+LOCATION:Macau\, China
+URL:http://tcci.ccf.org.cn/conference/2026/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ISS 2025 Deadline [First round 2025]
+DTSTART;TZID="UTC-12:00":20250314T235959
+DTEND;TZID="UTC-12:00":20250315T000059
+DTSTAMP:20260904T153031Z
+UID:762bf21f-0049-4bca-b689-983ad0ed2650
+DESCRIPTION:ACM International Conference on Interactive Surfaces and Space
+ s\n🗓️ Date: TBD\n📍 Location: TBD\n⏰ Original Deadline (AoE): 202
+ 5-03-14 23:59:59\nCategory: 人机交互与普适计算 (HI)\nCCF B\nConfe
+ rence Website: https://iss.acm.org/2025/\nDBLP Index: https://dblp.org/db/
+ conf/tabletop
+LOCATION:TBD
+URL:https://iss.acm.org/2025/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ISS 2025 Deadline [Second round 2025]
+DTSTART;TZID="UTC-12:00":20250725T235959
+DTEND;TZID="UTC-12:00":20250726T000059
+DTSTAMP:20260904T153031Z
+UID:d328bb2a-0b8a-419e-872c-acfe192e1052
+DESCRIPTION:ACM International Conference on Interactive Surfaces and Space
+ s\n🗓️ Date: TBD\n📍 Location: TBD\n⏰ Original Deadline (AoE): 202
+ 5-07-25 23:59:59\nCategory: 人机交互与普适计算 (HI)\nCCF B\nConfe
+ rence Website: https://iss.acm.org/2025/\nDBLP Index: https://dblp.org/db/
+ conf/tabletop
+LOCATION:TBD
+URL:https://iss.acm.org/2025/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:DAI 2026 Abstract Deadline [Research / Industry Track]
+DTSTART;TZID="UTC-12:00":20260727T235959
+DTEND;TZID="UTC-12:00":20260728T000059
+DTSTAMP:20260904T153030Z
+UID:6a444bb8-5fad-442f-9147-ea3c9ac43d38
+DESCRIPTION:International Conference on Distributed Artificial Intelligenc
+ e\n🗓️ Date: November 29-December 2\, 2026\n📍 Location: Hong Kong\,
+  China\n⏰ Original Deadline (AoE): 2026-07-27 23:59:59\nCategory: 人工
+ 智能 (AI)\nCCF C\nConference Website: https://www.adai.ai/dai/2026/index
+ .html\nDBLP Index: https://dblp.org/db/conf/dai2
+LOCATION:Hong Kong\, China
+URL:https://www.adai.ai/dai/2026/index.html
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:DAI 2026 Deadline [Research / Industry Track]
+DTSTART;TZID="UTC-12:00":20260803T235959
+DTEND;TZID="UTC-12:00":20260804T000059
+DTSTAMP:20260904T153030Z
+UID:d59dab15-c557-4dee-a2c0-6f82895a9bbd
+DESCRIPTION:International Conference on Distributed Artificial Intelligenc
+ e\n🗓️ Date: November 29-December 2\, 2026\n📍 Location: Hong Kong\,
+  China\n⏰ Original Deadline (AoE): 2026-08-03 23:59:59\nCategory: 人工
+ 智能 (AI)\nCCF C\nConference Website: https://www.adai.ai/dai/2026/index
+ .html\nDBLP Index: https://dblp.org/db/conf/dai2
+LOCATION:Hong Kong\, China
+URL:https://www.adai.ai/dai/2026/index.html
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ACM SIGGRAPH 2026 Abstract Deadline
+DTSTART:20260115T220000Z
+DTEND:20260115T220100Z
+DTSTAMP:20260904T153031Z
+UID:478bcf12-adb5-4b16-8d62-b17fc12d8ef7
+DESCRIPTION:ACM SIGGRAPH Annual Conference\n🗓️ Date: July 19 - 23\, 2
+ 026\n📍 Location: Los Angeles\, California\n⏰ Original Deadline (UTC+0
+ ): 2026-01-15 22:00:00\nCategory: 计算机图形学与多媒体 (CG)\nCCF
+  A\, CORE A*\, THCPL A\nConference Website: https://s2026.siggraph.org/\nD
+ BLP Index: https://dblp.org/db/conf/siggraph
+LOCATION:Los Angeles\, California
+URL:https://s2026.siggraph.org/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ACM SIGGRAPH 2026 Deadline
+DTSTART:20260122T220000Z
+DTEND:20260122T220100Z
+DTSTAMP:20260904T153031Z
+UID:b93cdc95-3084-44e6-a2d1-6e84215cd033
+DESCRIPTION:ACM SIGGRAPH Annual Conference\n🗓️ Date: July 19 - 23\, 2
+ 026\n📍 Location: Los Angeles\, California\n⏰ Original Deadline (UTC+0
+ ): 2026-01-22 22:00:00\nCategory: 计算机图形学与多媒体 (CG)\nCCF
+  A\, CORE A*\, THCPL A\nConference Website: https://s2026.siggraph.org/\nD
+ BLP Index: https://dblp.org/db/conf/siggraph
+LOCATION:Los Angeles\, California
+URL:https://s2026.siggraph.org/
+END:VEVENT
+END:VCALENDAR
