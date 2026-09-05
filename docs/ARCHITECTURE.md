@@ -25,23 +25,23 @@ before touching anything conference-related.
 
 ## 1. Stack (pinned; do not add dependencies without updating this section)
 
-| Layer | Choice | Notes |
-| --- | --- | --- |
-| Runtime | Electron 44.2 (Node 24.20, Chromium 152) | `process.versions` verified 2026-09-04 |
-| Bundler | electron-vite 5 + Vite 7.3 | electron-vite 5 does **not** support Vite 8 |
-| UI | React 19, TypeScript 5.9 strict | TS 7 (Go port) is deliberately not used |
-| Styling | Tailwind CSS 4 (`@tailwindcss/vite`), `tw-animate-css` | CSS-first config in `src/renderer/src/styles/globals.css` |
-| Primitives | Radix UI (`@radix-ui/react-*`), `cmdk`, `lucide-react`, `sonner` | shadcn-style wrappers live in `src/renderer/src/components/ui` |
-| Calendar | FullCalendar **6.1.21** (`@fullcalendar/{core,react,daygrid,timegrid,list,interaction,rrule,luxon3}`) | v6 API only; v7 has a different API and is not installed |
-| Recurrence | `rrule` 2.8 (renderer expansion via FullCalendar) + `ical.js` 2.2 (parsing/expansion in main/shared) | |
-| Time | Luxon 3.7 (`luxon`, `@types/luxon`) | the only date library; no `date-fns`, no `moment` |
-| Charts | Recharts 3 | only where a chart is genuinely useful |
-| Validation | Zod 4 | every IPC payload is validated in main |
-| State | Zustand 5 (UI state), TanStack Query 5 (server-state cache over IPC) | |
-| Persistence | **`node:sqlite`** (`DatabaseSync`) built into Electron's Node | see §5 for the tradeoff |
-| Logging | `electron-log` 5 | `userData/logs/main.log` |
-| Tests | Vitest 5 (+ jsdom, Testing Library), Playwright 1.62 `_electron` | |
-| Packaging | electron-builder 26 | dmg/zip (mac), nsis (win), AppImage (linux) |
+| Layer       | Choice                                                                                                | Notes                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Runtime     | Electron 44.2 (Node 24.20, Chromium 152)                                                              | `process.versions` verified 2026-09-04                         |
+| Bundler     | electron-vite 5 + Vite 7.3                                                                            | electron-vite 5 does **not** support Vite 8                    |
+| UI          | React 19, TypeScript 5.9 strict                                                                       | TS 7 (Go port) is deliberately not used                        |
+| Styling     | Tailwind CSS 4 (`@tailwindcss/vite`), `tw-animate-css`                                                | CSS-first config in `src/renderer/src/styles/globals.css`      |
+| Primitives  | Radix UI (`@radix-ui/react-*`), `cmdk`, `lucide-react`, `sonner`                                      | shadcn-style wrappers live in `src/renderer/src/components/ui` |
+| Calendar    | FullCalendar **6.1.21** (`@fullcalendar/{core,react,daygrid,timegrid,list,interaction,rrule,luxon3}`) | v6 API only; v7 has a different API and is not installed       |
+| Recurrence  | `rrule` 2.8 (renderer expansion via FullCalendar) + `ical.js` 2.2 (parsing/expansion in main/shared)  |                                                                |
+| Time        | Luxon 3.7 (`luxon`, `@types/luxon`)                                                                   | the only date library; no `date-fns`, no `moment`              |
+| Charts      | Recharts 3                                                                                            | only where a chart is genuinely useful                         |
+| Validation  | Zod 4                                                                                                 | every IPC payload is validated in main                         |
+| State       | Zustand 5 (UI state), TanStack Query 5 (server-state cache over IPC)                                  |                                                                |
+| Persistence | **`node:sqlite`** (`DatabaseSync`) built into Electron's Node                                         | see §5 for the tradeoff                                        |
+| Logging     | `electron-log` 5                                                                                      | `userData/logs/main.log`                                       |
+| Tests       | Vitest 5 (+ jsdom, Testing Library), Playwright 1.62 `_electron`                                      |                                                                |
+| Packaging   | electron-builder 26                                                                                   | dmg/zip (mac), nsis (win), AppImage (linux)                    |
 
 Environment quirk: shells launched from VS Code export `ELECTRON_RUN_AS_NODE=1`, which makes any
 Electron binary start as plain Node. All npm scripts that launch Electron go through
@@ -59,37 +59,37 @@ by hand, prefix with `env -u ELECTRON_RUN_AS_NODE`.
 └────────────────────────────────────────────┘                                 └───────────────────────────┘
 ```
 
-* `BrowserWindow` webPreferences: `contextIsolation: true`, `nodeIntegration: false`,
+- `BrowserWindow` webPreferences: `contextIsolation: true`, `nodeIntegration: false`,
   `sandbox: true`, `webSecurity: true`, `allowRunningInsecureContent: false`, `webviewTag: false`.
-* Preload exposes exactly one object, `window.api`, with `invoke(channel, payload)`, `on(event, cb)`
+- Preload exposes exactly one object, `window.api`, with `invoke(channel, payload)`, `on(event, cb)`
   and `off(event, cb)`. It exposes no `ipcRenderer`, no `fs`, no `shell`.
-* Every `ipcMain.handle` goes through `src/main/ipc/registry.ts`, which looks up the channel's Zod
+- Every `ipcMain.handle` goes through `src/main/ipc/registry.ts`, which looks up the channel's Zod
   request schema, validates, calls the handler, and converts thrown errors into a serialisable
   `IpcError` (`{ code, message, details? }`). Unknown channels are rejected.
-* Navigation lockdown in `src/main/security/`: `will-navigate`, `will-redirect` and
+- Navigation lockdown in `src/main/security/`: `will-navigate`, `will-redirect` and
   `will-frame-navigate` are blocked unless the target is the app's own dev-server origin (dev) or a
   bundled `file:` page (prod); `setWindowOpenHandler` denies everything and opens validated
   `http(s)` URLs via `shell.openExternal`; `will-attach-webview` is denied.
-* Permissions: `security/permissions.ts` installs `setPermissionRequestHandler` and
+- Permissions: `security/permissions.ts` installs `setPermissionRequestHandler` and
   `setPermissionCheckHandler` that deny everything outside `ALLOWED_PERMISSIONS` (empty today) and
   log denials. Electron would otherwise grant every request.
-* Content Security Policy. The packaged renderer is loaded over `file:`, where the
+- Content Security Policy. The packaged renderer is loaded over `file:`, where the
   `onHeadersReceived` header is not guaranteed to apply, so the **`<meta http-equiv>` tag in
   `src/renderer/index.html` is the authoritative production policy**; the header
   (`session.defaultSession.webRequest.onHeadersReceived`) carries the same policy plus
   `frame-ancestors 'none'` (which `<meta>` cannot express). `PRODUCTION_CSP` in
   `src/main/security/csp.ts` is the single source and a unit test asserts the meta tag equals
   `PRODUCTION_META_CSP`. Production policy: `default-src 'self'; script-src 'self'; style-src 'self'
-  'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none';
-  frame-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'`. Dev relaxes only
+'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none';
+frame-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'`. Dev relaxes only
   `script-src` (`'unsafe-inline'`) and `connect-src` (`localhost`) for HMR.
-* Development switches (`src/main/env.ts`) are all gated on `!app.isPackaged`: an installed build
+- Development switches (`src/main/env.ts`) are all gated on `!app.isPackaged`: an installed build
   ignores `NODE_ENV`, `ELECTRON_RENDERER_URL` and `MY_PHD_OS_USER_DATA`; a dev-server URL is loaded
   only when its host is `localhost`/`127.0.0.1`/`[::1]`; `webPreferences.devTools` is `false` in
   production. Spellcheck is on only on macOS (native, offline); elsewhere Chromium would download
   Hunspell dictionaries from Google's CDN, which §0.5 forbids.
-* External links: renderer calls `app:openExternal`; main allows only `http:`/`https:`.
-* Network: only `src/main/subscriptions/fetcher.ts` performs HTTP (Node `fetch` with `AbortSignal`
+- External links: renderer calls `app:openExternal`; main allows only `http:`/`https:`.
+- Network: only `src/main/subscriptions/fetcher.ts` performs HTTP (Node `fetch` with `AbortSignal`
   timeout, ETag/Last-Modified conditional requests, no proxies). Approved hosts are listed in
   `src/shared/constants/hosts.ts` (`https://ccfddl.com`). Custom URLs require explicit user
   confirmation stored on the subscription record.
@@ -194,14 +194,14 @@ its feature. Everything else is read-only for it. Shared foundation files (`regi
 integration role; feature agents request changes by leaving a `TODO(integration): …` comment in
 their own files, never by editing foundation files.
 
-| Feature | Owned paths | Migration range |
-| --- | --- | --- |
-| calendar | `src/shared/ics/**`, `src/shared/ipc/channels/calendar.ts`, `src/main/ipc/handlers/calendar.ts`, `src/main/database/repositories/{calendarEvents,calendarSources}.ts`, `src/main/filesystem/icsFiles.ts`, `src/renderer/src/features/calendar/**`, `src/renderer/src/pages/CalendarPage.tsx`, `tests/fixtures/ics/**` | 010–019 |
-| conferences | `src/shared/conferences/**`, `src/shared/ipc/channels/conferences.ts`, `src/main/ipc/handlers/conferences.ts`, `src/main/subscriptions/**`, `src/main/database/repositories/{conferenceSubscriptions,conferenceDeadlines,followedConferences,conferenceChanges,conferenceSnapshots}.ts`, `src/renderer/src/features/conference-deadlines/**`, `tests/fixtures/ccf/**` | 020–029 |
-| personal-deadlines | `src/shared/deadline-status/**`, `src/shared/ipc/channels/personalDeadlines.ts`, `src/main/ipc/handlers/personalDeadlines.ts`, `src/main/database/repositories/personalDeadlines.ts`, `src/renderer/src/features/personal-deadlines/**` | 030–039 |
-| timeline | `src/shared/timeline/**`, `src/shared/ipc/channels/milestones.ts`, `src/main/ipc/handlers/milestones.ts`, `src/main/database/repositories/milestones.ts`, `src/renderer/src/features/timeline/**`, `src/renderer/src/pages/TimelinePage.tsx` | 040–049 |
-| habits | `src/shared/habits/**`, `src/shared/ipc/channels/habits.ts`, `src/main/ipc/handlers/habits.ts`, `src/main/database/repositories/{habits,habitCompletions}.ts`, `src/renderer/src/features/habits/**`, `src/renderer/src/pages/HabitsPage.tsx` | 050–059 |
-| settings-data | `src/shared/backup/**`, `src/shared/ipc/channels/{settings,data}.ts`, `src/main/ipc/handlers/{settings,data}.ts`, `src/main/filesystem/{backup,dataDirectory}.ts`, `src/renderer/src/features/settings/**`, `src/renderer/src/pages/SettingsPage.tsx`, `tests/fixtures/backup/**` | 060–069 |
+| Feature            | Owned paths                                                                                                                                                                                                                                                                                                                                                           | Migration range |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| calendar           | `src/shared/ics/**`, `src/shared/ipc/channels/calendar.ts`, `src/main/ipc/handlers/calendar.ts`, `src/main/database/repositories/{calendarEvents,calendarSources}.ts`, `src/main/filesystem/icsFiles.ts`, `src/renderer/src/features/calendar/**`, `src/renderer/src/pages/CalendarPage.tsx`, `tests/fixtures/ics/**`                                                 | 010–019         |
+| conferences        | `src/shared/conferences/**`, `src/shared/ipc/channels/conferences.ts`, `src/main/ipc/handlers/conferences.ts`, `src/main/subscriptions/**`, `src/main/database/repositories/{conferenceSubscriptions,conferenceDeadlines,followedConferences,conferenceChanges,conferenceSnapshots}.ts`, `src/renderer/src/features/conference-deadlines/**`, `tests/fixtures/ccf/**` | 020–029         |
+| personal-deadlines | `src/shared/deadline-status/**`, `src/shared/ipc/channels/personalDeadlines.ts`, `src/main/ipc/handlers/personalDeadlines.ts`, `src/main/database/repositories/personalDeadlines.ts`, `src/renderer/src/features/personal-deadlines/**`                                                                                                                               | 030–039         |
+| timeline           | `src/shared/timeline/**`, `src/shared/ipc/channels/milestones.ts`, `src/main/ipc/handlers/milestones.ts`, `src/main/database/repositories/milestones.ts`, `src/renderer/src/features/timeline/**`, `src/renderer/src/pages/TimelinePage.tsx`                                                                                                                          | 040–049         |
+| habits             | `src/shared/habits/**`, `src/shared/ipc/channels/habits.ts`, `src/main/ipc/handlers/habits.ts`, `src/main/database/repositories/{habits,habitCompletions}.ts`, `src/renderer/src/features/habits/**`, `src/renderer/src/pages/HabitsPage.tsx`                                                                                                                         | 050–059         |
+| settings-data      | `src/shared/backup/**`, `src/shared/ipc/channels/{settings,data}.ts`, `src/main/ipc/handlers/{settings,data}.ts`, `src/main/filesystem/{backup,dataDirectory}.ts`, `src/renderer/src/features/settings/**`, `src/renderer/src/pages/SettingsPage.tsx`, `tests/fixtures/backup/**`                                                                                     | 060–069         |
 
 `src/renderer/src/pages/DeadlinesPage.tsx` and `src/renderer/src/features/deadlines-summary/**`
 combine personal and conference data and are **owned by the integration role** (not by either
@@ -213,60 +213,60 @@ export from their `api.ts`.
 
 Cross-feature UI is composed by the integration role from components each feature **exports**:
 
-* `features/habits/components/TodayHabitsCompact.tsx` — today's habits with toggles + streak (Calendar right panel).
-* `features/personal-deadlines/components/PersonalDeadlineCompact.tsx` — nearest personal deadline card.
-* `features/conference-deadlines/components/FollowedConferenceCompact.tsx` — nearest followed conference card.
-* `features/conference-deadlines/components/SubscriptionManager.tsx` — builder + list + refresh (used by Deadlines empty state and Settings).
-* `features/conference-deadlines/components/ConferenceDeadlinesTab.tsx`, `features/personal-deadlines/components/PersonalDeadlinesTab.tsx` — the two Deadlines tabs.
-* `features/settings/components/ConferenceSubscriptionsSection.tsx` simply renders `SubscriptionManager`.
-* `features/<x>/commands.ts` — `Command[]` entries for the command palette (`app/commands.ts` aggregates).
-* Each page registers its quick-create handler with `useRegisterQuickCreate(page, fn)`; on the
+- `features/habits/components/TodayHabitsCompact.tsx` — today's habits with toggles + streak (Calendar right panel).
+- `features/personal-deadlines/components/PersonalDeadlineCompact.tsx` — nearest personal deadline card.
+- `features/conference-deadlines/components/FollowedConferenceCompact.tsx` — nearest followed conference card.
+- `features/conference-deadlines/components/SubscriptionManager.tsx` — builder + list + refresh (used by Deadlines empty state and Settings).
+- `features/conference-deadlines/components/ConferenceDeadlinesTab.tsx`, `features/personal-deadlines/components/PersonalDeadlinesTab.tsx` — the two Deadlines tabs.
+- `features/settings/components/ConferenceSubscriptionsSection.tsx` simply renders `SubscriptionManager`.
+- `features/<x>/commands.ts` — `Command[]` entries for the command palette (`app/commands.ts` aggregates).
+- Each page registers its quick-create handler with `useRegisterQuickCreate(page, fn)`; on the
   Deadlines page the tab components listen for `DEADLINES_QUICK_CREATE[tab]` instead.
 
 ## 4. Domain model
 
 Types live in `src/shared/types/*.ts` and mirror the spec verbatim, plus the following additions:
 
-* `CalendarEvent`: `exdates?: string[]`, `rdates?: string[]` (ISO instants / dates), `recurrenceMasterId?: string`
+- `CalendarEvent`: `exdates?: string[]`, `rdates?: string[]` (ISO instants / dates), `recurrenceMasterId?: string`
   (for modified instances), `status?: 'confirmed' | 'cancelled'`, `sourceLabel?: string`
   (e.g. `"CCF Deadlines"`), `url?: string`.
-* `ConferenceDeadline`: `stableKey: string`, `deadlineKind: 'abstract' | 'deadline'`,
+- `ConferenceDeadline`: `stableKey: string`, `deadlineKind: 'abstract' | 'deadline'`,
   `conferenceDatesText?: string` (upstream free text, may be `TBD`), `dblpUrl?: string`,
   `firstSeenAt: string`, `lastSeenAt: string`, `originalTimezoneLabel?: string` (e.g. `AoE`),
   `allDay: boolean`. `status` is `'upcoming' | 'passed' | 'tbd'`; `'tbd'` means the round vanished
   from upstream (see feed doc). `deadlineAt` is `undefined` when `status === 'tbd'`.
-* `ConferenceSubscription`: `id, url, label, kind: 'official' | 'custom', language?: 'en' | 'zh',
-  filters?: { ccf?, core?, thcpl?, subject? }, enabled, etag?, lastModified?, contentHash?,
-  lastSuccessAt?, lastAttemptAt?, lastError?: { message, code?, at }, customConfirmedAt?, createdAt, updatedAt`.
-* `AppSettings` (single JSON document in `settings` table, key `app`):
+- `ConferenceSubscription`: `id, url, label, kind: 'official' | 'custom', language?: 'en' | 'zh',
+filters?: { ccf?, core?, thcpl?, subject? }, enabled, etag?, lastModified?, contentHash?,
+lastSuccessAt?, lastAttemptAt?, lastError?: { message, code?, at }, customConfirmedAt?, createdAt, updatedAt`.
+- `AppSettings` (single JSON document in `settings` table, key `app`):
   `timezone: 'system' | string`, `dateFormat: 'system' | 'iso' | 'dmy' | 'mdy'`, `weekStartsOn: 0 | 1`,
   `clock: '12h' | '24h'`, `theme: 'light' | 'dark' | 'system'`, `defaultCalendarView:
-  'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'listWeek'`, `launchPage: 'last' | 'calendar'`,
+'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'listWeek'`, `launchPage: 'last' | 'calendar'`,
   `subscriptionRefreshIntervalHours: number` (default 6), `refreshOnLaunch: boolean` (default true),
   `requestTimeoutMs: number` (default 20000).
-* `UiState` (settings key `ui`): `lastPage`, `calendarView`, `sidebarCollapsed`, `deadlinesTab`,
+- `UiState` (settings key `ui`): `lastPage`, `calendarView`, `sidebarCollapsed`, `deadlinesTab`,
   `personalDeadlinesView`, `timelineView`.
-* Window bounds are stored under settings key `window` (main-process only).
-* IDs are UUID v4 strings from `crypto.randomUUID()` (main process). Timestamps are ISO-8601 UTC
+- Window bounds are stored under settings key `window` (main-process only).
+- IDs are UUID v4 strings from `crypto.randomUUID()` (main process). Timestamps are ISO-8601 UTC
   strings (`2026-09-18T11:59:00.000Z`). All-day dates are `YYYY-MM-DD` strings and never converted
   through a timezone.
 
 ## 5. Persistence
 
-* Engine: `node:sqlite` `DatabaseSync`. Tradeoff: it is bundled with Electron's Node, so there is no
+- Engine: `node:sqlite` `DatabaseSync`. Tradeoff: it is bundled with Electron's Node, so there is no
   native compile, no `electron-rebuild`, no ABI mismatch between Electron (Node 24) and the system
   Node used by Vitest, and nothing to unpack from the asar. Cost: the module is marked "active
   development" in Node 24 and lacks better-sqlite3's extension loading (unneeded here). It is a real
   on-disk SQLite database, never in-memory in production.
-* File: `<userData>/my-phd-os.sqlite` with `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`.
+- File: `<userData>/my-phd-os.sqlite` with `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`.
   `MY_PHD_OS_USER_DATA` (env) overrides `userData` before `app.whenReady()` for tests.
-* Migrations: `src/main/database/migrations/NNN_name.sql`, applied inside a transaction, recorded in
+- Migrations: `src/main/database/migrations/NNN_name.sql`, applied inside a transaction, recorded in
   `schema_migrations(version, name, applied_at)`. A failed migration rolls back, is logged, and the
   app shows a blocking "database could not be upgraded" screen with the log path — it never deletes
   or recreates the file.
-* Repositories are plain functions over a `DatabaseSync` instance; rows are mapped to domain types
+- Repositories are plain functions over a `DatabaseSync` instance; rows are mapped to domain types
   in one place (`rowToX`). Booleans are INTEGER 0/1, JSON columns are TEXT.
-* After every successful mutation the repository calls `changeBus.emit('calendarEvents')` etc. The
+- After every successful mutation the repository calls `changeBus.emit('calendarEvents')` etc. The
   bus debounces (~30 ms) and broadcasts `data:changed { entities: EntityName[] }` to all windows.
   `EntityName` is the union in `src/shared/ipc/events.ts`.
 
@@ -288,50 +288,50 @@ export const calendarChannels = {
 // main:      registerHandlers(channels, { 'calendar:listEvents': async (req) => repo.list(req), ... })  // TS enforces completeness
 ```
 
-* Channel names are `domain:verb` in camelCase (`conferences:refreshNow`). Push events are named
+- Channel names are `domain:verb` in camelCase (`conferences:refreshNow`). Push events are named
   in `src/shared/ipc/events.ts`: `data:changed`, `conferences:refreshStatus`, `app:command`,
   `app:navigate`.
-* Handlers never receive raw `IpcMainInvokeEvent` data; they receive the validated payload and a
+- Handlers never receive raw `IpcMainInvokeEvent` data; they receive the validated payload and a
   `ctx` with `{ window, db, now(): string }`.
-* Payload-less channels use `emptyRequestSchema = z.undefined()`; list/filter channels whose whole
+- Payload-less channels use `emptyRequestSchema = z.undefined()`; list/filter channels whose whole
   filter object is optional (`calendar:listEvents`, `personalDeadlines:list`, `habits:list`,
   `conferences:refresh`, `conferences:listDeadlines`, `conferences:listChanges`) accept `undefined`
   too (`api('personalDeadlines:list')` type-checks). Every `update` channel takes `{ id, patch }`
   built with `patchRequest()`. Partial `update` payloads cannot express cross-field rules, so the
   repositories re-validate the merged row (`validateEventTimes`, `isValidDeadlineWindow` from
   `src/shared/schemas`) and throw `VALIDATION` before writing.
-* `calendar:listEvents` range bounds may be instants with any offset or `YYYY-MM-DD` keys. Timed
+- `calendar:listEvents` range bounds may be instants with any offset or `YYYY-MM-DD` keys. Timed
   rows are compared against the UTC-normalised bound; all-day rows against the bound's own calendar
   date (its first ten characters). Send bounds in the display offset (or date keys) for exact
   all-day cuts.
-* Errors: throw `AppError(code, message, details)` (`src/shared/errors.ts`, codes: VALIDATION,
+- Errors: throw `AppError(code, message, details)` (`src/shared/errors.ts`, codes: VALIDATION,
   NOT_FOUND, CONFLICT, NOT_IMPLEMENTED, IO, NETWORK, TIMEOUT, INVALID_URL, UNTRUSTED_HOST,
   INVALID_ICS, INVALID_BACKUP, UNSUPPORTED_BACKUP_VERSION, MIGRATION_FAILED, CANCELED, PERMISSION,
   INTERNAL); the registry serialises it with `toIpcError`, the renderer rebuilds it with
   `fromIpcError` (which also unwraps Electron's "Error invoking remote method" message). Renderer
   shows `sonner` toasts with a retry when meaningful; nothing is swallowed.
-* Native dialogs (open/save) are always initiated from main via a channel (`calendar:pickIcsFiles`,
+- Native dialogs (open/save) are always initiated from main via a channel (`calendar:pickIcsFiles`,
   `data:exportBackup`). Cancel returns `{ canceled: true }`, never an error.
-* Drag-and-drop `.ics`: the renderer reads `File.text()` and sends `{ name, text }[]` to
+- Drag-and-drop `.ics`: the renderer reads `File.text()` and sends `{ name, text }[]` to
   `calendar:previewIcsImport`; no file paths cross the bridge from the renderer side.
 
 ## 7. Renderer architecture
 
-* Navigation: `useNavigation()` (zustand) with `page: PageId`, `params: Record<string, string>`,
+- Navigation: `useNavigation()` (zustand) with `page: PageId`, `params: Record<string, string>`,
   `navigate(page, params?)`. Persists `lastPage` via `settings:updateUi`. Deep-link params are
   conventions: calendar `{ date, eventId }`, deadlines `{ tab: 'conference' | 'personal', id }`,
   timeline `{ milestoneId }`, habits `{ habitId }`, settings `{ section }`.
-* Data: every feature exposes hooks in `features/<x>/api.ts` built on TanStack Query with keys from
+- Data: every feature exposes hooks in `features/<x>/api.ts` built on TanStack Query with keys from
   `lib/queryKeys.ts`. `useDataChanged()` (mounted once in `App`) invalidates keys via the
   entity→keys map when `data:changed` arrives. Never keep a second copy of server state in zustand.
-* Time: `useNow({ precision: 'minute' | 'second' })` re-renders on a shared ticker with two slices:
+- Time: `useNow({ precision: 'minute' | 'second' })` re-renders on a shared ticker with two slices:
   `minute` subscribers render only when the wall-clock minute changes even while the top-bar clock
   ticks every second. `Countdown` reads the minute slice, and switches its ticker to `second`
   precision once < 24 h remain (spec §18). Countdowns are always computed from canonical instants
   at render time; never persisted.
-* Formatting: `useFormat()` returns `formatDate/Time/DateTime/Zone` honouring settings (timezone,
+- Formatting: `useFormat()` returns `formatDate/Time/DateTime/Zone` honouring settings (timezone,
   clock, date format, week start). Components never call Luxon directly for display.
-* Commands: `app/commands.ts` aggregates `features/*/commands.ts` + shell commands into the
+- Commands: `app/commands.ts` aggregates `features/*/commands.ts` + shell commands into the
   `cmdk` palette (`Cmd/Ctrl+K`). Quick create (`Cmd/Ctrl+N`) dispatches to the current page's
   registered handler. Menu accelerators arrive as `app:command` events and go through the same
   dispatcher (`app/shortcuts.ts`). `app/commandBus.ts` is a synchronous in-renderer bus: the shell
@@ -341,12 +341,12 @@ export const calendarChannels = {
   `dispatchCommand` returns the number of listeners so callers can fall back. Shortcuts: `Cmd/Ctrl+K`, `Cmd/Ctrl+N`, `Cmd/Ctrl+I`, `Cmd/Ctrl+,`,
   `Cmd/Ctrl+1–5`, `T` (calendar focused, no modifier, not in an input), `Esc`. Never override OS
   shortcuts (copy/paste/undo/quit/close use standard menu roles).
-* Theme: `ThemeProvider` applies `class="dark"` on `<html>` per settings (`system` follows
+- Theme: `ThemeProvider` applies `class="dark"` on `<html>` per settings (`system` follows
   `prefers-color-scheme`) and sets `color-scheme`. Main reads the persisted theme before creating
   the window, paints `backgroundColor` from it and passes `?theme=light|dark|system` on the initial
   URL; `main.tsx` applies it before the first paint (`bootThemeSetting`) so there is no flash. Tailwind 4 dark variant:
   `@custom-variant dark (&:where(.dark, .dark *))`.
-* Layout: collapsible sidebar (icons only when collapsed), top bar with page title, live clock
+- Layout: collapsible sidebar (icons only when collapsed), top bar with page title, live clock
   (`useNow` second precision), active timezone, quick-create button, palette trigger, theme
   control. The top-bar quick-create button is labelled with the page's `createActionLabel`, which
   uses the same verb as the page toolbar / empty state (`Add Event`, `Add Milestone`,
@@ -354,33 +354,33 @@ export const calendarChannels = {
   `app:getInfo` and the first `settings:get` before mounting the shell; a settings failure falls
   back to defaults and `AppShell` toasts it with Retry. Content area scrolls independently. Minimum supported width ~960 px; the Calendar
   right panel collapses under ~1180 px.
-* macOS title bar: the window uses `titleBarStyle: 'hiddenInset'` with `trafficLightPosition
-  { x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px inside the 48 px brand
+- macOS title bar: the window uses `titleBarStyle: 'hiddenInset'` with `trafficLightPosition
+{ x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px inside the 48 px brand
   row of the sidebar (which is the `-webkit-app-region: drag` area together with the top bar).
   Expanded, the brand is offset to `pl-[84px]`; collapsed (56 px rail) the brand icon is hidden
   and the top bar gets `pl-9` so the page title clears the buttons. Nothing else may be placed in
   that region on macOS.
-* Accessibility: Radix primitives for focus management; every icon-only button has `aria-label`;
+- Accessibility: Radix primitives for focus management; every icon-only button has `aria-label`;
   `prefers-reduced-motion` disables non-essential animation; status badges include text.
 
 ## 8. Time handling rules
 
-* `resolveZone(input)` in `src/shared/dates/zones.ts` accepts: `'system'`, any IANA name, `'UTC'`,
+- `resolveZone(input)` in `src/shared/dates/zones.ts` accepts: `'system'`, any IANA name, `'UTC'`,
   `'AoE'` (→ fixed UTC−12, label `AoE`), `'PT'` (→ `America/Los_Angeles`, DST-aware), `'ET'`
   (→ `America/New_York`), `'UTC-8'`, `'UTC-08:00'`, `'UTC+5:30'`, `'GMT+8'` (→ fixed offsets).
   It returns `{ kind, luxonZone, label, ianaName?, offsetMinutes? }`. Unknown input is an error, not a guess.
-* Store canonical instants (`*At` ISO UTC) **and** the original zone string separately. Display
+- Store canonical instants (`*At` ISO UTC) **and** the original zone string separately. Display
   shows both source time and user-local time. If a source gives only a UTC instant with no zone,
   say "original timezone unavailable"; do not invent one.
-* All-day values are `YYYY-MM-DD` and never pass through zone conversion (`dates/allDay.ts`).
-* `.ics`: `Z` → UTC instant; `TZID` → resolve (IANA or `UTC±HH:MM` fixed); floating (no `Z`, no
+- All-day values are `YYYY-MM-DD` and never pass through zone conversion (`dates/allDay.ts`).
+- `.ics`: `Z` → UTC instant; `TZID` → resolve (IANA or `UTC±HH:MM` fixed); floating (no `Z`, no
   `TZID`) → interpret in the **import-time application timezone** and record `timezone` as that zone.
-* Countdowns: `calculateRemainingTime(targetIso, nowIso)` → `{ totalMs, isPast, days, hours,
-  minutes, seconds }`; `formatCountdown` produces `32 days 08 hours 14 minutes`, emphasises
+- Countdowns: `calculateRemainingTime(targetIso, nowIso)` → `{ totalMs, isPast, days, hours,
+minutes, seconds }`; `formatCountdown` produces `32 days 08 hours 14 minutes`, emphasises
   `hours/minutes` under 24 h, and `Passed 2 days ago` after the instant. TBD never has a countdown.
-* Personal deadline math (`dates/progress.ts` + `deadline-status/`): `timeProgress = (now −
-  trackingStart) / (deadline − trackingStart)` clamped to `[0, 1]` for display, `paceDifference =
-  workProgress − timeProgress×100`; status rule order is exactly the spec's (`Completed`,
+- Personal deadline math (`dates/progress.ts` + `deadline-status/`): `timeProgress = (now −
+trackingStart) / (deadline − trackingStart)` clamped to `[0, 1]` for display, `paceDifference =
+workProgress − timeProgress×100`; status rule order is exactly the spec's (`Completed`,
   `Overdue`, `Urgent`, `At Risk`, `Behind`, `Ahead`, `On Track`) with thresholds in
   `deadline-status/config.ts`. Tracking start equal to the deadline yields `timeProgress = 1`.
 
@@ -396,27 +396,27 @@ utility classes (`bg-status-ahead/15 text-status-ahead`). Color is never the onl
 
 ## 10. Empty-state copy (exact strings)
 
-| Where | Title | Actions |
-| --- | --- | --- |
-| Calendar | Your calendar is empty. | Import .ics · Create Event |
-| Conference Deadlines (no subscription) | No conference subscription yet. | Add CCF Subscription · Enter Subscription URL |
-| Conference Deadlines (subscription, not loaded) | loading / error state | Retry |
-| Personal Deadlines | No personal deadlines yet. | Add Personal Deadline (+ note that countdowns and progress appear after adding one) |
-| Timeline | Your timeline starts here. | Add Milestone |
-| Habits | No habits yet. | Create Habit |
-| Right-panel sections | compact one-line empty states | — |
+| Where                                           | Title                           | Actions                                                                             |
+| ----------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------- |
+| Calendar                                        | Your calendar is empty.         | Import .ics · Create Event                                                          |
+| Conference Deadlines (no subscription)          | No conference subscription yet. | Add CCF Subscription · Enter Subscription URL                                       |
+| Conference Deadlines (subscription, not loaded) | loading / error state           | Retry                                                                               |
+| Personal Deadlines                              | No personal deadlines yet.      | Add Personal Deadline (+ note that countdowns and progress appear after adding one) |
+| Timeline                                        | Your timeline starts here.      | Add Milestone                                                                       |
+| Habits                                          | No habits yet.                  | Create Habit                                                                        |
+| Right-panel sections                            | compact one-line empty states   | —                                                                                   |
 
 ## 11. Testing and scripts
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | electron-vite dev with HMR (via `scripts/with-electron-env.mjs`) |
-| `npm run typecheck` | `tsc` for node (main/preload/shared/unit+integration tests), web (renderer/shared) and e2e (`tsconfig.e2e.json`: `tests/e2e` with DOM + Node types) |
-| `npm run lint` | ESLint 10 flat config |
-| `npm test` | Vitest: project `node` (`src/shared`, `src/main`, `tests/unit`, `tests/integration`) and project `renderer` (jsdom, `src/renderer/**/*.test.tsx`) |
-| `npm run test:e2e` | Playwright Electron tests in `tests/e2e` against `out/` (run `npm run build` first); each test uses a fresh temp `MY_PHD_OS_USER_DATA`; `visual.spec.ts` also writes screenshots to `tests/e2e/__screenshots__/` (git-ignored) |
-| `npm run build` | typecheck + electron-vite production build into `out/` (via `scripts/with-electron-env.mjs`) |
-| `npm run build:mac` / `build:win` / `build:linux` / `build:unpack` | `npm run build` then electron-builder (via the wrapper) into `release/` |
+| Script                                                             | What it does                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run dev`                                                      | electron-vite dev with HMR (via `scripts/with-electron-env.mjs`)                                                                                                                                                               |
+| `npm run typecheck`                                                | `tsc` for node (main/preload/shared/unit+integration tests), web (renderer/shared) and e2e (`tsconfig.e2e.json`: `tests/e2e` with DOM + Node types)                                                                            |
+| `npm run lint`                                                     | ESLint 10 flat config                                                                                                                                                                                                          |
+| `npm test`                                                         | Vitest: project `node` (`src/shared`, `src/main`, `tests/unit`, `tests/integration`) and project `renderer` (jsdom, `src/renderer/**/*.test.tsx`)                                                                              |
+| `npm run test:e2e`                                                 | Playwright Electron tests in `tests/e2e` against `out/` (run `npm run build` first); each test uses a fresh temp `MY_PHD_OS_USER_DATA`; `visual.spec.ts` also writes screenshots to `tests/e2e/__screenshots__/` (git-ignored) |
+| `npm run build`                                                    | typecheck + electron-vite production build into `out/` (via `scripts/with-electron-env.mjs`)                                                                                                                                   |
+| `npm run build:mac` / `build:win` / `build:linux` / `build:unpack` | `npm run build` then electron-builder (via the wrapper) into `release/`                                                                                                                                                        |
 
 Rules: unit tests for every function named in spec §21; fixtures under `tests/fixtures`; e2e tests
 never touch the real `userData`; tests never write outside temp directories. `MY_PHD_OS_E2E=1`
@@ -462,7 +462,7 @@ Foundation phase (shared layer), 2026-09-04:
    `America/Los_Angeles`); the moment-specific abbreviation (`PDT`) comes from `formatZoneLabel` /
    `instantToWallTime().zoneLabel`.
 7. **Countdown formats**: `long` = `32 days 08 hours 14 minutes`, under 24 h `08 hours 14 minutes 09
-   seconds`; `compact` = `32d 08h` / `08h 14m` / `14m 09s`; `stacked` = long segments joined by `\n`;
+seconds`; `compact` = `32d 08h` / `08h 14m` / `14m 09s`; `stacked` = long segments joined by `\n`;
    past = `Passed 2 days ago` (`Passed 2d ago` compact, `Passed just now` under a minute).
    `countdownSegments()` exposes the same data for custom layouts.
 8. **Time progress with `trackingStartAt >= deadlineAt` is `1`** (raw and clamped) at any `now`;
@@ -494,14 +494,13 @@ Foundation phase (shared layer), 2026-09-04:
     error. `src/main/index.ts` (smoke scaffold) still has one prettier warning; the main-process
     agent replaces that file.
 
-
 Main-process / persistence phase, 2026-09-04:
 
 16. **IPC errors travel as a plain envelope, not a thrown error.** `registry.ts` returns
     `{ __ipcError: IpcError }` (`IPC_ERROR_KEY`) from every failed `ipcMain.handle`, because Electron
     serialises a thrown error down to its `message` string and would drop `code`/`details`. The
     preload unwraps the envelope and rejects with the plain `IpcError` object (`{ code, message,
-    details? }`), which `fromIpcError` in the renderer already accepts. Unknown channel/event names
+details? }`), which `fromIpcError` in the renderer already accepts. Unknown channel/event names
     are rejected by the preload with `VALIDATION` before reaching main.
 17. **Handler context is `{ db, window, paths, dbError?, now() }`** (`HandlerContext` in
     `registry.ts`). `db` is a getter that throws the startup `AppError` (`MIGRATION_FAILED`/`IO`) when
@@ -526,7 +525,7 @@ Main-process / persistence phase, 2026-09-04:
     clamped to `[960×640, largest work area]`. Persisted 300 ms after resize/move, immediately on
     maximize/unmaximize/close.
 23. **The preload bundles `zod` and `luxon`** (`electron.vite.config.ts` → `preload.build.externalizeDeps
-    .exclude`) because a sandboxed preload cannot `require` node_modules; only `electron` stays
+.exclude`) because a sandboxed preload cannot `require` node_modules; only `electron` stays
     external. Main keeps `node:sqlite`, `electron-log`, `zod`, `luxon` external (verified in
     `out/main/index.js`).
 24. **Conference subscription URLs**: `conferences:addSubscription` accepts an approved origin
@@ -546,7 +545,6 @@ Main-process / persistence phase, 2026-09-04:
 26. **E2E harness**: `tests/e2e/helpers/launchApp.ts` launches `out/` with a fresh temp
     `MY_PHD_OS_USER_DATA`, `MY_PHD_OS_E2E=1`, and `ELECTRON_RUN_AS_NODE`/`ELECTRON_RENDERER_URL`
     removed from the environment; it collects renderer console errors and page errors.
-
 
 Integration / verification phase (shell e2e), 2026-09-04:
 
@@ -569,7 +567,7 @@ Integration / verification phase (shell e2e), 2026-09-04:
 31. **Palette trigger label is `Search commands…`** (was `Search or run a command…`, which truncated
     at the 224 px trigger width). The accessible name stays `Open command palette (⌘K)`.
 32. **Dev CSP verified, not relaxed further.** With `npm run dev`, Vite injects the React-refresh
-    preamble *before* the `<meta http-equiv="Content-Security-Policy">` tag, so the production meta
+    preamble _before_ the `<meta http-equiv="Content-Security-Policy">` tag, so the production meta
     policy does not apply to it; the header policy (`DEVELOPMENT_CSP`) allows `'unsafe-inline'`
     scripts and `ws://localhost:*`. Renderer console in dev (`ELECTRON_ENABLE_LOGGING=1`) showed
     `[vite] connected.` and no `Refused to …` lines. `src/main/security/csp.ts` is unchanged.
@@ -580,7 +578,6 @@ Integration / verification phase (shell e2e), 2026-09-04:
     600 ms (300 ms debounce) + relaunch.
 34. **`tests/e2e/__screenshots__/` is git-ignored**; screenshots are inspection aids, not golden
     images. No pixel-diff assertions exist yet.
-
 
 Review-fix pass (foundation), 2026-09-04:
 
@@ -643,3 +640,87 @@ Review-fix pass (foundation), 2026-09-04:
     instead of fixed sleeps; the window-bounds test no longer sleeps 600 ms (the `close` event
     flushes synchronously); `snapshotDirectory` ignores log-file and directory mtimes (Decision 29).
     New shell test: database error screen → release the "lock" → Retry → shell appears.
+49. **Update schemas accept `null` for clearable optional fields.** `updatePersonalDeadlineInputSchema`
+    (`description`, `sourceUrl`, `location`, `linkedMilestoneId`), `updateMilestoneInputSchema`
+    (`description`, `color`) and `updateHabitInputSchema` (`icon`) take `null` to clear a value;
+    `undefined` still means "leave untouched" (`buildSet` skips it and writes `null` as SQL NULL).
+    Forms send `null` on update for emptied optional fields; create schemas are unchanged.
+50. **Deadline ↔ calendar link (spec §13.5) lives in `handlers/personalDeadlines.ts`** over the pure
+    mapping in `src/shared/personal-deadlines/calendarLink.ts`. `linkCalendarEvent` creates one event
+    (`category: 'deadline'`, `linkedPersonalDeadlineId`, `sourceManaged: false`) or updates the
+    existing one when already linked (mode switch, never a duplicate); `update` re-syncs title, times,
+    description, location and URL into the linked event; `delete` removes the linked event; `unlink`
+    keeps the event (back-link cleared; `updateEvent` accepts `linkedPersonalDeadlineId: null`) or
+    removes it. Filter/sort/summary logic for the tab is `src/shared/personal-deadlines/views.ts`.
+51. **JSON backup is a table-level dump** (`src/shared/backup/format.ts`): `{ format: 'my-phd-os-backup',
+formatVersion: 1, schemaVersion, appVersion, exportedAt, tables }` over every user table except the
+    device-specific `window` settings document and `app_meta`. `validate.ts` rejects foreign files
+    (`INVALID_BACKUP`), newer formats/schemas (`UNSUPPORTED_BACKUP_VERSION`) and warns on unknown
+    tables / older schemas. `src/main/filesystem/backup.ts` (no Electron imports) applies an import in
+    one transaction with `PRAGMA defer_foreign_keys` so the deadline ↔ event cycle restores; `replace`
+    empties user tables first (keeping `window`/`app_meta`), `merge` upserts with `ON CONFLICT DO
+UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` moved to the
+    shared format module (`repositories/maintenance.ts` re-exports it).
+52. **Timeline layout is generic over `TimeSpan`** (`features/timeline/layout.ts`: window per view +
+    range offset, clip-aware bar/fill/today-tick/marker positions, lane packing, zone-aware axis ticks)
+    and is reused by the personal-deadline timeline view. `src/shared/timeline` is `rules.ts` +
+    `detectTimelineWarnings.ts` (as in §3); the habits module is `src/shared/habits/streaks.ts`;
+    `startOfWeek(date, weekStartsOn)` lives in `dates/allDay.ts`.
+53. **Habit icons render through `DynamicIcon`**: `Repeat` was added to `lib/icons.ts` so the curated
+    habit icon names (`features/habits/icons.ts`) all resolve through the shared registry.
+54. **Palette deep links track the param's current value**: pages/tabs that open an editor from
+    `{ create }` or an entity id compare the param against its last seen value (not "changed since
+    mount"), so a repeated command after the param was cleared on close fires again.
+55. **Recurrence is expanded by the app, not by FullCalendar.** `features/calendar/lib/occurrences.ts`
+    expands RRULE/RDATE/EXDATE and modified instances with `rrule` in wall-clock terms and Luxon for
+    the zone (DST-correct: a 09:00 weekly event stays at 09:00 across the Nov 1 2026 change), and
+    FullCalendar receives plain instances (`toFcEvents`; `editable` only for non-recurring, non
+    source-managed events). The same expansion feeds the Today panel and the next-event countdown, so
+    the two never disagree. `@fullcalendar/rrule` is deliberately not used.
+56. **`.ics` pipeline.** `src/shared/ics/parse.ts` parses with ical.js (lenient; TZIDs resolved through
+    `resolveZone`, floating times take the app zone at import, `VALUE=DATE` stays `YYYY-MM-DD` with an
+    exclusive end, raw RRULE kept via `toICALString()`); `duplicates.ts` ranks reasons uid →
+    recurrence-id → start instant → source; `src/main/filesystem/icsImport.ts` (no Electron imports)
+    builds the preview and commits with `skip` / `replace` / `keepBoth`, masters before instances,
+    cancelled instances becoming EXDATEs on their master. Export (`serialize.ts`) writes IANA zones as
+    `TZID` wall time, fixed offsets as UTC, all-day as `VALUE=DATE`, folds lines and uses a stable
+    `exportUid`. Dialogs live in `filesystem/icsFiles.ts`; page-level drag-and-drop reads files in
+    the renderer and passes their text over IPC (`calendar:previewImport` accepts inline files).
+57. **Conference identity and refresh.** Upstream UIDs change on every feed regeneration, so identity
+    is `stableKey = name|year|kind|normalizedComment` (`src/shared/conferences/stableKey.ts`). A round
+    that disappears from the feed keeps its record with `status: 'tbd'` and `deadlineAt` cleared (the
+    feed omits TBD rounds); a reappearing round is a `status` change back to `upcoming`. The DESCRIPTION
+    label `⏰ Original Deadline (AoE)` is the authoritative timezone label, the DTSTART TZID
+    (`UTC-12:00`) the offset. `src/main/subscriptions/fetcher.ts` is the only network module
+    (approved host or confirmed custom host, ETag / Last-Modified / SHA-256 content hash, timeout);
+    `refresh.ts` applies a snapshot inside one transaction and records per-field changes; the
+    `SubscriptionScheduler` singleton is configured after the window exists, refreshes stale
+    subscriptions on launch (`refreshOnLaunch`) and every `subscriptionRefreshIntervalHours`, pushes
+    `conferences:refreshStatus`, and is disabled under `MY_PHD_OS_E2E`. `reconcileStatuses` flips
+    `upcoming` → `passed` whenever deadlines are listed or refreshed, so nothing jumps to next year.
+58. **Adding a conference to the calendar follows it.** `calendarSync.addConferenceToCalendar` creates
+    (or reuses) the `CCF Deadlines` calendar source (`type: 'conference'`), writes one source-managed
+    event per deadline (never a duplicate; `followed.calendarEventId` is the link), auto-follows the
+    conference, and every refresh re-syncs the linked event from the canonical record. Unfollowing or
+    "Remove from calendar" deletes the event; user-created preparation events are never touched.
+59. **Conference tab filters run in the renderer** over the cached records
+    (`src/shared/conferences/views.ts`: search, facets collected from the data, status, sort orders,
+    round grouping, nearest followed deadline, followed time-elapsed bar, change text), rendering 60
+    cards at a time. `useRefreshStatus` writes the pushed status straight into the query cache. The
+    renderer test setup registers empty default responses for the conference list channels so
+    every page test renders the Calendar/Deadlines panels without noise.
+60. **Followed conferences on the Timeline are point markers, not bars.** `TimelineGantt` takes
+    `conferences` (the followed list from `conferences:listFollowed`) and draws every followed round
+    whose canonical deadline falls inside the window in a "Followed conferences" track above the
+    category tracks (`pointInWindow` + `packPointLanes` in `features/timeline/layout.ts`; TBD rounds
+    have no instant and are skipped; passed rounds are dimmed). Clicking a marker deep-links to
+    `{ tab: 'conference', id }`. Unfollowed conferences never reach the Timeline (spec §12.6).
+61. **The Conference tab shows only chosen conferences; the feed is a lookup source.** On the
+    owner's feedback (too many words, too many conferences) the tab became a board of followed
+    conferences — one row each with a followedAt → deadline bar coloured by `urgencyLevel`, the dates
+    and a big countdown, plus a months axis — with details in a sheet. Browsing the whole feed moved
+    into the "Add conference" picker (search over the cached list, one-click load of the official
+    English / Chinese feed when nothing is subscribed, Add / Remove per row). The subscription
+    builder and manager remain for filtered feeds, custom URLs and Settings. The Personal tab
+    defaults to its bar timeline (`DEFAULT_UI_STATE.personalDeadlinesView = 'timeline'`). Rule going
+    forward: bars over words; show only what the owner chose; details on click.
