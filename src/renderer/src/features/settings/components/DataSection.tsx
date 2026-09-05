@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, Database, FileJson, FolderOpen, Trash2, Upload } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import {
   CLEAR_ALL_DATA_CONFIRMATION,
   type BackupImportMode,
   type BackupImportSummary
 } from '@shared/types/data'
+import { useCommandListener } from '@renderer/app/commandBus'
+import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
 import {
   AlertDialog,
@@ -29,9 +30,17 @@ import {
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
-import { api } from '@renderer/lib/api'
-import { queryKeys } from '@renderer/lib/queryKeys'
-import { toastError, toastSuccess } from '@renderer/lib/toast'
+import { useFormat } from '@renderer/hooks/useFormat'
+import { toastSuccess } from '@renderer/lib/toast'
+import {
+  useClearAllData,
+  useCommitBackupImport,
+  useExportBackup,
+  useExportCalendar,
+  useOpenDataDirectory,
+  usePreviewBackupImport,
+  useStorageInfo
+} from '../api'
 
 function DataRow({
   icon: Icon,
@@ -50,7 +59,7 @@ function DataRow({
         <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0">
           <h3 className="text-[13px] font-medium">{title}</h3>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <div className="text-xs text-muted-foreground">{description}</div>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">{children}</div>
@@ -64,14 +73,28 @@ const countsList = (counts: BackupImportSummary['counts']): string =>
     .map(([entity, n]) => `${n} ${entity.replace(/([A-Z])/g, ' $1').toLowerCase()}`)
     .join(', ') || 'no records'
 
+const formatBytes = (bytes: number): string =>
+  bytes < 1024
+    ? `${bytes} B`
+    : bytes < 1024 * 1024
+      ? `${(bytes / 1024).toFixed(1)} KB`
+      : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+
 /**
- * Settings › Data. Storage info + export are wired to their channels; import shows the preview
- * before committing; clearing needs a typed confirmation. The settings-data feature owns this file
- * and may extend it (progress, richer previews) — TODO(feature: settings-data).
+ * Settings › Data (spec §17): storage location and size, JSON backup export, import with a
+ * mandatory preview, calendar export, and clearing all data behind a typed second confirmation.
+ * The palette's backup commands land here over the command bus.
  */
 export function DataSection(): React.JSX.Element {
-  const info = useQuery({ queryKey: queryKeys.app.info(), queryFn: () => api('app:getInfo') })
-  const [busy, setBusy] = useState<string | undefined>()
+  const format = useFormat()
+  const storage = useStorageInfo()
+  const openDirectory = useOpenDataDirectory()
+  const exportBackup = useExportBackup()
+  const previewImport = usePreviewBackupImport()
+  const commitImport = useCommitBackupImport()
+  const clearAll = useClearAllData()
+  const exportCalendar = useExportCalendar()
+
   const [importPreview, setImportPreview] = useState<
     { token: string; summary: BackupImportSummary } | undefined
   >()
@@ -79,59 +102,62 @@ export function DataSection(): React.JSX.Element {
   const [clearOpen, setClearOpen] = useState(false)
   const [clearText, setClearText] = useState('')
 
-  const runAction = async (id: string, action: () => Promise<void>): Promise<void> => {
-    setBusy(id)
-    try {
-      await action()
-    } catch (error) {
-      toastError(error, { retry: () => runAction(id, action) })
-    } finally {
-      setBusy(undefined)
-    }
+  const { mutate: runExportMutation } = exportBackup
+  const runExport = useCallback(() => {
+    runExportMutation(undefined, {
+      onSuccess: (result) => {
+        if (!result.canceled)
+          toastSuccess('Backup exported', `${countsList(result.counts)} → ${result.path}`)
+      }
+    })
+  }, [runExportMutation])
+  const { mutate: runPreviewMutation } = previewImport
+  const runPreview = useCallback(() => {
+    runPreviewMutation(undefined, {
+      onSuccess: (result) => {
+        if (!result.canceled)
+          setImportPreview({ token: result.previewToken, summary: result.summary })
+      }
+    })
+  }, [runPreviewMutation])
+  useCommandListener('settings:export-backup', runExport)
+  useCommandListener('settings:import-backup', runPreview)
+
+  const runCommit = (): void => {
+    if (!importPreview) return
+    commitImport.mutate(
+      { previewToken: importPreview.token, mode: importMode },
+      {
+        onSuccess: (result) => {
+          setImportPreview(undefined)
+          toastSuccess('Backup imported', countsList(result.imported))
+        },
+        // The token is single-use: whatever happened, the next attempt starts from the file picker.
+        onError: () => setImportPreview(undefined)
+      }
+    )
   }
 
-  const openDirectory = (): Promise<void> =>
-    runAction('open', async () => {
-      await api('app:openDataDirectory')
+  const runClear = (): void => {
+    clearAll.mutate(undefined, {
+      onSuccess: () => {
+        setClearOpen(false)
+        setClearText('')
+        toastSuccess('All local data was cleared')
+      }
     })
+  }
 
-  const exportBackup = (): Promise<void> =>
-    runAction('export', async () => {
-      const result = await api('data:exportBackup')
-      if (!result.canceled) toastSuccess('Backup exported', result.path)
-    })
-
-  const exportCalendar = (): Promise<void> =>
-    runAction('exportIcs', async () => {
-      const result = await api('calendar:exportIcs', { scope: { type: 'all' } })
-      if (!result.canceled) toastSuccess(`Exported ${result.count} events`, result.path)
-    })
-
-  const previewImport = (): Promise<void> =>
-    runAction('import', async () => {
-      const result = await api('data:previewBackupImport')
-      if (!result.canceled)
-        setImportPreview({ token: result.previewToken, summary: result.summary })
-    })
-
-  const commitImport = (): Promise<void> =>
-    runAction('commit', async () => {
-      if (!importPreview) return
-      const result = await api('data:commitBackupImport', {
-        previewToken: importPreview.token,
-        mode: importMode
-      })
-      setImportPreview(undefined)
-      toastSuccess('Backup imported', countsList(result.imported))
-    })
-
-  const clearAll = (): Promise<void> =>
-    runAction('clear', async () => {
-      await api('data:clearAllData', { confirmation: CLEAR_ALL_DATA_CONFIRMATION })
-      setClearOpen(false)
-      setClearText('')
-      toastSuccess('All local data was cleared')
-    })
+  const runExportCalendar = (): void => {
+    exportCalendar.mutate(
+      { scope: { type: 'all' } },
+      {
+        onSuccess: (result) => {
+          if (!result.canceled) toastSuccess(`Exported ${result.count} events`, result.path)
+        }
+      }
+    )
+  }
 
   return (
     <div className="flex flex-col">
@@ -139,16 +165,31 @@ export function DataSection(): React.JSX.Element {
         icon={Database}
         title="Local database"
         description={
-          info.data ? (
-            <span className="font-mono break-all">{info.data.databasePath}</span>
-          ) : info.error ? (
-            'Database location unavailable.'
+          storage.data ? (
+            <>
+              <span className="font-mono break-all">{storage.data.databasePath}</span>
+              <span className="tabular block" data-testid="storage-summary">
+                {formatBytes(storage.data.databaseSizeBytes)} · {countsList(storage.data.counts)}
+              </span>
+            </>
+          ) : storage.isError ? (
+            <ErrorState
+              variant="compact"
+              error={storage.error}
+              title="Storage details unavailable"
+              onRetry={() => void storage.refetch()}
+            />
           ) : (
-            <LoadingState variant="inline" label="Locating database…" />
+            <LoadingState variant="inline" label="Reading storage…" />
           )
         }
       >
-        <Button variant="outline" size="sm" onClick={openDirectory} disabled={busy === 'open'}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openDirectory.mutate()}
+          disabled={openDirectory.isPending}
+        >
           <FolderOpen aria-hidden="true" />
           Open data directory
         </Button>
@@ -159,10 +200,10 @@ export function DataSection(): React.JSX.Element {
         title="JSON backup"
         description="Export everything (events, deadlines, milestones, habits, subscriptions, settings) to a file you choose. Import shows a preview before anything changes."
       >
-        <Button variant="outline" size="sm" onClick={exportBackup} disabled={busy === 'export'}>
+        <Button variant="outline" size="sm" onClick={runExport} disabled={exportBackup.isPending}>
           Export backup…
         </Button>
-        <Button variant="outline" size="sm" onClick={previewImport} disabled={busy === 'import'}>
+        <Button variant="outline" size="sm" onClick={runPreview} disabled={previewImport.isPending}>
           <Upload aria-hidden="true" />
           Import backup…
         </Button>
@@ -176,8 +217,8 @@ export function DataSection(): React.JSX.Element {
         <Button
           variant="outline"
           size="sm"
-          onClick={exportCalendar}
-          disabled={busy === 'exportIcs'}
+          onClick={runExportCalendar}
+          disabled={exportCalendar.isPending}
         >
           Export calendar (.ics)…
         </Button>
@@ -186,7 +227,7 @@ export function DataSection(): React.JSX.Element {
       <DataRow
         icon={Trash2}
         title="Clear all local data"
-        description="Deletes every record in the local database. This cannot be undone — export a backup first."
+        description="Deletes every record in the local database. This cannot be undone: export a backup first."
       >
         <Button variant="destructive" size="sm" onClick={() => setClearOpen(true)}>
           Clear all data…
@@ -208,11 +249,11 @@ export function DataSection(): React.JSX.Element {
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-muted/60 p-3 text-xs">
               <dt className="text-muted-foreground">Exported</dt>
               <dd>
-                {importPreview.summary.exportedAt} · app {importPreview.summary.appVersion} · format
-                v{importPreview.summary.formatVersion}
+                {format.formatDateTime(importPreview.summary.exportedAt)} · app{' '}
+                {importPreview.summary.appVersion} · format v{importPreview.summary.formatVersion}
               </dd>
               <dt className="text-muted-foreground">Contains</dt>
-              <dd>{countsList(importPreview.summary.counts)}</dd>
+              <dd data-testid="import-contains">{countsList(importPreview.summary.counts)}</dd>
               {importPreview.summary.warnings.length > 0 && (
                 <>
                   <dt className="text-muted-foreground">Warnings</dt>
@@ -250,8 +291,8 @@ export function DataSection(): React.JSX.Element {
             </Button>
             <Button
               variant={importMode === 'replace' ? 'destructive' : 'default'}
-              onClick={commitImport}
-              disabled={busy === 'commit'}
+              onClick={runCommit}
+              disabled={commitImport.isPending}
             >
               {importMode === 'replace' ? 'Replace and import' : 'Import'}
             </Button>
@@ -291,10 +332,10 @@ export function DataSection(): React.JSX.Element {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={clearText !== CLEAR_ALL_DATA_CONFIRMATION || busy === 'clear'}
+              disabled={clearText !== CLEAR_ALL_DATA_CONFIRMATION || clearAll.isPending}
               onClick={(event) => {
                 event.preventDefault()
-                void clearAll()
+                runClear()
               }}
             >
               Delete everything

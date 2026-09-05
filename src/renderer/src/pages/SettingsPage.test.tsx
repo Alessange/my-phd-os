@@ -3,12 +3,21 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useNavigation } from '@renderer/app/navigation'
 import { renderWithProviders } from '@renderer/test/renderWithProviders'
-import { windowApi } from '../../../../tests/setup/renderer'
+import { emptyCounts } from '@shared/backup/format'
+import { TEST_APP_INFO, windowApi } from '../../../../tests/setup/renderer'
 import SettingsPage from './SettingsPage'
 
 describe('SettingsPage › General', () => {
   beforeEach(() => {
     useNavigation.setState({ page: 'settings', params: {}, hydrated: true })
+    // Settings › Data reads the database location from data:getStorageInfo (spec §17).
+    windowApi.respond('data:getStorageInfo', {
+      databasePath: TEST_APP_INFO.databasePath,
+      databaseSizeBytes: 4096,
+      userDataPath: TEST_APP_INFO.userDataPath,
+      logPath: TEST_APP_INFO.logPath,
+      counts: emptyCounts()
+    })
   })
 
   it('renders the four sections with headings', async () => {
@@ -57,7 +66,7 @@ describe('SettingsPage › General', () => {
     await waitFor(() => expect(document.documentElement.classList.contains('dark')).toBe(true))
   })
 
-  it('shows the database path and version from app:getInfo', async () => {
+  it('shows the database path (data:getStorageInfo) and the version (app:getInfo)', async () => {
     renderWithProviders(<SettingsPage />)
     expect(await screen.findByText('/tmp/my-phd-os-test/my-phd-os.sqlite')).toBeInTheDocument()
     expect(await screen.findByText('0.0.0-test')).toBeInTheDocument()
