@@ -1,0 +1,127 @@
+/* FullCalendar 6 theme hooks mapped to the application tokens (light + dark flip with the tokens). */
+.fc {
+  --fc-border-color: var(--color-border);
+  --fc-page-bg-color: var(--color-card);
+  --fc-neutral-bg-color: var(--color-muted);
+  --fc-neutral-text-color: var(--color-muted-foreground);
+  --fc-today-bg-color: color-mix(in oklab, var(--color-primary) 8%, transparent);
+  --fc-now-indicator-color: var(--color-status-overdue);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #fff;
+  --fc-list-event-hover-bg-color: var(--color-accent);
+  --fc-highlight-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  --fc-non-business-color: transparent;
+  --fc-small-font-size: 0.75rem;
+  font-size: 13px;
+  color: var(--color-foreground);
+}
+
+.fc .fc-view-harness {
+  background: var(--color-card);
+}
+
+.fc a,
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number,
+.fc .fc-list-day-text,
+.fc .fc-list-day-side-text {
+  color: var(--color-foreground);
+  text-decoration: none;
+}
+
+.fc .fc-col-header-cell-cushion {
+  padding: 6px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-muted-foreground);
+}
+
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-timegrid-axis-cushion {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  display: inline-flex;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+
+.fc .fc-event {
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.fc .fc-timegrid-event .fc-event-main {
+  padding: 2px 4px;
+}
+
+.fc .fc-event-cancelled {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.fc .fc-event-managed {
+  border-left: 3px solid rgba(255, 255, 255, 0.75) !important;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-width: 2px 0 0;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-width: 6px 0 6px 7px;
+}
+
+.fc .fc-list {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.fc .fc-list-empty {
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+}
+
+.fc .fc-scrollgrid {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.fc .fc-popover {
+  background: var(--color-popover);
+  color: var(--color-popover-foreground);
+  border-color: var(--color-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.fc .fc-popover-header {
+  background: var(--color-muted);
+}
+
+.fc .fc-more-link {
+  color: var(--color-primary);
+}
+
+.fc .fc-highlight {
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc .fc-event {
+    transition: none;
+  }
+}
