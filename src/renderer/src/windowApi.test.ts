@@ -14,8 +14,8 @@ describe('renderer test setup', () => {
   })
 
   it('rejects unregistered channels with NOT_IMPLEMENTED', async () => {
-    await expect(api.invoke('settings:get')).rejects.toBeInstanceOf(AppError)
-    await expect(api.invoke('settings:get')).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED' })
+    await expect(api.invoke('habits:list')).rejects.toBeInstanceOf(AppError)
+    await expect(api.invoke('habits:list')).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED' })
   })
 
   it('returns registered responses and delivers events', async () => {
