@@ -319,3 +319,23 @@ export const deleteConferenceDeadline = (db: DatabaseSync, id: string): void => 
   prepared(db, 'DELETE FROM conference_deadlines WHERE id = ?').run(id)
   changeBus.emit('conferenceDeadlines', 'followedConferences', 'conferenceChanges')
 }
+
+/**
+ * Time-driven status flips (`upcoming` → `passed` and back if a date moved) that do not depend on a
+ * changed feed. TBD rows are untouched. Returns the number of rows updated.
+ */
+export const reconcileStatuses = (db: DatabaseSync, nowIso: string): number => {
+  const passed = prepared(
+    db,
+    `UPDATE conference_deadlines SET status = 'passed', updated_at = ?
+     WHERE status = 'upcoming' AND deadline_at IS NOT NULL AND deadline_at < ?`
+  ).run(nowIso, nowIso)
+  const upcoming = prepared(
+    db,
+    `UPDATE conference_deadlines SET status = 'upcoming', updated_at = ?
+     WHERE status = 'passed' AND deadline_at IS NOT NULL AND deadline_at >= ?`
+  ).run(nowIso, nowIso)
+  const changed = Number(passed.changes) + Number(upcoming.changes)
+  if (changed > 0) changeBus.emit('conferenceDeadlines')
+  return changed
+}

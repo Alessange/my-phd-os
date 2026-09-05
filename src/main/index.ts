@@ -16,6 +16,7 @@ import { handlers } from './ipc/handlers'
 import { registerHandlers, type HandlerContext } from './ipc/registry'
 import { initLogger, logAppError, logger } from './logging/logger'
 import { installAppMenu } from './menu/appMenu'
+import { scheduler } from './subscriptions/scheduler'
 import { installContentSecurityPolicy } from './security/csp'
 import { installNavigationGuards } from './security/navigation'
 import { installPermissionPolicy } from './security/permissions'
@@ -156,9 +157,16 @@ const bootstrap = async (): Promise<void> => {
 
   createWindow()
 
+  // Conference subscriptions: refresh on launch when stale (honouring `settings.refreshOnLaunch`)
+  // plus a periodic check; E2E runs never touch the network.
   if (isE2E) logger.info('[app] E2E mode: startup subscription refresh disabled')
-  // Startup refresh of conference subscriptions is wired by the conferences feature
-  // (src/main/subscriptions/scheduler.ts) and must honour `isE2E` and `settings.refreshOnLaunch`.
+  scheduler.configure({
+    getDb: () => db,
+    disabled: isE2E,
+    onStatus: (status) => broadcast('conferences:refreshStatus', status),
+    log: (level, message, details) => logger[level](`[subscriptions] ${message}`, details ?? '')
+  })
+  scheduler.start()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -181,6 +189,7 @@ if (!gotLock) {
   })
 
   app.on('will-quit', () => {
+    scheduler.stop()
     changeBus.flush()
     closeDatabase(db)
     db = null
