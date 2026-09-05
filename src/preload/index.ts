@@ -1,13 +1,8 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { isChannelName, type WindowApi } from '../shared/ipc/contract'
+import { IPC_ERROR_KEY, isIpcErrorEnvelope } from '../shared/ipc/envelope'
 import { isEventName } from '../shared/ipc/events'
 import type { IpcError } from '../shared/types/common'
-
-/** Mirrors `IPC_ERROR_KEY` in src/main/ipc/registry.ts. */
-const IPC_ERROR_KEY = '__ipcError'
-
-const isErrorEnvelope = (value: unknown): value is { [IPC_ERROR_KEY]: IpcError } =>
-  typeof value === 'object' && value !== null && IPC_ERROR_KEY in value
 
 const rejection = (code: IpcError['code'], message: string, details?: unknown): IpcError =>
   details === undefined ? { code, message } : { code, message, details }
@@ -22,7 +17,7 @@ const api: WindowApi = {
       throw rejection('VALIDATION', `Unknown IPC channel "${String(channel)}"`)
     }
     const result: unknown = await ipcRenderer.invoke(channel, payload)
-    if (isErrorEnvelope(result)) {
+    if (isIpcErrorEnvelope(result)) {
       const error = result[IPC_ERROR_KEY]
       throw rejection(error.code, error.message, error.details)
     }
@@ -31,18 +26,23 @@ const api: WindowApi = {
 
   on: (event, listener) => {
     if (!isEventName(event)) throw rejection('VALIDATION', `Unknown event "${String(event)}"`)
-    const wrapped: Wrapped = (_event, payload) => (listener as Listener)(payload)
     const perEvent = wrappers.get(event) ?? new Map<Listener, Wrapped>()
-    perEvent.set(listener as Listener, wrapped)
     wrappers.set(event, perEvent)
-    ipcRenderer.on(event, wrapped)
+    // The same callback is registered once per event; a second `on` returns the same unsubscribe.
+    if (!perEvent.has(listener as Listener)) {
+      const wrapped: Wrapped = (_event, payload) => (listener as Listener)(payload)
+      perEvent.set(listener as Listener, wrapped)
+      ipcRenderer.on(event, wrapped)
+    }
     return () => api.off(event, listener)
   },
 
   off: (event, listener) => {
-    const wrapped = wrappers.get(event)?.get(listener as Listener)
-    if (!wrapped) return
-    wrappers.get(event)?.delete(listener as Listener)
+    const perEvent = wrappers.get(event)
+    const wrapped = perEvent?.get(listener as Listener)
+    if (!perEvent || !wrapped) return
+    perEvent.delete(listener as Listener)
+    if (perEvent.size === 0) wrappers.delete(event)
     ipcRenderer.removeListener(event, wrapped)
   }
 }

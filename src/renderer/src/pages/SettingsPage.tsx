@@ -40,6 +40,13 @@ export default function SettingsPage(): React.JSX.Element {
   const params = useNavigation((state) => state.params)
   const requested = isSectionId(params.section) ? params.section : undefined
   const [active, setActive] = useState<SettingsSectionId>(requested ?? 'general')
+  // A later deep link while already on Settings (menu › About, palette › Settings: Data) must move
+  // the nav highlight too; derive it during render (no setState-in-effect).
+  const [lastRequested, setLastRequested] = useState(requested)
+  if (requested !== lastRequested) {
+    setLastRequested(requested)
+    if (requested) setActive(requested)
+  }
   const contentRef = useRef<HTMLDivElement>(null)
 
   const scrollTo = (id: SettingsSectionId): void => {
@@ -48,10 +55,10 @@ export default function SettingsPage(): React.JSX.Element {
   }
 
   useEffect(() => {
-    if (requested)
-      contentRef.current
-        ?.querySelector<HTMLElement>(`#${requested}`)
-        ?.scrollIntoView({ block: 'start' })
+    if (!requested) return
+    contentRef.current
+      ?.querySelector<HTMLElement>(`#${requested}`)
+      ?.scrollIntoView({ block: 'start' })
   }, [requested])
 
   return (

@@ -54,6 +54,35 @@ export const sanitizeDetails = (details: unknown): Record<string, unknown> | und
   return Object.keys(safe).length ? safe : undefined
 }
 
+const RENDERER_CONTEXT_MAX_KEYS = 20
+const RENDERER_CONTEXT_MAX_STRING = 500
+
+/**
+ * Bounds the free-form `context` a renderer sends over `app:log` before it reaches the log file:
+ * at most 20 keys, primitive values only (objects and arrays are replaced by a type marker), and
+ * strings truncated to 500 characters. This guarantees a bug or a careless call site can neither
+ * flood the log nor serialise a whole record into it.
+ */
+export const sanitizeRendererContext = (
+  context: Record<string, unknown> | undefined
+): Record<string, string | number | boolean | null> | undefined => {
+  if (!context) return undefined
+  const safe: Record<string, string | number | boolean | null> = {}
+  for (const [key, value] of Object.entries(context).slice(0, RENDERER_CONTEXT_MAX_KEYS)) {
+    if (typeof value === 'string') {
+      safe[key] =
+        value.length > RENDERER_CONTEXT_MAX_STRING
+          ? `${value.slice(0, RENDERER_CONTEXT_MAX_STRING)}… [${value.length} chars]`
+          : value
+    } else if (value === null || typeof value === 'number' || typeof value === 'boolean') {
+      safe[key] = value
+    } else if (value !== undefined) {
+      safe[key] = Array.isArray(value) ? `[${value.length} items]` : `[${typeof value}]`
+    }
+  }
+  return Object.keys(safe).length ? safe : undefined
+}
+
 /** Logs an error as `code · message` plus sanitised details; returns the IPC envelope. */
 export const logAppError = (scope: string, error: unknown): IpcError => {
   const ipcError = toIpcError(error)

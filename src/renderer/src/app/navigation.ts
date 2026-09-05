@@ -11,16 +11,50 @@ export interface PageDefinition {
   icon: LucideIcon
   /** 1-based index used by the `mod+1…5` shortcuts. */
   shortcutIndex: number
-  /** Noun for the quick-create button (`New Event`); undefined when the page creates nothing. */
+  /** Noun for what quick-create makes (`event`); undefined when the page creates nothing. */
   createLabel?: string
+  /**
+   * Label of the top-bar quick-create button. Uses the same verb as the page's own toolbar
+   * (spec §9.1 `Add Event`, §19 `Add Milestone` / `Create Habit`) so one action never carries two
+   * names on screen.
+   */
+  createActionLabel?: string
 }
 
 /** Sidebar order is fixed by the spec (§1). */
 export const PAGES: readonly PageDefinition[] = [
-  { id: 'calendar', label: 'Calendar', icon: CalendarDays, shortcutIndex: 1, createLabel: 'Event' },
-  { id: 'deadlines', label: 'Deadlines', icon: Timer, shortcutIndex: 2, createLabel: 'Deadline' },
-  { id: 'timeline', label: 'Timeline', icon: Route, shortcutIndex: 3, createLabel: 'Milestone' },
-  { id: 'habits', label: 'Habits', icon: Repeat, shortcutIndex: 4, createLabel: 'Habit' },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    icon: CalendarDays,
+    shortcutIndex: 1,
+    createLabel: 'Event',
+    createActionLabel: 'Add Event'
+  },
+  {
+    id: 'deadlines',
+    label: 'Deadlines',
+    icon: Timer,
+    shortcutIndex: 2,
+    createLabel: 'Deadline',
+    createActionLabel: 'Add Deadline'
+  },
+  {
+    id: 'timeline',
+    label: 'Timeline',
+    icon: Route,
+    shortcutIndex: 3,
+    createLabel: 'Milestone',
+    createActionLabel: 'Add Milestone'
+  },
+  {
+    id: 'habits',
+    label: 'Habits',
+    icon: Repeat,
+    shortcutIndex: 4,
+    createLabel: 'Habit',
+    createActionLabel: 'Create Habit'
+  },
   { id: 'settings', label: 'Settings', icon: Settings, shortcutIndex: 5 }
 ]
 

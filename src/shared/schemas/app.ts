@@ -5,10 +5,14 @@ import { httpUrlSchema } from './common'
 
 export const openExternalRequestSchema = z.object({ url: httpUrlSchema })
 
+/** One renderer log line. `context` is primitive-only and bounded; main sanitises it again. */
 export const logRequestSchema = z.object({
   level: z.enum(LOG_LEVELS),
-  message: z.string().max(10_000),
-  context: z.record(z.string(), z.unknown()).optional()
+  message: z.string().max(2_000),
+  context: z
+    .record(z.string().max(64), z.union([z.string().max(2_000), z.number(), z.boolean(), z.null()]))
+    .refine((record) => Object.keys(record).length <= 20, 'At most 20 context keys')
+    .optional()
 })
 export type LogRequest = z.infer<typeof logRequestSchema>
 

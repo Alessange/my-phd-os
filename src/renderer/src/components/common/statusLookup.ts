@@ -18,11 +18,6 @@ export const STATUS_DEFINITIONS_BY_ID: Readonly<Record<string, StatusDefinition>
   ...DEADLINE_STATUS_DEFINITIONS
 }
 
-export type KnownStatusId = keyof typeof DEADLINE_STATUS_DEFINITIONS &
-  keyof typeof PERSONAL_DEADLINE_STATUS_DEFINITIONS &
-  keyof typeof CONFERENCE_STATUS_DEFINITIONS &
-  keyof typeof MILESTONE_STATUS_DEFINITIONS
-
 export const resolveStatus = (status: string | StatusDefinition): StatusDefinition | undefined =>
   typeof status === 'string' ? STATUS_DEFINITIONS_BY_ID[status] : status
 

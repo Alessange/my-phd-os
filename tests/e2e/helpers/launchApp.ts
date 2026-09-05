@@ -78,3 +78,25 @@ export const launchApp = async (options: LaunchOptions = {}): Promise<LaunchedAp
 export const waitForShell = async (page: Page): Promise<void> => {
   await page.getByRole('navigation', { name: 'Primary' }).waitFor({ state: 'visible' })
 }
+
+/**
+ * Waits until every finite CSS/Web animation has finished and two frames have been painted, so a
+ * screenshot never captures a mid-transition frame. Infinite animations (spinners) are ignored.
+ */
+export const settle = async (page: Page): Promise<void> => {
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animation) =>
+          animation.playState !== 'running' ||
+          animation.effect?.getComputedTiming().iterations === Infinity
+      )
+  )
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => done()))
+      })
+  )
+}

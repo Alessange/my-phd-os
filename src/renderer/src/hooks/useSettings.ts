@@ -33,52 +33,57 @@ const mergeUi = (
   ui: { ...(bundle?.ui ?? DEFAULT_UI_STATE), ...patch }
 })
 
-/** Optimistic settings write usable outside React (commands, shortcuts). Errors are toasted with Retry. */
-export const persistSettings = async (
-  patch: UpdateSettingsInput
-): Promise<AppSettings | undefined> => {
+/**
+ * Optimistic write shared by `persistSettings` / `persistUi`. Before the first `settings:get` has
+ * populated the cache there is nothing to be optimistic about: seeding the cache with defaults
+ * would flip `isLoaded` and hydrate the shell from defaults, so in that case the write is sent and
+ * the bundle is (re)fetched afterwards instead.
+ */
+const optimisticWrite = async <T>(
+  merge: (bundle: SettingsBundle | undefined) => SettingsBundle,
+  send: () => Promise<T>,
+  apply: (bundle: SettingsBundle, result: T) => SettingsBundle,
+  failure: { title: string; retry: () => void }
+): Promise<T | undefined> => {
   const previous = appQueryClient.getQueryData<SettingsBundle>(KEY)
-  appQueryClient.setQueryData<SettingsBundle>(KEY, (bundle) => mergeSettings(bundle, patch))
+  if (previous) appQueryClient.setQueryData<SettingsBundle>(KEY, merge(previous))
   try {
-    const settings = await api('settings:update', patch)
-    appQueryClient.setQueryData<SettingsBundle>(KEY, (bundle) => ({
-      settings,
-      ui: bundle?.ui ?? DEFAULT_UI_STATE
-    }))
-    return settings
+    const result = await send()
+    const current = appQueryClient.getQueryData<SettingsBundle>(KEY)
+    if (current) appQueryClient.setQueryData<SettingsBundle>(KEY, apply(current, result))
+    else void appQueryClient.invalidateQueries({ queryKey: KEY })
+    return result
   } catch (error) {
-    appQueryClient.setQueryData(KEY, previous)
-    toastError(error, { title: 'Could not save settings', retry: () => persistSettings(patch) })
+    if (previous) appQueryClient.setQueryData(KEY, previous)
+    toastError(error, failure)
     return undefined
   }
 }
 
+/** Optimistic settings write usable outside React (commands, shortcuts). Errors are toasted with Retry. */
+export const persistSettings = (patch: UpdateSettingsInput): Promise<AppSettings | undefined> =>
+  optimisticWrite(
+    (bundle) => mergeSettings(bundle, patch),
+    () => api('settings:update', patch),
+    (bundle, settings) => ({ settings, ui: bundle.ui }),
+    { title: 'Could not save settings', retry: () => void persistSettings(patch) }
+  )
+
 /** Optimistic UI-state write (last page, sidebar, tabs). Failures are toasted; the cache rolls back. */
-export const persistUi = async (patch: UpdateUiStateInput): Promise<UiState | undefined> => {
-  const previous = appQueryClient.getQueryData<SettingsBundle>(KEY)
-  appQueryClient.setQueryData<SettingsBundle>(KEY, (bundle) => mergeUi(bundle, patch))
-  try {
-    const ui = await api('settings:updateUi', patch)
-    appQueryClient.setQueryData<SettingsBundle>(KEY, (bundle) => ({
-      settings: bundle?.settings ?? DEFAULT_SETTINGS,
-      ui
-    }))
-    return ui
-  } catch (error) {
-    appQueryClient.setQueryData(KEY, previous)
-    toastError(error, {
-      title: 'Could not save your layout preference',
-      retry: () => persistUi(patch)
-    })
-    return undefined
-  }
-}
+export const persistUi = (patch: UpdateUiStateInput): Promise<UiState | undefined> =>
+  optimisticWrite(
+    (bundle) => mergeUi(bundle, patch),
+    () => api('settings:updateUi', patch),
+    (bundle, ui) => ({ settings: bundle.settings, ui }),
+    { title: 'Could not save your layout preference', retry: () => void persistUi(patch) }
+  )
 
 export interface UseSettingsResult {
   settings: AppSettings
   ui: UiState
   /** False until the first successful `settings:get`; defaults are shown meanwhile. */
   isLoaded: boolean
+  /** `null` while loading or after success; the rejection otherwise. */
   error: unknown
   refetch: () => void
   updateSettings: (patch: UpdateSettingsInput) => Promise<AppSettings | undefined>
@@ -100,7 +105,7 @@ export const useSettings = (): UseSettingsResult => {
   return {
     settings: query.data?.settings ?? DEFAULT_SETTINGS,
     ui: query.data?.ui ?? DEFAULT_UI_STATE,
-    isLoaded: query.data !== undefined,
+    isLoaded: query.isSuccess,
     error: query.error,
     refetch,
     updateSettings: settingsMutation.mutateAsync,

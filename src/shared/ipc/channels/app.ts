@@ -9,6 +9,11 @@ export const appChannels = {
     'app:getInfo',
     emptyRequestSchema
   ),
+  /** Retries opening + migrating the database after a startup failure; responds like `app:getInfo`. */
+  'app:retryDatabase': defineChannel<typeof emptyRequestSchema, AppInfo>(
+    'app:retryDatabase',
+    emptyRequestSchema
+  ),
   'app:openExternal': defineChannel<typeof openExternalRequestSchema, OkResponse>(
     'app:openExternal',
     openExternalRequestSchema

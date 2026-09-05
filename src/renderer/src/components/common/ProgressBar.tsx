@@ -1,6 +1,5 @@
 import { Progress } from '@renderer/components/ui/progress'
-import { clampPercent } from '@renderer/lib/utils'
-import { cn } from '@renderer/lib/utils'
+import { clampPercent, cn } from '@renderer/lib/utils'
 
 export interface ProgressBarProps {
   /** 0–100. */

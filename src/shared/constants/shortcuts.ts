@@ -97,10 +97,3 @@ export const SHORTCUTS: readonly Shortcut[] = [
     scope: 'overlay'
   }
 ]
-
-/** Human-readable key combination, e.g. `⌘K` on macOS and `Ctrl+K` elsewhere. */
-export const formatShortcut = (shortcut: Shortcut, platform: 'darwin' | 'other'): string => {
-  const key = shortcut.key === 'Escape' ? 'Esc' : shortcut.key
-  if (shortcut.modifier === 'none') return key
-  return platform === 'darwin' ? `⌘${key}` : `Ctrl+${key}`
-}

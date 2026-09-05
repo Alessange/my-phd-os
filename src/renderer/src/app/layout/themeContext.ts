@@ -1,6 +1,23 @@
 import { createContext, useContext } from 'react'
+import { THEMES, type ThemeId } from '@shared/types/settings'
 
 export type ResolvedTheme = 'light' | 'dark'
+
+const isThemeId = (value: unknown): value is ThemeId =>
+  typeof value === 'string' && (THEMES as readonly string[]).includes(value)
+
+/**
+ * The theme setting main put on the initial URL (`?theme=light|dark|system`, read from the
+ * database before the window was created). `system` when absent or unknown. This lets the first
+ * frame already use the persisted theme; `ThemeProvider` takes over once settings load.
+ */
+export const bootThemeSetting = (search: string = window.location.search): ThemeId => {
+  const value = new URLSearchParams(search).get('theme')
+  return isThemeId(value) ? value : 'system'
+}
+
+export const resolveThemeSetting = (theme: ThemeId, prefersDark: boolean): ResolvedTheme =>
+  theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
 
 export const ThemeContext = createContext<ResolvedTheme>('light')
 

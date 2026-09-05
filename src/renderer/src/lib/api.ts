@@ -3,11 +3,11 @@ import type { ChannelName, InvokeArgs, ResponseOf, WindowApi } from '@shared/ipc
 import type { EventName, EventPayload } from '@shared/ipc/events'
 
 /**
- * The only module that touches `window.api`. The preload's global `Window.api` typing is owned by
- * the main-process agent, so the bridge is read through a local cast instead of the global type.
+ * The only module that touches `window.api` (typed globally by `src/preload/index.d.ts`). The
+ * guard keeps a page opened without the preload (a misconfigured build) failing loudly.
  */
 const bridge = (): WindowApi => {
-  const api = (window as unknown as { api?: WindowApi }).api
+  const api = window.api as WindowApi | undefined
   if (!api) throw new AppError('INTERNAL', 'The preload bridge (window.api) is not available')
   return api
 }

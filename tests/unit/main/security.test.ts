@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { AppError } from '../../../src/shared/errors'
 
@@ -6,15 +8,19 @@ vi.mock('electron', () => ({
   shell: { openExternal },
   app: { on: vi.fn() }
 }))
+const warn = vi.fn()
 vi.mock('../../../src/main/logging/logger', () => ({
-  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
   logAppError: vi.fn()
 }))
 
 const { validateExternalUrl, openExternalUrl } =
   await import('../../../src/main/security/openExternal')
 const { isAllowedNavigation } = await import('../../../src/main/security/navigation')
-const { DEVELOPMENT_CSP, PRODUCTION_CSP, cspFor } = await import('../../../src/main/security/csp')
+const { DEVELOPMENT_CSP, PRODUCTION_CSP, PRODUCTION_META_CSP, cspFor } =
+  await import('../../../src/main/security/csp')
+const { installPermissionPolicy, isPermissionAllowed } =
+  await import('../../../src/main/security/permissions')
 
 const expectInvalid = (input: string): void => {
   try {
@@ -88,10 +94,58 @@ describe('content security policy', () => {
     expect(PRODUCTION_CSP).toContain("default-src 'self'")
     expect(PRODUCTION_CSP).toContain("script-src 'self';")
     expect(PRODUCTION_CSP).toContain("connect-src 'self'")
+    for (const directive of [
+      "object-src 'none'",
+      "frame-src 'none'",
+      "base-uri 'self'",
+      "form-action 'none'",
+      "frame-ancestors 'none'"
+    ]) {
+      expect(PRODUCTION_CSP).toContain(directive)
+    }
     expect(PRODUCTION_CSP).not.toContain('unsafe-eval')
     expect(DEVELOPMENT_CSP).toContain("script-src 'self' 'unsafe-inline'")
     expect(DEVELOPMENT_CSP).toContain('ws://localhost:*')
     expect(cspFor(false)).toBe(PRODUCTION_CSP)
     expect(cspFor(true)).toBe(DEVELOPMENT_CSP)
+  })
+
+  it('is mirrored byte-for-byte (minus frame-ancestors) by the <meta> tag in index.html', () => {
+    const html = readFileSync(resolve('src/renderer/index.html'), 'utf8')
+    const match = html.match(
+      /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/>/
+    )
+    expect(match, 'index.html must carry exactly one CSP meta tag').not.toBeNull()
+    expect(match![1]).toBe(PRODUCTION_META_CSP)
+    expect(PRODUCTION_META_CSP).not.toContain('frame-ancestors')
+    expect(PRODUCTION_CSP.startsWith(PRODUCTION_META_CSP)).toBe(true)
+  })
+})
+
+describe('permission policy', () => {
+  it('denies every permission request and check, and logs the denial', () => {
+    let requestHandler:
+      ((wc: unknown, permission: string, cb: (ok: boolean) => void) => void) | null = null
+    let checkHandler: ((wc: unknown, permission: string) => boolean) | null = null
+    const session = {
+      setPermissionRequestHandler: (handler: typeof requestHandler) => {
+        requestHandler = handler
+      },
+      setPermissionCheckHandler: (handler: typeof checkHandler) => {
+        checkHandler = handler
+      }
+    }
+    installPermissionPolicy(session as unknown as import('electron').Session)
+    expect(requestHandler).not.toBeNull()
+    expect(checkHandler).not.toBeNull()
+
+    const granted: boolean[] = []
+    for (const permission of ['media', 'geolocation', 'notifications', 'clipboard-read']) {
+      requestHandler!(null, permission, (ok) => granted.push(ok))
+      expect(checkHandler!(null, permission)).toBe(false)
+      expect(isPermissionAllowed(permission)).toBe(false)
+    }
+    expect(granted).toEqual([false, false, false, false])
+    expect(warn).toHaveBeenCalledWith('[security] denied permission request', { name: 'media' })
   })
 })

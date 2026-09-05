@@ -1,7 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
-import { BrowserWindow, screen, type Rectangle } from 'electron'
-import { getWindowState, setWindowState, type WindowState } from '../database/repositories/settings'
+import { BrowserWindow, nativeTheme, screen, type Rectangle } from 'electron'
+import type { ThemeId } from '@shared/types/settings'
+import {
+  getSettings,
+  getWindowState,
+  setWindowState,
+  type WindowState
+} from '../database/repositories/settings'
 import { logAppError, logger } from '../logging/logger'
 
 export const DEFAULT_WINDOW_SIZE = { width: 1440, height: 900 } as const
@@ -10,6 +16,9 @@ const PERSIST_DEBOUNCE_MS = 300
 /** A restored window must overlap a display by at least this much on both axes. */
 const MIN_VISIBLE_PX = 64
 
+/** Window ground colours matching `--background` in globals.css, painted before the first frame. */
+export const WINDOW_BACKGROUND = { light: '#fafafa', dark: '#1b1c21' } as const
+
 export interface MainWindowOptions {
   db: DatabaseSync | null
   /** Vite dev-server URL; when absent the bundled `out/renderer/index.html` is loaded. */
@@ -17,8 +26,16 @@ export interface MainWindowOptions {
   rendererIndex: string
   /** Adds `?dbError=1` so the renderer shows the blocking database error screen. */
   dbError: boolean
+  /** Development build: DevTools may be opened (menu / shortcut). Off in production. */
+  dev: boolean
   icon?: string
 }
+
+/** Resolves the stored theme setting to the colour painted behind the page before React renders. */
+export const backgroundColorFor = (theme: ThemeId, systemPrefersDark: boolean): string =>
+  theme === 'dark' || (theme === 'system' && systemPrefersDark)
+    ? WINDOW_BACKGROUND.dark
+    : WINDOW_BACKGROUND.light
 
 const intersects = (a: Rectangle, b: Rectangle): boolean =>
   Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) >= MIN_VISIBLE_PX &&
@@ -63,6 +80,16 @@ const readSavedState = (db: DatabaseSync | null): WindowState | undefined => {
   }
 }
 
+const readSavedTheme = (db: DatabaseSync | null): ThemeId => {
+  if (!db) return 'system'
+  try {
+    return getSettings(db).theme
+  } catch (error) {
+    logAppError('window.theme', error)
+    return 'system'
+  }
+}
+
 export const createMainWindow = (options: MainWindowOptions): BrowserWindow => {
   const saved = readSavedState(options.db)
   const bounds = resolveInitialBounds(
@@ -70,6 +97,11 @@ export const createMainWindow = (options: MainWindowOptions): BrowserWindow => {
     screen.getAllDisplays().map((display) => display.workArea)
   )
   const isMac = process.platform === 'darwin'
+  // The persisted theme travels on the initial URL (`?theme=`) so the renderer paints the right
+  // theme on its first frame instead of guessing from the OS and flipping once settings load.
+  const theme = readSavedTheme(options.db)
+  const query: Record<string, string> = { theme }
+  if (options.dbError) query.dbError = '1'
 
   const window = new BrowserWindow({
     ...bounds,
@@ -77,7 +109,7 @@ export const createMainWindow = (options: MainWindowOptions): BrowserWindow => {
     minHeight: MIN_WINDOW_SIZE.height,
     show: false,
     title: 'My PhD OS',
-    backgroundColor: '#0f172a',
+    backgroundColor: backgroundColorFor(theme, nativeTheme.shouldUseDarkColors),
     autoHideMenuBar: !isMac,
     ...(isMac
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 18 } }
@@ -91,30 +123,37 @@ export const createMainWindow = (options: MainWindowOptions): BrowserWindow => {
       webSecurity: true,
       allowRunningInsecureContent: false,
       webviewTag: false,
-      spellcheck: true
+      // macOS uses the OS spellchecker offline; elsewhere Electron's Hunspell would download
+      // dictionaries from Google's CDN, which the privacy contract (ARCHITECTURE §0.5) forbids.
+      spellcheck: process.platform === 'darwin',
+      devTools: options.dev
     }
   })
 
   if (saved?.isMaximized) window.maximize()
   window.once('ready-to-show', () => window.show())
-  attachStatePersistence(window, options.db)
+  attachWindowStatePersistence(window, options.db)
 
   if (options.rendererUrl) {
     const url = new URL(options.rendererUrl)
-    if (options.dbError) url.searchParams.set('dbError', '1')
+    for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value)
     void window.loadURL(url.href)
   } else {
-    void window.loadFile(
-      options.rendererIndex,
-      options.dbError ? { query: { dbError: '1' } } : undefined
-    )
+    void window.loadFile(options.rendererIndex, { query })
   }
   return window
 }
 
-/** Persists bounds + maximised flag (debounced) so the next launch restores them. */
-const attachStatePersistence = (window: BrowserWindow, db: DatabaseSync | null): void => {
-  if (!db) return
+/**
+ * Persists bounds + maximised flag (debounced) so the next launch restores them. Called by
+ * `createMainWindow`, and again by the bootstrap when the database becomes available after a
+ * successful `app:retryDatabase`.
+ */
+export const attachWindowStatePersistence = (
+  window: BrowserWindow,
+  db: DatabaseSync | null
+): void => {
+  if (!db || window.isDestroyed()) return
   let timer: ReturnType<typeof setTimeout> | null = null
 
   const save = (): void => {

@@ -32,8 +32,9 @@ export const isAllowedNavigation = (url: string, policy: NavigationPolicy): bool
 }
 
 /**
- * Locks down every WebContents the app creates: no navigation away from the renderer, no
- * `window.open` (validated http(s) links go to the default browser), no `<webview>`.
+ * Locks down every WebContents the app creates: no main-frame or sub-frame navigation away from
+ * the renderer, no redirects, no `window.open` (validated http(s) links go to the default browser),
+ * no `<webview>`. Together with `frame-src 'none'` in the CSP this also refuses `<iframe>` content.
  */
 export const installNavigationGuards = (policy: NavigationPolicy): void => {
   app.on('web-contents-created', (_event, contents) => {
@@ -44,6 +45,7 @@ export const installNavigationGuards = (policy: NavigationPolicy): void => {
     }
     contents.on('will-navigate', (event, url) => block(event, url, 'navigation'))
     contents.on('will-redirect', (event, url) => block(event, url, 'redirect'))
+    contents.on('will-frame-navigate', (event) => block(event, event.url, 'frame navigation'))
     contents.on('will-attach-webview', (event) => {
       event.preventDefault()
       logger.warn('[security] blocked webview attachment')

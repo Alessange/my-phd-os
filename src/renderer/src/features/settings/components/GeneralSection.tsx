@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
-import { buildFormatters } from '@renderer/hooks/useFormat'
+import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import { useSettings } from '@renderer/hooks/useSettings'
 
@@ -61,7 +61,7 @@ export function GeneralSection(): React.JSX.Element {
   const { settings, updateSettings } = useSettings()
   const now = useNow({ precision: 'minute' })
   const ids = { timezone: useId(), dateFormat: useId(), calendarView: useId() }
-  const preview = buildFormatters(settings)
+  const preview = useFormat()
   const knownTimezone = TIMEZONE_OPTIONS.some((group) =>
     group.options.some((o) => o.id === settings.timezone)
   )

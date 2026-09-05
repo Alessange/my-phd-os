@@ -70,7 +70,7 @@ export function TopBar(): React.JSX.Element {
           <span className="flex-1 truncate text-left">Search commands…</span>
           <KeyboardHint shortcut="mod+K" />
         </Button>
-        {page.createLabel && (
+        {page.createLabel && page.createActionLabel && (
           <Button
             size="sm"
             className="app-no-drag"
@@ -78,7 +78,7 @@ export function TopBar(): React.JSX.Element {
             onClick={triggerQuickCreate}
           >
             <Plus aria-hidden="true" />
-            New {page.createLabel}
+            {page.createActionLabel}
           </Button>
         )}
       </div>

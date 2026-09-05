@@ -1,9 +1,19 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import type { PageId } from '@shared/types/settings'
+import type { DeadlinesTab, PageId } from '@shared/types/settings'
 import { toastInfo } from '@renderer/lib/toast'
 import { getPage, useNavigation } from './navigation'
-import { dispatchCommand } from './commandBus'
+import { dispatchCommand, type FeatureCommandName } from './commandBus'
+
+/**
+ * Bus commands the Deadlines page forwards quick-create to, per active tab. The tab components
+ * (owned by the conferences / personal-deadlines features) subscribe with
+ * `useCommandListener(DEADLINES_QUICK_CREATE.personal, openCreate)` and never touch the page.
+ */
+export const DEADLINES_QUICK_CREATE: Record<DeadlinesTab, FeatureCommandName> = {
+  conference: 'conference-deadlines:quick-create',
+  personal: 'personal-deadlines:quick-create'
+}
 
 type QuickCreateHandler = () => void
 
@@ -29,6 +39,19 @@ export const useRegisterQuickCreate = (page: PageId, handler: QuickCreateHandler
   useEffect(() => register(page, handler), [register, page, handler])
 }
 
+/** Toast shown when nothing on the current page can handle quick-create (also used by pages that dispatch to tabs). */
+export const notifyNothingToCreate = (page: PageId): void => {
+  const definition = getPage(page)
+  toastInfo(
+    definition.createLabel
+      ? `Nothing to create here yet`
+      : `Nothing to create on ${definition.label}`,
+    definition.createLabel
+      ? `Creating a ${definition.createLabel.toLowerCase()} is not available on this screen.`
+      : 'Switch to Calendar, Deadlines, Timeline or Habits to create something.'
+  )
+}
+
 /** Runs the current page's quick-create handler (and the `quick-create` bus command). */
 export const triggerQuickCreate = (): void => {
   const page = useNavigation.getState().page
@@ -38,17 +61,5 @@ export const triggerQuickCreate = (): void => {
     handler()
     return
   }
-  if (listeners === 0) {
-    const definition = getPage(page)
-    toastInfo(
-      definition.createLabel
-        ? `Nothing to create here yet`
-        : `Nothing to create on ${definition.label}`,
-      definition.createLabel
-        ? `Creating a ${definition.createLabel.toLowerCase()} is not available on this screen.`
-        : 'Switch to Calendar, Deadlines, Timeline or Habits to create something.'
-    )
-  }
+  if (listeners === 0) notifyNothingToCreate(page)
 }
-
-export const quickCreateLabel = (page: PageId): string | undefined => getPage(page).createLabel

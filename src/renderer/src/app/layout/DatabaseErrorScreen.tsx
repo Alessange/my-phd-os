@@ -1,21 +1,25 @@
-import { Database, FolderOpen } from 'lucide-react'
+import { Database, FolderOpen, Loader2 } from 'lucide-react'
+import type { AppInfo } from '@shared/types/app'
 import { Button } from '@renderer/components/ui/button'
 import { api } from '@renderer/lib/api'
 import { toastError } from '@renderer/lib/toast'
-import type { AppInfoWithDbError } from '@renderer/types/app'
 
 export interface DatabaseErrorScreenProps {
-  info: AppInfoWithDbError
+  info: AppInfo
+  /** Asks main to re-open and migrate the database (`app:retryDatabase`). */
   onRetry: () => void
+  retrying?: boolean
 }
 
 /**
  * Blocking screen shown when main reports that the database could not be opened or upgraded.
  * It explains, points to the log, and never offers to delete or recreate the database file.
+ * Retry really re-opens the database in main, so releasing a lock and retrying works.
  */
 export function DatabaseErrorScreen({
   info,
-  onRetry
+  onRetry,
+  retrying = false
 }: DatabaseErrorScreenProps): React.JSX.Element {
   const openDirectory = (): void => {
     api('app:openDataDirectory').catch((error: unknown) =>
@@ -66,7 +70,10 @@ export function DatabaseErrorScreen({
             <FolderOpen aria-hidden="true" />
             Open data directory
           </Button>
-          <Button onClick={onRetry}>Retry</Button>
+          <Button onClick={onRetry} disabled={retrying}>
+            {retrying && <Loader2 aria-hidden="true" className="animate-spin" />}
+            {retrying ? 'Retrying…' : 'Retry'}
+          </Button>
         </div>
       </div>
     </div>

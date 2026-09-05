@@ -3,6 +3,7 @@ import type { CreateCalendarSourceInput, UpdateCalendarSourceInput } from '@shar
 import type { CalendarSource, DeleteCalendarSourceResult } from '@shared/types/calendar'
 import { transaction } from '../connection'
 import { changeBus } from '../changeBus'
+import { EVENT_DELETE_ENTITIES } from './calendarEvents'
 import {
   bool,
   buildSet,
@@ -107,6 +108,8 @@ export const deleteSource = (
     prepared(db, 'DELETE FROM calendar_sources WHERE id = ?').run(id)
     return removed
   })
-  changeBus.emit('calendarSources', 'calendarEvents')
+  // Deleting events nulls linked personal deadlines / followed conferences via ON DELETE SET NULL.
+  if (deleteEvents) changeBus.emit('calendarSources', ...EVENT_DELETE_ENTITIES)
+  else changeBus.emit('calendarSources', 'calendarEvents')
   return { ok: true, deletedEvents }
 }

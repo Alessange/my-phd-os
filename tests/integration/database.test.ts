@@ -180,6 +180,157 @@ describe('calendar events and sources', () => {
   })
 })
 
+describe('calendar event range and consistency rules', () => {
+  const timed = {
+    timezone: 'Europe/Berlin',
+    allDay: false,
+    category: 'research' as const,
+    sourceManaged: false
+  }
+
+  it('normalises offset-bearing range bounds before comparing with stored UTC instants', () => {
+    // 01:00+02:00 on the 11th: outside [10th 00:00+02:00, 11th 00:00+02:00)
+    events.createEvent(db, {
+      ...timed,
+      title: 'late',
+      startAt: '2026-09-10T23:00:00.000Z',
+      endAt: '2026-09-10T23:30:00.000Z'
+    })
+    // 00:30+02:00 on the 10th: inside the window
+    events.createEvent(db, {
+      ...timed,
+      title: 'early',
+      startAt: '2026-09-09T22:30:00.000Z',
+      endAt: '2026-09-09T23:00:00.000Z'
+    })
+    const inWindow = events.listEvents(db, {
+      rangeStart: '2026-09-10T00:00:00+02:00',
+      rangeEnd: '2026-09-11T00:00:00+02:00'
+    })
+    expect(inWindow.map((e) => e.title)).toEqual(['early'])
+    expect(events.listEvents(db, undefined)).toHaveLength(2)
+    expect(events.listEvents(db)).toHaveLength(2)
+  })
+
+  it('compares all-day rows by calendar date so the exclusive range end is honoured', () => {
+    const allDay = {
+      timezone: 'UTC',
+      allDay: true,
+      category: 'other' as const,
+      sourceManaged: false
+    }
+    events.createEvent(db, {
+      ...allDay,
+      title: 'on-end',
+      startAt: '2026-09-11',
+      endAt: '2026-09-12'
+    })
+    events.createEvent(db, {
+      ...allDay,
+      title: 'inside',
+      startAt: '2026-09-10',
+      endAt: '2026-09-11'
+    })
+
+    const titles = (filter: Parameters<typeof events.listEvents>[1]): string[] =>
+      events.listEvents(db, filter).map((e) => e.title)
+    expect(
+      titles({ rangeStart: '2026-09-10T00:00:00Z', rangeEnd: '2026-09-11T00:00:00Z' })
+    ).toEqual(['inside'])
+    expect(titles({ rangeStart: '2026-09-10', rangeEnd: '2026-09-11' })).toEqual(['inside'])
+    expect(
+      titles({ rangeStart: '2026-09-11T00:00:00+02:00', rangeEnd: '2026-09-12T00:00:00+02:00' })
+    ).toEqual(['on-end'])
+    expect(titles({ rangeStart: '2026-09-10', rangeEnd: '2026-09-12' })).toEqual([
+      'inside',
+      'on-end'
+    ])
+  })
+
+  it('re-validates the merged row on partial updates', () => {
+    const event = events.createEvent(db, {
+      ...timed,
+      title: 'Seminar',
+      startAt: '2026-09-10T09:00:00Z',
+      endAt: '2026-09-10T10:00:00Z'
+    })
+    expect(() => events.updateEvent(db, event.id, { endAt: '2026-09-10T08:00:00Z' })).toThrowError(
+      expect.objectContaining({ code: 'VALIDATION', details: { id: event.id, field: 'endAt' } })
+    )
+    // Same instant expressed with an offset: 10:00+02:00 is 08:00Z, before the start.
+    expect(() => events.updateEvent(db, event.id, { endAt: '2026-09-10T10:00:00+02:00' })).toThrow()
+    expect(() => events.updateEvent(db, event.id, { allDay: true })).toThrowError(
+      expect.objectContaining({ code: 'VALIDATION', details: { id: event.id, field: 'startAt' } })
+    )
+    expect(events.getEvent(db, event.id)).toMatchObject({
+      allDay: false,
+      endAt: '2026-09-10T10:00:00.000Z'
+    })
+    expect(
+      events.updateEvent(db, event.id, { allDay: true, startAt: '2026-09-10', endAt: '2026-09-11' })
+    ).toMatchObject({ allDay: true, startAt: '2026-09-10', endAt: '2026-09-11' })
+  })
+
+  it('announces the entities nulled by ON DELETE SET NULL when events are deleted', () => {
+    const source = sources.createSource(db, {
+      name: 'S',
+      color: '#fff',
+      type: 'local',
+      visible: true
+    })
+    const event = events.createEvent(db, {
+      ...timed,
+      title: 'Linked',
+      startAt: '2026-09-10T09:00:00Z',
+      endAt: '2026-09-10T10:00:00Z',
+      sourceCalendarId: source.id
+    })
+    const deadline = personal.createPersonalDeadline(db, {
+      title: 'P',
+      trackingStartAt: '2026-09-01T00:00:00Z',
+      deadlineAt: '2026-09-10T10:00:00Z',
+      timezone: 'UTC',
+      category: 'other',
+      priority: 'low',
+      status: 'not_started',
+      progress: 0
+    })
+    personal.updatePersonalDeadline(db, deadline.id, { linkedCalendarEventId: event.id })
+    expect(personal.getPersonalDeadline(db, deadline.id).linkedCalendarEventId).toBe(event.id)
+    changeBus.flush()
+
+    const seen: string[][] = []
+    const unsubscribe = changeBus.subscribe(({ entities }) => seen.push(entities))
+    events.deleteEvent(db, event.id)
+    changeBus.flush()
+    expect(seen.at(-1)).toEqual(
+      expect.arrayContaining(['calendarEvents', 'personalDeadlines', 'followedConferences'])
+    )
+    expect(personal.getPersonalDeadline(db, deadline.id).linkedCalendarEventId).toBeUndefined()
+
+    events.createEvent(db, {
+      ...timed,
+      title: 'Second',
+      startAt: '2026-09-11T09:00:00Z',
+      endAt: '2026-09-11T10:00:00Z',
+      sourceCalendarId: source.id
+    })
+    changeBus.flush()
+    seen.length = 0
+    sources.deleteSource(db, source.id, true)
+    changeBus.flush()
+    unsubscribe()
+    expect(seen.at(-1)).toEqual(
+      expect.arrayContaining([
+        'calendarSources',
+        'calendarEvents',
+        'personalDeadlines',
+        'followedConferences'
+      ])
+    )
+  })
+})
+
 describe('personal deadlines and milestones', () => {
   it('round-trips a personal deadline and its progress', () => {
     const milestone = milestones.createMilestone(db, {
@@ -206,6 +357,15 @@ describe('personal deadlines and milestones', () => {
     expect(deadline.linkedMilestoneId).toBe(milestone.id)
 
     expect(personal.setPersonalDeadlineProgress(db, deadline.id, 40).progress).toBe(40)
+    expect(() =>
+      personal.updatePersonalDeadline(db, deadline.id, { deadlineAt: '2026-08-01T00:00:00Z' })
+    ).toThrowError(expect.objectContaining({ code: 'VALIDATION' }))
+    expect(() =>
+      personal.updatePersonalDeadline(db, deadline.id, {
+        trackingStartAt: '2026-10-01T15:00:00+02:00'
+      })
+    ).toThrowError(expect.objectContaining({ code: 'VALIDATION' }))
+    expect(personal.listPersonalDeadlines(db, undefined)).toHaveLength(1)
     const done = personal.updatePersonalDeadline(db, deadline.id, { status: 'completed' })
     expect(done.status).toBe('completed')
     expect(personal.listPersonalDeadlines(db)).toHaveLength(0)

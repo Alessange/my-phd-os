@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useNavigation } from '@renderer/app/navigation'
@@ -61,5 +61,28 @@ describe('SettingsPage › General', () => {
     renderWithProviders(<SettingsPage />)
     expect(await screen.findByText('/tmp/my-phd-os-test/my-phd-os.sqlite')).toBeInTheDocument()
     expect(await screen.findByText('0.0.0-test')).toBeInTheDocument()
+  })
+
+  it('moves the section highlight when a deep link arrives while already on Settings', async () => {
+    renderWithProviders(<SettingsPage />)
+    const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
+    const button = (name: string): HTMLElement => {
+      const found = Array.from(nav.querySelectorAll('button')).find((b) => b.textContent === name)
+      if (!found) throw new Error(`no nav button ${name}`)
+      return found
+    }
+    expect(button('General')).toHaveAttribute('aria-current', 'location')
+    expect(button('About')).not.toHaveAttribute('aria-current')
+
+    act(() => {
+      useNavigation.getState().navigate('settings', { section: 'about' })
+    })
+    await waitFor(() => expect(button('About')).toHaveAttribute('aria-current', 'location'))
+    expect(button('General')).not.toHaveAttribute('aria-current')
+
+    act(() => {
+      useNavigation.getState().navigate('settings', { section: 'data' })
+    })
+    await waitFor(() => expect(button('Data')).toHaveAttribute('aria-current', 'location'))
   })
 })

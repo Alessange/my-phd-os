@@ -66,13 +66,28 @@ by hand, prefix with `env -u ELECTRON_RUN_AS_NODE`.
 * Every `ipcMain.handle` goes through `src/main/ipc/registry.ts`, which looks up the channel's Zod
   request schema, validates, calls the handler, and converts thrown errors into a serialisable
   `IpcError` (`{ code, message, details? }`). Unknown channels are rejected.
-* Navigation lockdown in `src/main/security/`: `will-navigate` is blocked unless the target is the
-  app's own dev-server origin (dev) or `file:` (prod); `setWindowOpenHandler` denies everything and
-  opens validated `http(s)` URLs via `shell.openExternal`; `will-attach-webview` is denied.
-* Content Security Policy is set by `session.defaultSession.webRequest.onHeadersReceived` (prod) and
-  mirrored by the `<meta http-equiv>` tag in `src/renderer/index.html`. Production policy:
-  `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
-  font-src 'self' data:; connect-src 'self'`. Dev may relax `script-src`/`connect-src` for HMR only.
+* Navigation lockdown in `src/main/security/`: `will-navigate`, `will-redirect` and
+  `will-frame-navigate` are blocked unless the target is the app's own dev-server origin (dev) or a
+  bundled `file:` page (prod); `setWindowOpenHandler` denies everything and opens validated
+  `http(s)` URLs via `shell.openExternal`; `will-attach-webview` is denied.
+* Permissions: `security/permissions.ts` installs `setPermissionRequestHandler` and
+  `setPermissionCheckHandler` that deny everything outside `ALLOWED_PERMISSIONS` (empty today) and
+  log denials. Electron would otherwise grant every request.
+* Content Security Policy. The packaged renderer is loaded over `file:`, where the
+  `onHeadersReceived` header is not guaranteed to apply, so the **`<meta http-equiv>` tag in
+  `src/renderer/index.html` is the authoritative production policy**; the header
+  (`session.defaultSession.webRequest.onHeadersReceived`) carries the same policy plus
+  `frame-ancestors 'none'` (which `<meta>` cannot express). `PRODUCTION_CSP` in
+  `src/main/security/csp.ts` is the single source and a unit test asserts the meta tag equals
+  `PRODUCTION_META_CSP`. Production policy: `default-src 'self'; script-src 'self'; style-src 'self'
+  'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none';
+  frame-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'`. Dev relaxes only
+  `script-src` (`'unsafe-inline'`) and `connect-src` (`localhost`) for HMR.
+* Development switches (`src/main/env.ts`) are all gated on `!app.isPackaged`: an installed build
+  ignores `NODE_ENV`, `ELECTRON_RENDERER_URL` and `MY_PHD_OS_USER_DATA`; a dev-server URL is loaded
+  only when its host is `localhost`/`127.0.0.1`/`[::1]`; `webPreferences.devTools` is `false` in
+  production. Spellcheck is on only on macOS (native, offline); elsewhere Chromium would download
+  Hunspell dictionaries from Google's CDN, which §0.5 forbids.
 * External links: renderer calls `app:openExternal`; main allows only `http:`/`https:`.
 * Network: only `src/main/subscriptions/fetcher.ts` performs HTTP (Node `fetch` with `AbortSignal`
   timeout, ETag/Last-Modified conditional requests, no proxies). Approved hosts are listed in
@@ -84,38 +99,57 @@ by hand, prefix with `env -u ELECTRON_RUN_AS_NODE`.
 ```
 src/
   main/
-    index.ts                 app lifecycle, single-instance lock, window creation, startup refresh
-    windows/mainWindow.ts    BrowserWindow factory + window-state persistence (bounds, maximised)
+    index.ts                 app lifecycle, single-instance lock, window creation, startup refresh, DB (re)open
+    env.ts                   isDev / isE2E / rendererDevUrl / userDataOverride, all gated on !app.isPackaged
+    windows/mainWindow.ts    BrowserWindow factory + window-state persistence (bounds, maximised) + `?theme=` boot param
     menu/appMenu.ts          native menu; accelerators emit `app:command` events to the renderer
-    security/                csp.ts · navigation.ts · openExternal.ts
-    ipc/registry.ts          typed handler registration + validation + error envelope
+    security/                csp.ts · navigation.ts · openExternal.ts · permissions.ts
+    ipc/registry.ts          typed handler registration + validation + error envelope (`HandlerContext`)
     ipc/handlers/<feature>.ts one file per feature (see ownership table)
+    ipc/handlers/shared.ts   `OK` response constant · `notImplemented(label)` stub for unbuilt channels
     database/connection.ts   opens userData/my-phd-os.sqlite (WAL, foreign_keys=ON)
     database/migrate.ts      applies migrations/*.sql in numeric order, records in schema_migrations
     database/migrations/     001_initial.sql … (numbered ranges below)
     database/repositories/   one module per table; the only place SQL is written
+                             shared.ts (prepared-statement cache, row helpers, `toStoredInstant`, `buildSet`)
+                             · maintenance.ts (`dataCounts`, `clearAllUserData`, `USER_TABLES`)
+                             · dismissedWarnings.ts · appMeta.ts (`installedAt`/`lastLaunchedAt`)
     database/changeBus.ts    emits `data:changed` (debounced) with the touched entity names
     subscriptions/           CCF fetcher, parser adapter, snapshot comparison, scheduler
     filesystem/              dialogs.ts · icsFiles.ts · backup.ts · dataDirectory.ts
     logging/logger.ts        electron-log setup; never logs personal payloads
-  preload/index.ts           contextBridge → window.api
-  preload/index.d.ts         `Window.api` typing (imports from src/shared)
+  preload/index.ts           contextBridge → window.api (unwraps the shared error envelope)
+  preload/index.d.ts         `Window.api` typing (imports from src/shared); included by tsconfig.web.json
   renderer/src/
-    main.tsx · App.tsx
-    app/                     navigation.ts (zustand) · commands.ts · quickCreate.ts · shortcuts.ts · queryClient.ts
+    main.tsx · App.tsx       App = ErrorBoundary › QueryClientProvider › ThemeProvider › AppGate (app:getInfo + settings) › Shell
+    app/                     navigation.ts (zustand; `PAGES` with `createLabel`/`createActionLabel`) · commands.ts
+                             · quickCreate.ts (`useRegisterQuickCreate`, `triggerQuickCreate`, `DEADLINES_QUICK_CREATE`)
+                             · commandBus.ts (`dispatchCommand`, `useCommandListener`, `subscribeCommand`; see §7)
+                             · shell.ts (`useShell`: sidebar collapsed, persisted) · shortcuts.ts · queryClient.ts
     app/layout/              AppShell.tsx · Sidebar.tsx · TopBar.tsx · CommandPalette.tsx · ThemeProvider.tsx
+                             · themeContext.ts (`applyTheme`, `bootThemeSetting`, `useResolvedTheme`) · ThemeToggle.tsx
+                             · DatabaseErrorScreen.tsx (blocking; Retry calls `app:retryDatabase`)
     pages/                   CalendarPage.tsx · DeadlinesPage.tsx · TimelinePage.tsx · HabitsPage.tsx · SettingsPage.tsx
     components/ui/           shadcn-style primitives (button, input, label, textarea, select, switch,
                              slider, checkbox, dialog, alert-dialog, sheet, tabs, tooltip, popover,
-                             dropdown-menu, scroll-area, badge, card, progress, command, separator, skeleton)
+                             dropdown-menu, scroll-area, badge, card, progress, command, separator, skeleton,
+                             segmented-control)
     components/common/       EmptyState · StatusBadge · CategoryChip · Countdown · ProgressBar
                              · DualProgress · ZonedTime · PageHeader · KeyboardHint · ErrorState
+                             · ErrorBoundary (logs via lib/log, offers retry/reload) · LoadingState
+                             · PendingFeatureDialog (placeholder dialog for not-yet-built flows) · DynamicIcon
+                             (lucide icon by name) · statusLookup.ts (`resolveStatus`, `resolvePriority`)
     features/<feature>/      api.ts (query hooks + mutations) · commands.ts · components/ · hooks/ · lib/
-    hooks/                   useNow · useSettings · useFormat · useDataChanged · useKeyboardShortcut
-    lib/api.ts               typed `api<'channel'>(payload)` wrapper around window.api
+    features/deadlines-summary/ DeadlineSummary.tsx — spec §14 summary above the Deadlines tabs (integration-owned)
+    hooks/                   useNow (two-tier ticker) · useSettings · useFormat · useDataChanged · useKeyboardShortcut
+                             · useMediaQuery · usePlatform (`isMac`, `getPlatform()`)
+    lib/api.ts               typed `api<'channel'>(payload)` wrapper around window.api; `ApiError`, `onEvent`
     lib/queryKeys.ts         all query keys + entity→keys invalidation map
+    lib/toast.ts             `toastError(error, { title?, retry? })` · `toastSuccess` · `toastInfo` · `describeError`
+    lib/log.ts               `logError(message, error, context?)` → `app:log` with bounded primitive context
+    lib/icons.ts · lib/shortcutLabel.ts  lucide name map · `formatShortcutLabel('mod+K', isMac)`
+    test/renderWithProviders.tsx  test render with the real QueryClient (cleared), ThemeProvider, TooltipProvider
     styles/globals.css       Tailwind theme tokens (light/dark), category + status palettes
-    types/                   renderer-only types
   shared/
     errors.ts                `AppError` (closed `AppErrorCode` union) · `toIpcError` / `fromIpcError`
     types/                   common.ts · calendar.ts · personalDeadline.ts · conference.ts · milestone.ts · habit.ts
@@ -123,6 +157,7 @@ src/
                              (mirror spec §9.3, §10.2, §12.3, §12.6, §12.8, §13, §15, §16 + §4 additions)
     ipc/defineChannel.ts     `defineChannel` helper + `ChannelDefinition`/`Contract` (imported by channel files)
     ipc/contract.ts          aggregated `channels` map, `ChannelName`/`RequestOf`/`ResponseOf`/`ChannelHandlers`, `WindowApi`
+    ipc/envelope.ts          `IPC_ERROR_KEY` / `IpcErrorEnvelope` / `isIpcErrorEnvelope` (used by registry and preload)
     ipc/events.ts            `EntityName`, push event names + payload types
     ipc/channels/<feature>.ts per-feature channel definitions (owned by that feature)
     schemas/                 Zod 4 schemas for every domain type + create/update inputs + channel requests
@@ -138,7 +173,8 @@ tests/
   unit/ integration/ fixtures/{ics,ccf,backup}
   e2e/smoke.spec.ts          bridge, IPC validation, settings round-trip (main-process phase)
   e2e/shell.spec.ts          shell: launch, sidebar order, empty states, palette, shortcuts, theme + last page
-                             + window bounds across relaunch, sandbox shape, zero rows, real userData untouched
+                             + window bounds across relaunch, database error screen + Retry, sandbox shape,
+                             zero rows, real userData untouched
   e2e/visual.spec.ts         screenshots of every page in light/dark into e2e/__screenshots__/ (git-ignored)
   e2e/helpers/launchApp.ts   launches out/ with temp userData; `launchApp({ userDataDir })` relaunches; `waitForShell`
   e2e/helpers/realUserData.ts real userData path per platform + recursive listing snapshot
@@ -167,6 +203,14 @@ their own files, never by editing foundation files.
 | habits | `src/shared/habits/**`, `src/shared/ipc/channels/habits.ts`, `src/main/ipc/handlers/habits.ts`, `src/main/database/repositories/{habits,habitCompletions}.ts`, `src/renderer/src/features/habits/**`, `src/renderer/src/pages/HabitsPage.tsx` | 050–059 |
 | settings-data | `src/shared/backup/**`, `src/shared/ipc/channels/{settings,data}.ts`, `src/main/ipc/handlers/{settings,data}.ts`, `src/main/filesystem/{backup,dataDirectory}.ts`, `src/renderer/src/features/settings/**`, `src/renderer/src/pages/SettingsPage.tsx`, `tests/fixtures/backup/**` | 060–069 |
 
+`src/renderer/src/pages/DeadlinesPage.tsx` and `src/renderer/src/features/deadlines-summary/**`
+combine personal and conference data and are **owned by the integration role** (not by either
+deadline feature). The page already registers the `deadlines` quick-create handler and forwards it
+to the active tab through the command bus: the tab components subscribe with
+`useCommandListener(DEADLINES_QUICK_CREATE.personal | .conference, openCreate)` (see
+`app/quickCreate.ts`) and never edit the page. `DeadlineSummary` consumes hooks the two features
+export from their `api.ts`.
+
 Cross-feature UI is composed by the integration role from components each feature **exports**:
 
 * `features/habits/components/TodayHabitsCompact.tsx` — today's habits with toggles + streak (Calendar right panel).
@@ -176,7 +220,8 @@ Cross-feature UI is composed by the integration role from components each featur
 * `features/conference-deadlines/components/ConferenceDeadlinesTab.tsx`, `features/personal-deadlines/components/PersonalDeadlinesTab.tsx` — the two Deadlines tabs.
 * `features/settings/components/ConferenceSubscriptionsSection.tsx` simply renders `SubscriptionManager`.
 * `features/<x>/commands.ts` — `Command[]` entries for the command palette (`app/commands.ts` aggregates).
-* Each page registers its quick-create handler with `useRegisterQuickCreate(page, fn)`.
+* Each page registers its quick-create handler with `useRegisterQuickCreate(page, fn)`; on the
+  Deadlines page the tab components listen for `DEADLINES_QUICK_CREATE[tab]` instead.
 
 ## 4. Domain model
 
@@ -249,8 +294,16 @@ export const calendarChannels = {
 * Handlers never receive raw `IpcMainInvokeEvent` data; they receive the validated payload and a
   `ctx` with `{ window, db, now(): string }`.
 * Payload-less channels use `emptyRequestSchema = z.undefined()`; list/filter channels whose whole
-  filter object is optional (`conferences:refresh`, `conferences:listDeadlines`, `habits:list`, …)
-  accept `undefined` too. Every `update` channel takes `{ id, patch }` built with `patchRequest()`.
+  filter object is optional (`calendar:listEvents`, `personalDeadlines:list`, `habits:list`,
+  `conferences:refresh`, `conferences:listDeadlines`, `conferences:listChanges`) accept `undefined`
+  too (`api('personalDeadlines:list')` type-checks). Every `update` channel takes `{ id, patch }`
+  built with `patchRequest()`. Partial `update` payloads cannot express cross-field rules, so the
+  repositories re-validate the merged row (`validateEventTimes`, `isValidDeadlineWindow` from
+  `src/shared/schemas`) and throw `VALIDATION` before writing.
+* `calendar:listEvents` range bounds may be instants with any offset or `YYYY-MM-DD` keys. Timed
+  rows are compared against the UTC-normalised bound; all-day rows against the bound's own calendar
+  date (its first ten characters). Send bounds in the display offset (or date keys) for exact
+  all-day cuts.
 * Errors: throw `AppError(code, message, details)` (`src/shared/errors.ts`, codes: VALIDATION,
   NOT_FOUND, CONFLICT, NOT_IMPLEMENTED, IO, NETWORK, TIMEOUT, INVALID_URL, UNTRUSTED_HOST,
   INVALID_ICS, INVALID_BACKUP, UNSUPPORTED_BACKUP_VERSION, MIGRATION_FAILED, CANCELED, PERMISSION,
@@ -271,23 +324,35 @@ export const calendarChannels = {
 * Data: every feature exposes hooks in `features/<x>/api.ts` built on TanStack Query with keys from
   `lib/queryKeys.ts`. `useDataChanged()` (mounted once in `App`) invalidates keys via the
   entity→keys map when `data:changed` arrives. Never keep a second copy of server state in zustand.
-* Time: `useNow({ precision: 'minute' | 'second' })` re-renders on a shared ticker. Countdown
-  components pick `second` precision when < 24 h remain. Countdowns are always computed from
-  canonical instants at render time; never persisted.
+* Time: `useNow({ precision: 'minute' | 'second' })` re-renders on a shared ticker with two slices:
+  `minute` subscribers render only when the wall-clock minute changes even while the top-bar clock
+  ticks every second. `Countdown` reads the minute slice, and switches its ticker to `second`
+  precision once < 24 h remain (spec §18). Countdowns are always computed from canonical instants
+  at render time; never persisted.
 * Formatting: `useFormat()` returns `formatDate/Time/DateTime/Zone` honouring settings (timezone,
   clock, date format, week start). Components never call Luxon directly for display.
 * Commands: `app/commands.ts` aggregates `features/*/commands.ts` + shell commands into the
   `cmdk` palette (`Cmd/Ctrl+K`). Quick create (`Cmd/Ctrl+N`) dispatches to the current page's
   registered handler. Menu accelerators arrive as `app:command` events and go through the same
-  dispatcher (`app/shortcuts.ts`). Shortcuts: `Cmd/Ctrl+K`, `Cmd/Ctrl+N`, `Cmd/Ctrl+I`, `Cmd/Ctrl+,`,
+  dispatcher (`app/shortcuts.ts`). `app/commandBus.ts` is a synchronous in-renderer bus: the shell
+  dispatches the fixed names `import-ics`, `calendar-today`, `close-overlay`, `quick-create`;
+  features may dispatch/subscribe their own names of the form `<feature>:<verb>`
+  (`FeatureCommandName`, e.g. `personal-deadlines:quick-create`) without editing shell files.
+  `dispatchCommand` returns the number of listeners so callers can fall back. Shortcuts: `Cmd/Ctrl+K`, `Cmd/Ctrl+N`, `Cmd/Ctrl+I`, `Cmd/Ctrl+,`,
   `Cmd/Ctrl+1–5`, `T` (calendar focused, no modifier, not in an input), `Esc`. Never override OS
   shortcuts (copy/paste/undo/quit/close use standard menu roles).
 * Theme: `ThemeProvider` applies `class="dark"` on `<html>` per settings (`system` follows
-  `prefers-color-scheme`) and sets `color-scheme`. Tailwind 4 dark variant:
+  `prefers-color-scheme`) and sets `color-scheme`. Main reads the persisted theme before creating
+  the window, paints `backgroundColor` from it and passes `?theme=light|dark|system` on the initial
+  URL; `main.tsx` applies it before the first paint (`bootThemeSetting`) so there is no flash. Tailwind 4 dark variant:
   `@custom-variant dark (&:where(.dark, .dark *))`.
 * Layout: collapsible sidebar (icons only when collapsed), top bar with page title, live clock
   (`useNow` second precision), active timezone, quick-create button, palette trigger, theme
-  control. Content area scrolls independently. Minimum supported width ~960 px; the Calendar
+  control. The top-bar quick-create button is labelled with the page's `createActionLabel`, which
+  uses the same verb as the page toolbar / empty state (`Add Event`, `Add Milestone`,
+  `Create Habit`) so one action never has two names on screen. Startup: `AppGate` waits for
+  `app:getInfo` and the first `settings:get` before mounting the shell; a settings failure falls
+  back to defaults and `AppShell` toasts it with Retry. Content area scrolls independently. Minimum supported width ~960 px; the Calendar
   right panel collapses under ~1180 px.
 * macOS title bar: the window uses `titleBarStyle: 'hiddenInset'` with `trafficLightPosition
   { x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px inside the 48 px brand
@@ -472,8 +537,12 @@ Main-process / persistence phase, 2026-09-04:
 25. **Logging**: `logAppError(scope, error)` logs `code: message` plus details filtered through an
     allow-list of keys (`id`, `ids`, `code`, `count`, `version`, `path`, `host`, `url`, `channel`, …;
     arrays collapse to their length). Expected errors (`VALIDATION`, `NOT_FOUND`, `CONFLICT`,
-    `CANCELED`, `NOT_IMPLEMENTED`) log at `warn`, everything else at `error`. `app:log` writes the
-    renderer's message verbatim, so the renderer must not include personal content in it.
+    `CANCELED`, `NOT_IMPLEMENTED`) log at `warn`, everything else at `error`. `app:log` (renderer →
+    main) is bounded at the boundary: `logRequestSchema` admits `message ≤ 2000` chars and a
+    `context` of ≤ 20 primitive values (strings ≤ 2000), and `sanitizeRendererContext` truncates
+    strings to 500 chars and replaces objects/arrays with markers; `lib/log.ts` sends only
+    `error.name` + a truncated `error.message`. The renderer still must not put personal content in
+    log messages (superseded in part by Decision 39).
 26. **E2E harness**: `tests/e2e/helpers/launchApp.ts` launches `out/` with a fresh temp
     `MY_PHD_OS_USER_DATA`, `MY_PHD_OS_E2E=1`, and `ELECTRON_RUN_AS_NODE`/`ELECTRON_RENDERER_URL`
     removed from the environment; it collects renderer console errors and page errors.
@@ -492,7 +561,9 @@ Integration / verification phase (shell e2e), 2026-09-04:
     primary navigation.
 29. **Real `userData` is asserted untouched by e2e**: `tests/e2e/helpers/realUserData.ts` snapshots
     `~/Library/Application Support/my-phd-os` (per-platform equivalent) before the suite and the
-    last shell test compares the listing + mtimes; a missing directory snapshots as `<missing>`.
+    last shell test compares the listing (names of every entry; size + mtime of files outside
+    `logs/`); a missing directory snapshots as `<missing>`. Log files and directory mtimes are
+    excluded so an installed copy of the app running alongside the suite cannot fail it spuriously.
 30. **macOS traffic-light layout fix** (Sidebar/TopBar): the brand icon previously sat under the
     native buttons (both at y 18–30 / x 16–40). See §7 "macOS title bar" for the rule now in force.
 31. **Palette trigger label is `Search commands…`** (was `Search or run a command…`, which truncated
@@ -509,3 +580,66 @@ Integration / verification phase (shell e2e), 2026-09-04:
     600 ms (300 ms debounce) + relaunch.
 34. **`tests/e2e/__screenshots__/` is git-ignored**; screenshots are inspection aids, not golden
     images. No pixel-diff assertions exist yet.
+
+
+Review-fix pass (foundation), 2026-09-04:
+
+35. **The `<meta>` CSP in `index.html` is the authoritative production policy** (the packaged page
+    is `file:`), generated from `PRODUCTION_CSP` minus `frame-ancestors` (`PRODUCTION_META_CSP`) and
+    enforced equal by `tests/unit/main/security.test.ts`. Both policies gained `object-src 'none'`,
+    `frame-src 'none'`, `base-uri 'self'`, `form-action 'none'`; `will-frame-navigate` is guarded.
+36. **`IPC_ERROR_KEY` lives in `src/shared/ipc/envelope.ts`**; `registry.ts` re-exports it and the
+    preload imports it, so the envelope cannot drift between the two sides. The preload registers a
+    given listener once per event (a second `on` with the same function returns the same
+    unsubscribe) and drops empty per-event maps on `off`.
+37. **Dev switches are gated on `!app.isPackaged`** (`src/main/env.ts`); `ELECTRON_RENDERER_URL`
+    must be `http://localhost|127.0.0.1|[::1]` or it is ignored and logged
+    (`ignoredRendererUrlReason`); `webPreferences.devTools = isDev`; `spellcheck` only on macOS
+    (no dictionary downloads on Windows/Linux); `security/permissions.ts` denies every permission
+    request/check (`ALLOWED_PERMISSIONS` is empty until a feature needs one).
+38. **`app:retryDatabase`** (`emptyRequestSchema → AppInfo`) re-runs the startup open + migrate
+    (`HandlerContext.reopenDatabase()`); on success the bootstrap attaches window-state persistence
+    to the existing window and the renderer refetches settings. `DatabaseErrorScreen`'s Retry calls
+    it (previously it only refetched `app:getInfo`, which could never recover). `HandlerContext.dbError`
+    is a live getter.
+39. **Renderer log context is bounded** at the schema (`logRequestSchema`: ≤ 20 primitive keys,
+    strings ≤ 2000) and by `sanitizeRendererContext` in main (strings ≤ 500, objects → `[object]`);
+    `lib/log.ts` forwards only `error.name` + truncated `error.message`. Updates Decision 25.
+40. **Cross-field time rules compare instants, not strings.** `validateEventTimes` (calendar) and
+    `isValidDeadlineWindow` (personal deadlines) use `compareInstants`; the create schemas use them
+    and `updateEvent` / `updatePersonalDeadline` re-validate the merged row (`VALIDATION` with
+    `{ id, field }`). `calendar:listEvents` and `personalDeadlines:list` accept `undefined`
+    (`listEventsFilterSchema.optional()`), matching §6.
+41. **`listEvents` normalises range bounds**: timed rows compare against `toStoredInstant(bound)`,
+    all-day rows against `bound.slice(0, 10)` (the caller's calendar date), so `+02:00` bounds and
+    all-day events on the exclusive range end behave. `deleteEvent` and `deleteSource(…, true)` emit
+    `personalDeadlines` and `followedConferences` too (`EVENT_DELETE_ENTITIES`) because the
+    `ON DELETE SET NULL` foreign keys mutate those rows. `deleteConferenceDeadline` needs no change:
+    `conferenceDeadlines` already invalidates `calendar.*`.
+42. **Theme on the initial URL**: `createMainWindow` reads `settings.theme`, paints
+    `backgroundColor` (`WINDOW_BACKGROUND.light/dark`, `system` via `nativeTheme`) and loads the
+    page with `?theme=…`; `main.tsx`/`ThemeProvider` use `bootThemeSetting()` until settings load.
+43. **`useNow` has two slices** (`second`, `minute`); `useNow({ precision })` selects one, so minute
+    subscribers no longer re-render every second while the top-bar clock is mounted. `Countdown`
+    derives precision from the ticked minute instant (second precision under 24 h) instead of only
+    from a test-supplied `nowIso`.
+44. **Startup gating**: `AppGate` waits for both `app:getInfo` and the first `settings:get`
+    (`isLoaded = query.isSuccess`); optimistic settings/UI writes never seed an empty cache (they
+    send the write and invalidate instead), so hydration always runs from persisted values. A
+    settings load failure falls back to defaults and is toasted from `AppShell` with Retry.
+45. **Command bus is open to features**: `BusCommandName = ShellCommandName | FeatureCommandName` (`${string}:${string}`);
+    feature names are `<feature>:<verb>`. `DEADLINES_QUICK_CREATE` (in `app/quickCreate.ts`) maps
+    each Deadlines tab to the bus command its feature listens on; `DeadlinesPage` and
+    `features/deadlines-summary/**` are integration-owned (§3).
+46. **Quick-create labels**: `PageDefinition.createActionLabel` (`Add Event`, `Add Deadline`,
+    `Add Milestone`, `Create Habit`) labels the top-bar button with the page toolbar's verb; the
+    §19 empty-state strings (`Create Event`, …) are unchanged. `New <noun>` is gone.
+47. **Removed dead code**: `KnownStatusId` (resolved to `never`), `formatShortcut` in
+    `shared/constants/shortcuts.ts` (the renderer's `formatShortcutLabel` is the one formatter),
+    `quickCreateLabel`, `AppInfoWithDbError` (identity alias) and the `window as unknown` cast in
+    `lib/api.ts` (`Window.api` is typed globally). `useKeyboardShortcut`, `getNow`, `allDay.ts`
+    helpers, `listMeta` and the `ccf.ts` helpers stay: they are reserved for the feature phase.
+48. **E2E hygiene**: screenshots wait on `settle(page)` (finite animations finished + two frames)
+    instead of fixed sleeps; the window-bounds test no longer sleeps 600 ms (the `close` event
+    flushes synchronously); `snapshotDirectory` ignores log-file and directory mtimes (Decision 29).
+    New shell test: database error screen → release the "lock" → Retry → shell appears.

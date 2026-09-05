@@ -4,7 +4,9 @@ import {
   createCalendarEventInputSchema,
   createCalendarSourceInputSchema,
   icsExportScopeSchema,
-  updateCalendarEventInputSchema
+  listEventsRequestSchema,
+  updateCalendarEventInputSchema,
+  validateEventTimes
 } from './calendar'
 import {
   colorSchema,
@@ -18,6 +20,8 @@ import { createHabitInputSchema, habitFrequencySchema, setCompletionRequestSchem
 import { createMilestoneInputSchema } from './milestone'
 import {
   createPersonalDeadlineInputSchema,
+  isValidDeadlineWindow,
+  listPersonalDeadlinesRequestSchema,
   updatePersonalDeadlineInputSchema
 } from './personalDeadline'
 import { appSettingsSchema, uiStateSchema, updateSettingsInputSchema } from './settings'
@@ -84,6 +88,45 @@ describe('calendar schemas', () => {
     expect(createCalendarEventInputSchema.safeParse({ ...timed, title: '   ' }).success).toBe(false)
   })
 
+  it('compares start and end as instants, not strings, when offsets differ', () => {
+    // 10:00+02:00 is 08:00Z, i.e. before a 09:00Z start, although it sorts after it lexically.
+    expect(
+      createCalendarEventInputSchema.safeParse({
+        ...timed,
+        startAt: '2026-09-10T09:00:00Z',
+        endAt: '2026-09-10T10:00:00+02:00'
+      }).success
+    ).toBe(false)
+    // 12:00+02:00 is 10:00Z, after the start, although it sorts before '…T09:00:00Z' lexically? No:
+    // it sorts after, so also check a case that sorts *before* but is valid: 07:00-03:00 = 10:00Z.
+    expect(
+      createCalendarEventInputSchema.safeParse({
+        ...timed,
+        startAt: '2026-09-10T09:00:00Z',
+        endAt: '2026-09-10T07:00:00-03:00'
+      }).success
+    ).toBe(true)
+    expect(
+      validateEventTimes({
+        allDay: false,
+        startAt: '2026-09-10T09:00:00Z',
+        endAt: '2026-09-10T09:00:00Z'
+      })
+    ).toBeUndefined()
+    expect(
+      validateEventTimes({ allDay: true, startAt: '2026-09-11', endAt: '2026-09-10' })
+    ).toEqual({
+      field: 'endAt',
+      message: 'endAt must not be before startAt'
+    })
+  })
+
+  it('accepts an omitted list filter (ARCHITECTURE §6)', () => {
+    expect(listEventsRequestSchema.safeParse(undefined).success).toBe(true)
+    expect(listEventsRequestSchema.safeParse({}).success).toBe(true)
+    expect(listEventsRequestSchema.safeParse({ rangeStart: 'yesterday' }).success).toBe(false)
+  })
+
   it('allows partial updates and strips nothing required', () => {
     expect(updateCalendarEventInputSchema.safeParse({}).success).toBe(true)
     expect(updateCalendarEventInputSchema.safeParse({ category: 'nap' }).success).toBe(false)
@@ -133,6 +176,24 @@ describe('personal deadline schemas', () => {
         trackingStartAt: '2026-10-01T00:00:00.000Z'
       }).success
     ).toBe(false)
+    // 13:00+02:00 is 11:00Z, before the 11:59Z deadline: valid although lexically "after".
+    expect(
+      createPersonalDeadlineInputSchema.safeParse({
+        ...input,
+        trackingStartAt: '2026-09-18T13:00:00+02:00'
+      }).success
+    ).toBe(true)
+    // 10:00-03:00 is 13:00Z, after the deadline: invalid although lexically "before".
+    expect(
+      createPersonalDeadlineInputSchema.safeParse({
+        ...input,
+        trackingStartAt: '2026-09-18T10:00:00-03:00'
+      }).success
+    ).toBe(false)
+    expect(
+      isValidDeadlineWindow({ trackingStartAt: input.deadlineAt, deadlineAt: input.deadlineAt })
+    ).toBe(true)
+    expect(listPersonalDeadlinesRequestSchema.safeParse(undefined).success).toBe(true)
     expect(createPersonalDeadlineInputSchema.safeParse({ ...input, progress: 101 }).success).toBe(
       false
     )

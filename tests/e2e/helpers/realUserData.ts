@@ -15,8 +15,11 @@ export const realUserDataDir = (): string => {
 }
 
 /**
- * Recursive listing of a directory as `relativePath size mtimeMs` lines (sorted). A missing
- * directory yields `['<missing>']`, so "still missing" also compares equal.
+ * Recursive listing of a directory (sorted): every entry by relative path, plus `size mtimeMs`
+ * for files outside `logs/`. Directory mtimes and the log files are listed by name only, because
+ * a real installed copy of the app running alongside the suite appends to `logs/main.log`; a leak
+ * from e2e would still show up as a new database / settings file or a changed database size.
+ * A missing directory yields `['<missing>']`, so "still missing" also compares equal.
  */
 export const snapshotDirectory = (root: string): string[] => {
   if (!existsSync(root)) return ['<missing>']
@@ -24,15 +27,18 @@ export const snapshotDirectory = (root: string): string[] => {
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name)
-      const stat = statSync(full)
-      lines.push(
-        `${relative(root, full)} ${entry.isDirectory() ? 'dir' : stat.size} ${stat.mtimeMs}`
-      )
-      if (entry.isDirectory()) walk(full)
+      const rel = relative(root, full)
+      if (entry.isDirectory()) {
+        lines.push(`${rel} dir`)
+        walk(full)
+      } else if (rel.startsWith('logs/') || rel.startsWith('logs\\')) {
+        lines.push(`${rel} log`)
+      } else {
+        const stat = statSync(full)
+        lines.push(`${rel} ${stat.size} ${stat.mtimeMs}`)
+      }
     }
   }
   walk(root)
-  const rootStat = statSync(root)
-  lines.push(`. dir ${rootStat.mtimeMs}`)
   return lines.sort()
 }

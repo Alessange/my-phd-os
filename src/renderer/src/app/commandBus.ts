@@ -4,7 +4,10 @@
  */
 import { useEffect } from 'react'
 
-export type BusCommandName = 'import-ics' | 'calendar-today' | 'close-overlay' | 'quick-create'
+/** Shell commands are fixed names; features add their own as `<feature>:<verb>` (ARCHITECTURE §7). */
+export type ShellCommandName = 'import-ics' | 'calendar-today' | 'close-overlay' | 'quick-create'
+export type FeatureCommandName = `${string}:${string}`
+export type BusCommandName = ShellCommandName | FeatureCommandName
 
 export type BusCommandArgs = Record<string, string>
 type Listener = (args: BusCommandArgs) => void

@@ -1,5 +1,7 @@
+import { mkdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { launchApp, waitForShell, type LaunchedApp } from './helpers/launchApp'
+import { createTempUserData, launchApp, waitForShell, type LaunchedApp } from './helpers/launchApp'
 import { realUserDataDir, snapshotDirectory } from './helpers/realUserData'
 import type { SettingsBundle } from '../../src/shared/types/settings'
 
@@ -174,6 +176,10 @@ test('Dark theme chosen in Settings applies the dark class and survives a relaun
 
   await launched.close({ keepUserData: true })
   launched = await launchApp({ userDataDir })
+  // Main passes the persisted theme on the initial URL so the very first paint is already dark.
+  expect(
+    await launched.page.evaluate(() => new URLSearchParams(location.search).get('theme'))
+  ).toBe('dark')
   await waitForShell(launched.page)
   await expect(launched.page.locator('html')).toHaveClass(/\bdark\b/)
   await expect(currentPageHeading(launched.page)).toHaveText('Settings')
@@ -193,8 +199,7 @@ test('window bounds persist across relaunch', async () => {
   const applied = await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].getBounds()
   )
-  // Give the debounced persistence (300 ms) time to write before quitting.
-  await launched.page.waitForTimeout(600)
+  // The window's `close` event flushes the debounced state synchronously; no wait is needed.
   await launched.close({ keepUserData: true })
 
   launched = await launchApp({ userDataDir })
@@ -237,6 +242,47 @@ test('renderer is sandboxed: no window.require, window.api exposes only invoke/o
     code: 'VALIDATION',
     message: 'Unknown IPC channel "fs:readFile"'
   })
+})
+
+test('database error screen explains, keeps the file untouched, and Retry really reopens the database', async () => {
+  await launched.close()
+  // A directory where the database file should be makes SQLite fail to open it (IO), like a lock.
+  const userDataDir = createTempUserData()
+  const blocker = join(userDataDir, 'my-phd-os.sqlite')
+  mkdirSync(blocker)
+  launched = await launchApp({ userDataDir })
+  const { page } = launched
+
+  const alert = page
+    .getByRole('alert')
+    .filter({ has: page.getByRole('heading', { name: 'The database could not be opened' }) })
+  await expect(
+    alert.getByRole('heading', { name: 'The database could not be opened' })
+  ).toBeVisible()
+  await expect(alert.getByText(blocker, { exact: true })).toBeVisible()
+  await expect(alert.getByText(/\(IO\)/)).toBeVisible()
+  expect(await page.evaluate(() => new URLSearchParams(location.search).get('dbError'))).toBe('1')
+  await expect(page.getByRole('navigation', { name: 'Primary' })).toHaveCount(0)
+
+  // Retry while the blocker is still there: same screen, nothing deleted.
+  await alert.getByRole('button', { name: 'Retry' }).click()
+  await expect(
+    alert.getByRole('heading', { name: 'The database could not be opened' })
+  ).toBeVisible()
+  expect(
+    await page.evaluate(async () => (await window.api.invoke('app:getInfo')).dbError?.code)
+  ).toBe('IO')
+
+  // Release the "lock" and retry: the database opens, migrates, and the shell appears.
+  rmSync(blocker, { recursive: true, force: true })
+  await alert.getByRole('button', { name: 'Retry' }).click()
+  await waitForShell(page)
+  await expect(currentPageHeading(page)).toHaveText('Calendar')
+  const info = await page.evaluate(() => window.api.invoke('app:getInfo'))
+  expect(info.dbError).toBeUndefined()
+  const storage = await page.evaluate(() => window.api.invoke('data:getStorageInfo'))
+  expect(Object.values(storage.counts).every((count) => count === 0)).toBe(true)
+  expect(launched.pageErrors).toEqual([])
 })
 
 test('a fresh install has zero user rows and follows no conference', async () => {

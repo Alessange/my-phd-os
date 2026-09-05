@@ -1,5 +1,6 @@
-import { QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { QueryClientProvider, useMutation, useQuery } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import type { AppInfo } from '@shared/types/app'
 import { AppShell } from './app/layout/AppShell'
 import { DatabaseErrorScreen } from './app/layout/DatabaseErrorScreen'
 import { ThemeProvider } from './app/layout/ThemeProvider'
@@ -12,14 +13,15 @@ import { ErrorState } from './components/common/ErrorState'
 import { LoadingState } from './components/common/LoadingState'
 import { TooltipProvider } from './components/ui/tooltip'
 import { useDataChanged } from './hooks/useDataChanged'
+import { useSettings } from './hooks/useSettings'
 import { api } from './lib/api'
 import { queryKeys } from './lib/queryKeys'
+import { toastError } from './lib/toast'
 import CalendarPage from './pages/CalendarPage'
 import DeadlinesPage from './pages/DeadlinesPage'
 import HabitsPage from './pages/HabitsPage'
 import SettingsPage from './pages/SettingsPage'
 import TimelinePage from './pages/TimelinePage'
-import type { AppInfoWithDbError } from './types/app'
 
 const PAGE_COMPONENTS = {
   calendar: CalendarPage,
@@ -49,19 +51,38 @@ function Shell(): React.JSX.Element {
   )
 }
 
-/** Blocks the UI until main confirms the database is usable; shows the database screen otherwise. */
+const Starting = (): React.JSX.Element => (
+  <div className="flex h-full items-center justify-center">
+    <LoadingState label="Starting My PhD OS…" />
+  </div>
+)
+
+/**
+ * Blocks the UI until main confirms the database is usable and the first `settings:get` has
+ * settled, so the shell hydrates from persisted settings (never from defaults racing the fetch).
+ * A settings failure falls back to defaults; `AppShell` surfaces it with a Retry toast.
+ */
 function AppGate(): React.JSX.Element {
   const info = useQuery({
     queryKey: queryKeys.app.info(),
-    queryFn: async () => (await api('app:getInfo')) as AppInfoWithDbError
+    queryFn: () => api('app:getInfo')
   })
-  if (info.isPending) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LoadingState label="Starting My PhD OS…" />
-      </div>
-    )
-  }
+  const settings = useSettings()
+  const retryDatabase = useMutation({
+    mutationFn: () => api('app:retryDatabase'),
+    onSuccess: (next: AppInfo) => {
+      queryClient.setQueryData(queryKeys.app.info(), next)
+      // Reset (not invalidate): the settings query failed while the database was down, and a
+      // stale error must not surface as a toast once the shell mounts.
+      if (!next.dbError) void queryClient.resetQueries({ queryKey: queryKeys.settings.all })
+    },
+    onError: (error: unknown) =>
+      toastError(error, {
+        title: 'Could not reopen the database',
+        retry: () => retryDatabase.mutate()
+      })
+  })
+  if (info.isPending) return <Starting />
   if (info.error) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -74,8 +95,16 @@ function AppGate(): React.JSX.Element {
       </div>
     )
   }
-  if (info.data.dbError)
-    return <DatabaseErrorScreen info={info.data} onRetry={() => void info.refetch()} />
+  if (info.data.dbError) {
+    return (
+      <DatabaseErrorScreen
+        info={info.data}
+        onRetry={() => retryDatabase.mutate()}
+        retrying={retryDatabase.isPending}
+      />
+    )
+  }
+  if (!settings.isLoaded && settings.error === null) return <Starting />
   return <Shell />
 }
 

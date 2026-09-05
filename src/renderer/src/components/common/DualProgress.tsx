@@ -1,6 +1,5 @@
-import { clampPercent } from '@renderer/lib/utils'
+import { clampPercent, cn } from '@renderer/lib/utils'
 import { describePace } from './pace'
-import { cn } from '@renderer/lib/utils'
 import { ProgressBar } from './ProgressBar'
 
 export interface DualProgressProps {

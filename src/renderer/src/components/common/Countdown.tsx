@@ -13,7 +13,11 @@ export interface CountdownProps {
   className?: string
 }
 
-/** Exact remaining time from canonical instants, recomputed on every tick. Never persisted. */
+/**
+ * Exact remaining time from canonical instants, recomputed on every tick. Never persisted.
+ * Precision follows the ticker: once less than 24 h remain (or for the `large` variant) the
+ * component re-renders every second (spec §18), otherwise once a minute.
+ */
 export function Countdown({
   targetIso,
   nowIso,
@@ -21,7 +25,8 @@ export function Countdown({
   variant = 'inline',
   className
 }: CountdownProps): React.JSX.Element {
-  const remaining = targetIso && nowIso ? calculateRemainingTime(targetIso, nowIso) : undefined
+  const minuteNow = useNow({ precision: 'minute' })
+  const remaining = targetIso ? calculateRemainingTime(targetIso, nowIso ?? minuteNow) : undefined
   const needsSeconds = emphasizeUnder24h && (remaining?.isUnder24h ?? false)
   return (
     <CountdownTicker

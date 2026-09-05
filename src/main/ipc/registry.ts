@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { AppError, type IpcError } from '@shared/errors'
 import type { ChannelHandlers, Contract } from '@shared/ipc/contract'
+import { IPC_ERROR_KEY, isIpcErrorEnvelope, type IpcErrorEnvelope } from '@shared/ipc/envelope'
 import { logAppError } from '../logging/logger'
 import type { DataPaths } from '../filesystem/dataDirectory'
 
@@ -11,21 +12,17 @@ export interface HandlerContext {
   readonly db: DatabaseSync
   readonly window: BrowserWindow | null
   readonly paths: DataPaths
-  /** Set when the database could not be opened or migrated at startup. */
+  /** Set when the database could not be opened or migrated at startup (or the last retry). */
   readonly dbError?: IpcError
+  /** Re-attempts opening + migrating the database; afterwards `db`/`dbError` reflect the outcome. */
+  reopenDatabase(): void
   now(): string
 }
 
 export type Handlers = ChannelHandlers<HandlerContext>
 
-/** Rejected calls travel as a plain envelope so `details` survive the bridge (Electron keeps only `message` of thrown errors). */
-export const IPC_ERROR_KEY = '__ipcError' as const
-export interface IpcErrorEnvelope {
-  [IPC_ERROR_KEY]: IpcError
-}
-
-export const isIpcErrorEnvelope = (value: unknown): value is IpcErrorEnvelope =>
-  typeof value === 'object' && value !== null && IPC_ERROR_KEY in value
+/** The error envelope is defined once in `src/shared/ipc/envelope.ts` and shared with the preload. */
+export { IPC_ERROR_KEY, isIpcErrorEnvelope, type IpcErrorEnvelope }
 
 export interface IpcMainLike {
   handle(

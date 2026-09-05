@@ -1,7 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite'
-import type {
-  CreatePersonalDeadlineInput,
-  UpdatePersonalDeadlineInput
+import { AppError } from '@shared/errors'
+import {
+  DEADLINE_WINDOW_MESSAGE,
+  isValidDeadlineWindow,
+  type CreatePersonalDeadlineInput,
+  type UpdatePersonalDeadlineInput
 } from '@shared/schemas/personalDeadline'
 import type { PersonalDeadline } from '@shared/types/personalDeadline'
 import { changeBus } from '../changeBus'
@@ -50,7 +53,7 @@ type ParsedCreate = Omit<CreatePersonalDeadlineInput, 'status' | 'progress' | 'p
 
 export const listPersonalDeadlines = (
   db: DatabaseSync,
-  options: { includeCompleted?: boolean } = {}
+  options: { includeCompleted?: boolean } | undefined = {}
 ): PersonalDeadline[] =>
   prepared(
     db,
@@ -110,7 +113,15 @@ export const updatePersonalDeadline = (
   id: string,
   patch: UpdatePersonalDeadlineInput & { linkedCalendarEventId?: string | null }
 ): PersonalDeadline => {
-  getPersonalDeadline(db, id)
+  const existing = getPersonalDeadline(db, id)
+  // The partial schema cannot check the tracking window; validate the merged row before writing.
+  const merged = {
+    trackingStartAt: patch.trackingStartAt ?? existing.trackingStartAt,
+    deadlineAt: patch.deadlineAt ?? existing.deadlineAt
+  }
+  if (!isValidDeadlineWindow(merged)) {
+    throw new AppError('VALIDATION', DEADLINE_WINDOW_MESSAGE, { id, field: 'trackingStartAt' })
+  }
   const { clause, values } = buildSet({
     title: patch.title,
     description: patch.description,

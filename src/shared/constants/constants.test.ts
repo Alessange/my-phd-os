@@ -7,7 +7,7 @@ import { CATEGORIES, CATEGORY_IDS } from './categories'
 import { CCF_SUBJECTS, CORE_RANK_OPTIONS, encodeRankForUrl } from './ccf'
 import { EMPTY_STATES } from './emptyStates'
 import { APPROVED_SUBSCRIPTION_HOSTS, isApprovedSubscriptionUrl, OFFICIAL_FEED_URLS } from './hosts'
-import { formatShortcut, SHORTCUTS } from './shortcuts'
+import { SHORTCUTS } from './shortcuts'
 import { DEADLINE_STATUS_DEFINITIONS } from './statuses'
 import { TIMEZONE_OPTION_IDS, TIMEZONE_OPTIONS } from './timezones'
 
@@ -68,9 +68,8 @@ describe('shortcuts', () => {
       'calendar-today',
       'close-overlay'
     ])
-    expect(formatShortcut(SHORTCUTS[0], 'darwin')).toBe('⌘K')
-    expect(formatShortcut(SHORTCUTS[0], 'other')).toBe('Ctrl+K')
-    expect(formatShortcut(SHORTCUTS.at(-1)!, 'darwin')).toBe('Esc')
+    expect(SHORTCUTS[0]).toMatchObject({ key: 'K', modifier: 'mod' })
+    expect(SHORTCUTS.at(-1)).toMatchObject({ key: 'Escape', modifier: 'none' })
     expect(SHORTCUTS.find((s) => s.id === 'calendar-today')?.scope).toBe('calendar')
   })
 })

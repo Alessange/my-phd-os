@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launchApp, waitForShell, type LaunchedApp } from './helpers/launchApp'
+import { launchApp, settle, waitForShell, type LaunchedApp } from './helpers/launchApp'
 
 /**
  * Visual sanity: screenshots of every page in light and dark mode land in
@@ -44,12 +44,12 @@ for (const theme of THEMES) {
       if (label === 'Deadlines') {
         await page.getByRole('tab', { name: 'Conference Deadlines' }).click()
       }
-      await page.waitForTimeout(250)
+      await settle(page)
       await page.screenshot({ path: join(SCREENSHOT_DIR, `${label.toLowerCase()}-${theme}.png`) })
       if (label === 'Deadlines') {
         await page.getByRole('tab', { name: 'Personal Deadlines' }).click()
         await expect(page.getByText('No personal deadlines yet.', { exact: true })).toBeVisible()
-        await page.waitForTimeout(150)
+        await settle(page)
         await page.screenshot({
           path: join(SCREENSHOT_DIR, `deadlines-personal-${theme}.png`)
         })
@@ -59,12 +59,13 @@ for (const theme of THEMES) {
     // Command palette and collapsed sidebar, once per theme.
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k')
     await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
-    await page.waitForTimeout(150)
+    await settle(page)
     await page.screenshot({ path: join(SCREENSHOT_DIR, `palette-${theme}.png`) })
     await page.keyboard.press('Escape')
 
     await page.getByRole('button', { name: 'Collapse sidebar' }).click()
-    await page.waitForTimeout(300)
+    await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
+    await settle(page)
     await page.screenshot({ path: join(SCREENSHOT_DIR, `sidebar-collapsed-${theme}.png`) })
     await page.getByRole('button', { name: 'Expand sidebar' }).click()
 

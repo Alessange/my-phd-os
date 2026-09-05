@@ -1,8 +1,10 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
-import type {
-  CreateCalendarEventInput,
-  ListEventsRequest,
-  UpdateCalendarEventInput
+import { AppError } from '@shared/errors'
+import {
+  validateEventTimes,
+  type CreateCalendarEventInput,
+  type ListEventsFilter,
+  type UpdateCalendarEventInput
 } from '@shared/schemas/calendar'
 import type { CalendarEvent } from '@shared/types/calendar'
 import { changeBus } from '../changeBus'
@@ -96,20 +98,37 @@ export const getEvent = (db: DatabaseSync, id: string): CalendarEvent => {
 }
 
 /**
+ * A range bound as compared against stored rows: timed rows against the UTC-normalised instant,
+ * all-day rows against the bound's own calendar date (`YYYY-MM-DD`, the first ten characters of
+ * the value as the caller wrote it, i.e. in the caller's display offset).
+ */
+const rangeBound = (bound: string): { instant: string; date: string } => ({
+  instant: toStoredInstant(bound),
+  date: bound.slice(0, 10)
+})
+
+/**
  * Events overlapping `[rangeStart, rangeEnd)`. Recurring masters that start before `rangeEnd` are
  * always included so the renderer can expand them. Events of hidden sources are excluded unless
  * `includeHiddenSources` is set; events without a source are always included.
  */
-export const listEvents = (db: DatabaseSync, filter: ListEventsRequest = {}): CalendarEvent[] => {
+export const listEvents = (
+  db: DatabaseSync,
+  filter: ListEventsFilter | undefined = {}
+): CalendarEvent[] => {
   const where: string[] = []
   const params: SQLInputValue[] = []
   if (filter.rangeEnd) {
-    where.push('e.start_at < ?')
-    params.push(filter.rangeEnd)
+    const end = rangeBound(filter.rangeEnd)
+    where.push('(CASE WHEN e.all_day = 1 THEN e.start_at < ? ELSE e.start_at < ? END)')
+    params.push(end.date, end.instant)
   }
   if (filter.rangeStart) {
-    where.push('(e.end_at > ? OR e.recurrence_rule IS NOT NULL)')
-    params.push(filter.rangeStart)
+    const start = rangeBound(filter.rangeStart)
+    where.push(
+      '((CASE WHEN e.all_day = 1 THEN e.end_at > ? ELSE e.end_at > ? END) OR e.recurrence_rule IS NOT NULL)'
+    )
+    params.push(start.date, start.instant)
   }
   if (filter.sourceIds?.length) {
     where.push(`e.source_calendar_id IN (${filter.sourceIds.map(() => '?').join(', ')})`)
@@ -169,7 +188,15 @@ export const updateEvent = (
   id: string,
   patch: UpdateCalendarEventInput
 ): CalendarEvent => {
-  getEvent(db, id)
+  const existing = getEvent(db, id)
+  // The partial schema cannot check cross-field rules; validate the merged row before writing.
+  const merged = {
+    allDay: patch.allDay ?? existing.allDay,
+    startAt: patch.startAt ?? existing.startAt,
+    endAt: patch.endAt ?? existing.endAt
+  }
+  const issue = validateEventTimes(merged)
+  if (issue) throw new AppError('VALIDATION', issue.message, { id, field: issue.field })
   const { clause, values } = buildSet({
     title: patch.title,
     description: patch.description,
@@ -200,8 +227,15 @@ export const updateEvent = (
   return getEvent(db, id)
 }
 
+/** Entities whose rows the `ON DELETE SET NULL` foreign keys touch when calendar events go away. */
+export const EVENT_DELETE_ENTITIES = [
+  'calendarEvents',
+  'personalDeadlines',
+  'followedConferences'
+] as const
+
 export const deleteEvent = (db: DatabaseSync, id: string): void => {
   getEvent(db, id)
   prepared(db, 'DELETE FROM calendar_events WHERE id = ?').run(id)
-  changeBus.emit('calendarEvents')
+  changeBus.emit(...EVENT_DELETE_ENTITIES)
 }

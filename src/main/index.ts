@@ -10,7 +10,7 @@ import { changeBus } from './database/changeBus'
 import { closeDatabase, openDatabase } from './database/connection'
 import { runMigrations } from './database/migrate'
 import { recordLaunch } from './database/repositories/appMeta'
-import { isDev, isE2E, rendererDevUrl, userDataOverride } from './env'
+import { ignoredRendererUrlReason, isDev, isE2E, rendererDevUrl, userDataOverride } from './env'
 import { getDataPaths, type DataPaths } from './filesystem/dataDirectory'
 import { handlers } from './ipc/handlers'
 import { registerHandlers, type HandlerContext } from './ipc/registry'
@@ -18,7 +18,8 @@ import { initLogger, logAppError, logger } from './logging/logger'
 import { installAppMenu } from './menu/appMenu'
 import { installContentSecurityPolicy } from './security/csp'
 import { installNavigationGuards } from './security/navigation'
-import { createMainWindow } from './windows/mainWindow'
+import { installPermissionPolicy } from './security/permissions'
+import { attachWindowStatePersistence, createMainWindow } from './windows/mainWindow'
 
 if (userDataOverride) app.setPath('userData', userDataOverride)
 
@@ -45,8 +46,12 @@ const broadcast = <E extends EventName>(event: E, payload: EventPayload<E>): voi
   for (const window of BrowserWindow.getAllWindows()) sendToWindow(window, event, payload)
 }
 
-/** Opens and migrates the database. On failure the app keeps running with `dbError` set. */
-const openStorage = (): void => {
+/**
+ * Opens and migrates the database. On failure the app keeps running with `dbError` set; the
+ * renderer's database screen can call `app:retryDatabase`, which runs this again.
+ */
+const openStorage = (scope: 'db.startup' | 'db.retry'): void => {
+  if (db) return
   try {
     const connection = openDatabase(paths.databasePath)
     try {
@@ -56,13 +61,18 @@ const openStorage = (): void => {
       }
       recordLaunch(connection, app.getVersion(), new Date().toISOString())
       db = connection
+      dbError = undefined
+      if (scope === 'db.retry') {
+        logger.info('[db] database opened after retry')
+        if (mainWindow) attachWindowStatePersistence(mainWindow, db)
+      }
     } catch (error) {
       closeDatabase(connection)
       throw error
     }
   } catch (error) {
     dbError = toIpcError(error)
-    logAppError('db.startup', error)
+    logAppError(scope, error)
     logger.error(
       '[db] the database was left untouched; the renderer shows a blocking error screen',
       {
@@ -84,7 +94,10 @@ const createContext = (): HandlerContext => ({
     return focusedOrMainWindow()
   },
   paths,
-  dbError,
+  get dbError(): IpcError | undefined {
+    return dbError
+  },
+  reopenDatabase: () => openStorage('db.retry'),
   now: () => new Date().toISOString()
 })
 
@@ -94,6 +107,7 @@ const createWindow = (): void => {
     rendererUrl: isDev ? rendererDevUrl : undefined,
     rendererIndex: RENDERER_INDEX,
     dbError: dbError !== undefined,
+    dev: isDev,
     icon
   })
   mainWindow.on('closed', () => {
@@ -108,8 +122,13 @@ const bootstrap = async (): Promise<void> => {
     version: app.getVersion(),
     electron: process.versions.electron,
     dev: isDev,
-    e2e: isE2E
+    e2e: isE2E,
+    packaged: app.isPackaged
   })
+  if (ignoredRendererUrlReason) {
+    logger.warn('[app] ELECTRON_RENDERER_URL ignored', { reason: ignoredRendererUrlReason })
+  }
+  if (userDataOverride) logger.info('[app] userData overridden by MY_PHD_OS_USER_DATA')
 
   installNavigationGuards({
     devServerUrl: isDev ? rendererDevUrl : undefined,
@@ -119,8 +138,9 @@ const bootstrap = async (): Promise<void> => {
   await app.whenReady()
   electronApp.setAppUserModelId('com.myphdos.app')
   installContentSecurityPolicy(session.defaultSession, isDev)
+  installPermissionPolicy(session.defaultSession)
 
-  openStorage()
+  openStorage('db.startup')
   registerHandlers(channels, handlers, createContext)
   changeBus.subscribe((payload) => broadcast('data:changed', payload))
 

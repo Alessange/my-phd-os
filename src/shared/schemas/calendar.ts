@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { compareInstants } from '../dates/instant'
 import {
   CALENDAR_EVENT_CATEGORIES,
   CALENDAR_SOURCE_TYPES,
@@ -59,23 +60,42 @@ export const calendarEventSchema = z.object({
   url: httpUrlSchema.optional()
 })
 
-const eventTimeRule = (
-  value: { allDay: boolean; startAt: string; endAt: string },
-  ctx: z.RefinementCtx
-): void => {
+export interface EventTimeFields {
+  allDay: boolean
+  startAt: string
+  endAt: string
+}
+
+export interface EventTimeIssue {
+  field: 'startAt' | 'endAt'
+  message: string
+}
+
+/**
+ * Cross-field rules for an event's times, shared by the create schema and by `updateEvent`
+ * (which validates the merged row). Instants are compared as instants, so an end of
+ * `10:00+02:00` is correctly rejected against a start of `09:00Z`; all-day dates compare as dates.
+ */
+export const validateEventTimes = (value: EventTimeFields): EventTimeIssue | undefined => {
   const isDate = (s: string): boolean => s.length === 10
   if (value.allDay !== isDate(value.startAt) || value.allDay !== isDate(value.endAt)) {
-    ctx.addIssue({
-      code: 'custom',
+    return {
+      field: 'startAt',
       message: value.allDay
         ? 'All-day events use YYYY-MM-DD dates for startAt and endAt'
-        : 'Timed events use ISO instants for startAt and endAt',
-      path: ['startAt']
-    })
+        : 'Timed events use ISO instants for startAt and endAt'
+    }
   }
-  if (value.endAt < value.startAt) {
-    ctx.addIssue({ code: 'custom', message: 'endAt must not be before startAt', path: ['endAt'] })
-  }
+  const endBeforeStart = value.allDay
+    ? value.endAt < value.startAt
+    : compareInstants(value.endAt, value.startAt) < 0
+  if (endBeforeStart) return { field: 'endAt', message: 'endAt must not be before startAt' }
+  return undefined
+}
+
+const eventTimeRule = (value: EventTimeFields, ctx: z.RefinementCtx): void => {
+  const issue = validateEventTimes(value)
+  if (issue) ctx.addIssue({ code: 'custom', message: issue.message, path: [issue.field] })
 }
 
 export const createCalendarEventInputSchema = calendarEventSchema
@@ -113,13 +133,21 @@ export type UpdateCalendarSourceInput = z.infer<typeof updateCalendarSourceInput
 // ---------------------------------------------------------------------------
 // Channel requests
 
-export const listEventsRequestSchema = z.object({
+/**
+ * Range bounds may be instants (any offset) or `YYYY-MM-DD` keys. Main normalises instants to UTC
+ * for timed rows; all-day rows are compared against the bound's own calendar date (the first ten
+ * characters), so pass bounds carrying your display offset (or date keys) for exact all-day cuts.
+ */
+export const listEventsFilterSchema = z.object({
   rangeStart: instantOrDateSchema.optional(),
   rangeEnd: instantOrDateSchema.optional(),
   sourceIds: idListSchema.optional(),
   categories: z.array(calendarEventCategorySchema).optional(),
   includeHiddenSources: z.boolean().optional()
 })
+export type ListEventsFilter = z.infer<typeof listEventsFilterSchema>
+/** The whole filter is optional (ARCHITECTURE §6): `api('calendar:listEvents')` lists everything. */
+export const listEventsRequestSchema = listEventsFilterSchema.optional()
 export type ListEventsRequest = z.infer<typeof listEventsRequestSchema>
 
 export const deleteSourceRequestSchema = z.object({ id: idSchema, deleteEvents: z.boolean() })
