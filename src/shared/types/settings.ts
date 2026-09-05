@@ -65,7 +65,7 @@ export const DEFAULT_UI_STATE: UiState = {
   calendarView: 'timeGridWeek',
   sidebarCollapsed: false,
   deadlinesTab: 'conference',
-  personalDeadlinesView: 'cards',
+  personalDeadlinesView: 'timeline',
   timelineView: 'semester'
 }
 

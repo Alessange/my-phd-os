@@ -43,10 +43,7 @@ export default function DeadlinesPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-4 p-6">
-      <PageHeader
-        title="Deadlines"
-        subtitle="Conference deadlines come from your CCF subscriptions; personal deadlines are yours to manage."
-      />
+      <PageHeader title="Deadlines" />
       <DeadlineSummary />
       <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList aria-label="Deadline type">
