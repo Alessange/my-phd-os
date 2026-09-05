@@ -33,9 +33,14 @@ export const createMilestoneInputSchema = milestoneSchema
     progress: percentSchema.default(0)
   })
 
+/** Optional fields accept `null` on update so they can be cleared; `undefined` leaves them untouched. */
 export const updateMilestoneInputSchema = milestoneSchema
   .omit({ id: true, createdAt: true, updatedAt: true })
   .partial()
+  .extend({
+    description: longTextSchema.nullable().optional(),
+    color: colorSchema.nullable().optional()
+  })
 
 export type CreateMilestoneInput = z.input<typeof createMilestoneInputSchema>
 export type UpdateMilestoneInput = z.infer<typeof updateMilestoneInputSchema>

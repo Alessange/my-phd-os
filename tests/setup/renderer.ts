@@ -32,6 +32,11 @@ export const registerDefaultResponses = (): void => {
   })
   windowApi.respond('app:getInfo', TEST_APP_INFO)
   windowApi.respond('app:log', { ok: true })
+  windowApi.respond('conferences:listSubscriptions', [])
+  windowApi.respond('conferences:getRefreshStatus', { inProgress: false, perSubscription: {} })
+  windowApi.respond('conferences:listFollowed', [])
+  windowApi.respond('conferences:listDeadlines', [])
+  windowApi.respond('conferences:listChanges', [])
   windowApi.respond('settings:update', (payload) => ({
     ...DEFAULT_SETTINGS,
     ...(payload as Partial<typeof DEFAULT_SETTINGS>)

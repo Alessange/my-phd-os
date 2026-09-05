@@ -35,6 +35,11 @@ playwright/.cache/
 logs/
 *.log
 npm-debug.log*
+# secrets / local env
+.env
+.env.*
+!.env.example
+
 # platform temp files
 .DS_Store
 Thumbs.db

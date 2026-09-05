@@ -68,9 +68,16 @@ export const createPersonalDeadlineInputSchema = personalDeadlineSchema
   })
   .refine(isValidDeadlineWindow, { message: DEADLINE_WINDOW_MESSAGE, path: ['trackingStartAt'] })
 
+/** Optional fields accept `null` on update so they can be cleared; `undefined` leaves them untouched. */
 export const updatePersonalDeadlineInputSchema = personalDeadlineSchema
   .omit({ id: true, createdAt: true, updatedAt: true, linkedCalendarEventId: true })
   .partial()
+  .extend({
+    description: longTextSchema.nullable().optional(),
+    sourceUrl: httpUrlSchema.nullable().optional(),
+    location: shortTextSchema.nullable().optional(),
+    linkedMilestoneId: idSchema.nullable().optional()
+  })
 
 export type CreatePersonalDeadlineInput = z.input<typeof createPersonalDeadlineInputSchema>
 export type UpdatePersonalDeadlineInput = z.infer<typeof updatePersonalDeadlineInputSchema>

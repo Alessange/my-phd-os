@@ -34,6 +34,16 @@ export const todayInZone = (zone: ZoneInput, nowIso: string): string => dateKeyI
 /** ISO weekday (1 = Monday … 7 = Sunday) of a date key. */
 export const weekdayOfDate = (date: string): number => parseDateKey(date).weekday
 
+/**
+ * Date key of the start of the local week containing `date`: Monday when `weekStartsOn` is 1, Sunday
+ * when 0. `weekday` is ISO 1 = Monday … 7 = Sunday, so for Sunday-start the offset wraps Sunday (7).
+ */
+export const startOfWeek = (date: string, weekStartsOn: 0 | 1): string => {
+  const wd = weekdayOfDate(date)
+  const offset = weekStartsOn === 1 ? wd - 1 : wd % 7
+  return addDays(date, -offset)
+}
+
 /** Instant at which the local day `date` starts in `zone` (useful for range queries). */
 export const startOfDayInZone = (date: string, zone: ZoneInput): string => {
   parseDateKey(date)

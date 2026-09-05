@@ -1,24 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite'
+import { ENTITY_TABLES } from '@shared/backup/format'
 import type { CountableEntityName, DataCounts } from '@shared/types/common'
 import { ENTITY_NAMES } from '@shared/ipc/events'
 import { transaction } from '../connection'
 import { changeBus } from '../changeBus'
 import { countRows } from './shared'
 
-/** Table behind each countable entity (the `settings` document is not a countable entity). */
-export const ENTITY_TABLES: Record<CountableEntityName, string> = {
-  calendarEvents: 'calendar_events',
-  calendarSources: 'calendar_sources',
-  personalDeadlines: 'personal_deadlines',
-  conferenceSubscriptions: 'conference_subscriptions',
-  conferenceDeadlines: 'conference_deadlines',
-  followedConferences: 'followed_conferences',
-  conferenceChanges: 'conference_deadline_changes',
-  milestones: 'milestones',
-  habits: 'habits',
-  habitCompletions: 'habit_completions',
-  dismissedWarnings: 'dismissed_warnings'
-}
+export { ENTITY_TABLES }
 
 /** Every table holding user data, in an order that satisfies foreign keys when deleting. */
 export const USER_TABLES: readonly string[] = [

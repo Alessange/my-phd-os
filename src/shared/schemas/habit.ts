@@ -25,7 +25,10 @@ export const createHabitInputSchema = habitSchema.omit({
   createdAt: true,
   archivedAt: true
 })
-export const updateHabitInputSchema = createHabitInputSchema.partial()
+/** `icon: null` clears the icon on update; `undefined` leaves it untouched. */
+export const updateHabitInputSchema = createHabitInputSchema
+  .partial()
+  .extend({ icon: z.string().max(100).nullable().optional() })
 
 export type CreateHabitInput = z.infer<typeof createHabitInputSchema>
 export type UpdateHabitInput = z.infer<typeof updateHabitInputSchema>

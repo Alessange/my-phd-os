@@ -186,7 +186,10 @@ export const createEvent = (db: DatabaseSync, input: ParsedCreate): CalendarEven
 export const updateEvent = (
   db: DatabaseSync,
   id: string,
-  patch: UpdateCalendarEventInput
+  patch: Omit<UpdateCalendarEventInput, 'linkedPersonalDeadlineId'> & {
+    /** `null` clears the back-link (a deadline was unlinked but its event kept). */
+    linkedPersonalDeadlineId?: string | null
+  }
 ): CalendarEvent => {
   const existing = getEvent(db, id)
   // The partial schema cannot check cross-field rules; validate the merged row before writing.

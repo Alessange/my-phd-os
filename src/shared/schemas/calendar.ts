@@ -103,9 +103,16 @@ export const createCalendarEventInputSchema = calendarEventSchema
   .extend({ sourceManaged: z.boolean().default(false) })
   .superRefine(eventTimeRule)
 
+/** Optional fields accept `null` on update so they can be cleared; `undefined` leaves them untouched. */
 export const updateCalendarEventInputSchema = calendarEventSchema
   .omit({ id: true, createdAt: true, updatedAt: true })
   .partial()
+  .extend({
+    description: longTextSchema.nullable().optional(),
+    location: shortTextSchema.nullable().optional(),
+    url: httpUrlSchema.nullable().optional(),
+    recurrenceRule: z.string().max(2_000).nullable().optional()
+  })
 
 export type CreateCalendarEventInput = z.input<typeof createCalendarEventInputSchema>
 export type UpdateCalendarEventInput = z.infer<typeof updateCalendarEventInputSchema>
