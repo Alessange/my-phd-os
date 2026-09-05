@@ -2,7 +2,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createTempUserData, launchApp, waitForShell, type LaunchedApp } from './helpers/launchApp'
-import { realUserDataDir, snapshotDirectory } from './helpers/realUserData'
+import { isRealAppRunning, realUserDataDir, snapshotDirectory } from './helpers/realUserData'
 import type { SettingsBundle } from '../../src/shared/types/settings'
 
 /**
@@ -303,6 +303,12 @@ test('a fresh install has zero user rows and follows no conference', async () =>
 
 test('nothing was written to the real userData directory', async () => {
   // Runs last (workers: 1, file order). Every previous test launched at least one app instance.
+  // While the installed app is open it writes to this directory itself, so changes cannot be
+  // attributed to the suite; the other assertions (temporary userData per launch) still hold.
+  test.skip(
+    isRealAppRunning(realUserData),
+    'the installed app is running with the real userData directory'
+  )
   expect(launched.userDataDir).not.toBe(realUserData)
   expect(snapshotDirectory(realUserData)).toEqual(realUserDataBefore)
 })
