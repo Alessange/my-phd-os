@@ -1,3 +1,5 @@
+import type { IpcError } from './common'
+
 export interface AppInfo {
   version: string
   platform: string
@@ -10,6 +12,8 @@ export interface AppInfo {
   logPath: string
   systemTimezone: string
   isPackaged: boolean
+  /** Present when the database could not be opened or migrated at startup (code `MIGRATION_FAILED` or `IO`). */
+  dbError?: IpcError
 }
 
 export const LOG_LEVELS = ['info', 'warn', 'error'] as const

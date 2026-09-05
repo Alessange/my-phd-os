@@ -415,3 +415,51 @@ Foundation phase (shared layer), 2026-09-04:
     error. `src/main/index.ts` (smoke scaffold) still has one prettier warning; the main-process
     agent replaces that file.
 
+
+Main-process / persistence phase, 2026-09-04:
+
+16. **IPC errors travel as a plain envelope, not a thrown error.** `registry.ts` returns
+    `{ __ipcError: IpcError }` (`IPC_ERROR_KEY`) from every failed `ipcMain.handle`, because Electron
+    serialises a thrown error down to its `message` string and would drop `code`/`details`. The
+    preload unwraps the envelope and rejects with the plain `IpcError` object (`{ code, message,
+    details? }`), which `fromIpcError` in the renderer already accepts. Unknown channel/event names
+    are rejected by the preload with `VALIDATION` before reaching main.
+17. **Handler context is `{ db, window, paths, dbError?, now() }`** (`HandlerContext` in
+    `registry.ts`). `db` is a getter that throws the startup `AppError` (`MIGRATION_FAILED`/`IO`) when
+    the database is unavailable, so `app:getInfo` still answers (with `dbError`) while every data
+    channel fails loudly. `AppInfo.dbError?: IpcError` was added to `src/shared/types/app.ts` for
+    this; the renderer also receives `?dbError=1` on the initial URL.
+18. **Handler modules use `satisfies Partial<Handlers>` and `handlers/index.ts` is typed `Handlers`**,
+    so TypeScript rejects a contract channel without a handler. Feature agents replace the
+    `notImplemented(...)` stubs inside their own handler file only.
+19. **Menu accelerators reuse `SHORTCUTS` from `src/shared/constants/shortcuts.ts`**; the menu sends
+    `app:command` with the shared `AppCommandId` (`quickCreate`, `importIcs`, `openSettings`,
+    `goToPage` + `{ page }`, `openCommandPalette`), never ad-hoc strings. "About My PhD OS" sends
+    `app:navigate { page: 'settings', params: { section: 'about' } }`.
+20. **Migrations are TypeScript modules** (`migrations/NNN_name.ts` exporting `{ version, name, sql }`,
+    listed in `migrations/index.ts`) rather than `.sql` files, because electron-vite bundles main into
+    one file. Each migration runs in its own transaction; the file is never deleted or recreated.
+21. **`clearAllUserData` empties every user table including `settings` and `app_meta`, but keeps the
+    `window` settings document** (bounds are not personal data) and `schema_migrations`.
+    `data:clearAllData` re-records `installedAt`/`lastLaunchedAt` afterwards.
+22. **Window state** (`settings` key `window`) is validated against `screen.getAllDisplays()` work
+    areas: a saved position must overlap a display by ≥ 64 px on both axes or it is dropped; size is
+    clamped to `[960×640, largest work area]`. Persisted 300 ms after resize/move, immediately on
+    maximize/unmaximize/close.
+23. **The preload bundles `zod` and `luxon`** (`electron.vite.config.ts` → `preload.build.externalizeDeps
+    .exclude`) because a sandboxed preload cannot `require` node_modules; only `electron` stays
+    external. Main keeps `node:sqlite`, `electron-log`, `zod`, `luxon` external (verified in
+    `out/main/index.js`).
+24. **Conference subscription URLs**: `conferences:addSubscription` accepts an approved origin
+    (`isApprovedSubscriptionUrl`) as given; any other `http(s)` URL requires `confirmCustom: true`
+    (else `UNTRUSTED_HOST` with `{ host, approvedHosts }`), is stored with `kind: 'custom'` and
+    `customConfirmedAt`. Duplicate URLs are `CONFLICT`. `conferences:getRefreshStatus` is derived from
+    the `last_*` columns so it honestly reports "never refreshed" until the fetcher exists.
+25. **Logging**: `logAppError(scope, error)` logs `code: message` plus details filtered through an
+    allow-list of keys (`id`, `ids`, `code`, `count`, `version`, `path`, `host`, `url`, `channel`, …;
+    arrays collapse to their length). Expected errors (`VALIDATION`, `NOT_FOUND`, `CONFLICT`,
+    `CANCELED`, `NOT_IMPLEMENTED`) log at `warn`, everything else at `error`. `app:log` writes the
+    renderer's message verbatim, so the renderer must not include personal content in it.
+26. **E2E harness**: `tests/e2e/helpers/launchApp.ts` launches `out/` with a fresh temp
+    `MY_PHD_OS_USER_DATA`, `MY_PHD_OS_E2E=1`, and `ELECTRON_RUN_AS_NODE`/`ELECTRON_RENDERER_URL`
+    removed from the environment; it collects renderer console errors and page errors.

@@ -13,6 +13,11 @@ export default defineConfig({
     }
   },
   preload: {
+    // The preload runs sandboxed and cannot require node_modules at runtime: bundle the
+    // shared contract's dependencies (zod, luxon) into out/preload/index.js.
+    build: {
+      externalizeDeps: { exclude: ['zod', 'luxon'] }
+    },
     resolve: {
       alias: {
         '@shared': resolve('src/shared')
