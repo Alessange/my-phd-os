@@ -2,6 +2,7 @@ import { Plus, Search } from 'lucide-react'
 import { useCommandPalette } from '@renderer/app/commands'
 import { getPage, useNavigation } from '@renderer/app/navigation'
 import { triggerQuickCreate } from '@renderer/app/quickCreate'
+import { useShell } from '@renderer/app/shell'
 import { KeyboardHint } from '@renderer/components/common/KeyboardHint'
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
@@ -9,6 +10,7 @@ import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import { usePlatform } from '@renderer/hooks/usePlatform'
 import { formatShortcutLabel } from '@renderer/lib/shortcutLabel'
+import { cn } from '@renderer/lib/utils'
 
 function LiveClock(): React.JSX.Element {
   const now = useNow({ precision: 'second' })
@@ -39,10 +41,17 @@ export function TopBar(): React.JSX.Element {
   const pageId = useNavigation((state) => state.page)
   const page = getPage(pageId)
   const openPalette = useCommandPalette((state) => state.setOpen)
+  const collapsed = useShell((state) => state.sidebarCollapsed)
   const { isMac } = usePlatform()
 
   return (
-    <header className="app-drag flex h-12 shrink-0 items-center gap-3 border-b bg-background/95 px-4">
+    <header
+      className={cn(
+        'app-drag flex h-12 shrink-0 items-center gap-3 border-b bg-background/95 px-4',
+        // With the sidebar collapsed to 56 px, the macOS traffic lights (x ≤ 68) spill into this bar.
+        isMac && collapsed && 'pl-9'
+      )}
+    >
       <div className="flex min-w-0 items-center gap-2">
         <page.icon aria-hidden="true" className="size-4 text-muted-foreground" />
         <span className="truncate text-[15px] font-semibold tracking-tight">{page.label}</span>
@@ -58,7 +67,7 @@ export function TopBar(): React.JSX.Element {
           onClick={() => openPalette(true)}
         >
           <Search aria-hidden="true" />
-          <span className="flex-1 truncate text-left">Search or run a command…</span>
+          <span className="flex-1 truncate text-left">Search commands…</span>
           <KeyboardHint shortcut="mod+K" />
         </Button>
         {page.createLabel && (

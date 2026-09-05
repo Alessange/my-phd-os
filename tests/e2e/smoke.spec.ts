@@ -14,8 +14,8 @@ test.afterAll(async () => {
 })
 
 test('opens a native window titled My PhD OS without page errors', async () => {
-  const { window, pageErrors } = launched
-  await expect.poll(() => window.title()).toBe('My PhD OS')
+  const { page, pageErrors } = launched
+  await expect.poll(() => page.title()).toBe('My PhD OS')
   expect(
     await launched.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
   ).toBe(1)
@@ -23,8 +23,8 @@ test('opens a native window titled My PhD OS without page errors', async () => {
 })
 
 test('exposes only window.api and no Node globals', async () => {
-  const { window } = launched
-  const shape = await window.evaluate(() => ({
+  const { page } = launched
+  const shape = await page.evaluate(() => ({
     hasApi: typeof window.api === 'object' && window.api !== null,
     invoke: typeof window.api?.invoke,
     on: typeof window.api?.on,
@@ -43,8 +43,8 @@ test('exposes only window.api and no Node globals', async () => {
 })
 
 test('app:getInfo answers over the bridge and the database exists in the temp userData', async () => {
-  const { window, userDataDir } = launched
-  const info = await window.evaluate(() => window.api.invoke('app:getInfo'))
+  const { page, userDataDir } = launched
+  const info = await page.evaluate(() => window.api.invoke('app:getInfo'))
   expect(info.version).toMatch(/^\d+\.\d+\.\d+/)
   expect(info.userDataPath).toBe(userDataDir)
   expect(info.databasePath).toBe(join(userDataDir, 'my-phd-os.sqlite'))
@@ -54,8 +54,8 @@ test('app:getInfo answers over the bridge and the database exists in the temp us
 })
 
 test('rejects invalid payloads with a typed IPC error', async () => {
-  const { window } = launched
-  const rejection = await window.evaluate(() =>
+  const { page } = launched
+  const rejection = await page.evaluate(() =>
     window.api
       .invoke('milestones:get', { id: '' })
       .then(() => null)
@@ -65,7 +65,7 @@ test('rejects invalid payloads with a typed IPC error', async () => {
       }))
   )
   expect(rejection).toMatchObject({ code: 'VALIDATION' })
-  const unknown = await window.evaluate(() =>
+  const unknown = await page.evaluate(() =>
     (window.api.invoke as (channel: string) => Promise<unknown>)('calendar:dropTables')
       .then(() => null)
       .catch((error: { code?: string }) => error.code)
@@ -74,12 +74,10 @@ test('rejects invalid payloads with a typed IPC error', async () => {
 })
 
 test('settings round-trip persists through the database', async () => {
-  const { window } = launched
-  const updated = await window.evaluate(() =>
-    window.api.invoke('settings:update', { theme: 'dark' })
-  )
+  const { page } = launched
+  const updated = await page.evaluate(() => window.api.invoke('settings:update', { theme: 'dark' }))
   expect(updated.theme).toBe('dark')
-  const bundle = await window.evaluate(() => window.api.invoke('settings:get'))
+  const bundle = await page.evaluate(() => window.api.invoke('settings:get'))
   expect(bundle.settings.theme).toBe('dark')
   expect(bundle.ui.lastPage).toBe('calendar')
 })

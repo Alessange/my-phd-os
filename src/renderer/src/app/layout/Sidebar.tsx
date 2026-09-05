@@ -24,20 +24,25 @@ export function Sidebar(): React.JSX.Element {
         collapsed ? 'w-14' : 'w-56'
       )}
     >
-      {/* Brand row doubles as the window drag region; on macOS it leaves room for the traffic lights. */}
+      {/*
+        Brand row doubles as the window drag region. On macOS the native traffic lights sit in this
+        row (trafficLightPosition x 16 / y 18 → they span x 16–68, y 18–30), so the brand is pushed
+        right of them when expanded and hidden when collapsed (the 56 px rail cannot fit both).
+      */}
       <div
         className={cn(
-          'app-drag flex shrink-0 items-center gap-2 px-3',
-          isMac ? 'h-13 pt-3' : 'h-12',
-          collapsed && 'justify-center px-0'
+          'app-drag flex h-12 shrink-0 items-center gap-2',
+          collapsed ? 'justify-center px-0' : isMac ? 'pl-[84px] pr-3' : 'px-3'
         )}
       >
-        <span
-          aria-hidden="true"
-          className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs"
-        >
-          <GraduationCap className="size-4" />
-        </span>
+        {!(isMac && collapsed) && (
+          <span
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs"
+          >
+            <GraduationCap className="size-4" />
+          </span>
+        )}
         {!collapsed && (
           <span className="truncate text-[13px] font-semibold tracking-tight">My PhD OS</span>
         )}

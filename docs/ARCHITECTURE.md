@@ -135,10 +135,18 @@ src/
     habits/                  streaks.ts · schedule.ts
     backup/                  format.ts (version, envelope) · validate.ts
 tests/
-  unit/ integration/ e2e/ fixtures/{ics,ccf,backup}
+  unit/ integration/ fixtures/{ics,ccf,backup}
+  e2e/smoke.spec.ts          bridge, IPC validation, settings round-trip (main-process phase)
+  e2e/shell.spec.ts          shell: launch, sidebar order, empty states, palette, shortcuts, theme + last page
+                             + window bounds across relaunch, sandbox shape, zero rows, real userData untouched
+  e2e/visual.spec.ts         screenshots of every page in light/dark into e2e/__screenshots__/ (git-ignored)
+  e2e/helpers/launchApp.ts   launches out/ with temp userData; `launchApp({ userDataDir })` relaunches; `waitForShell`
+  e2e/helpers/realUserData.ts real userData path per platform + recursive listing snapshot
   setup/renderer.ts          Vitest jsdom setup: jest-dom matchers + `window.api` mock (`windowApi` export)
   setup/windowApiMock.ts     `createWindowApiMock()` — respond()/emit()/reset() over the typed `WindowApi`
 scripts/                     with-electron-env.mjs (strips ELECTRON_RUN_AS_NODE, spawns command, propagates exit code)
+tsconfig.node.json · tsconfig.web.json · tsconfig.e2e.json   three typecheck projects (see §11)
+README.md                    developer README (scripts, data location, ELECTRON_RUN_AS_NODE, e2e); user README comes later
 docs/                        ARCHITECTURE.md · upstream-ccf-feed.md · DELIVERY_REPORT.md (final)
 ```
 
@@ -281,6 +289,12 @@ export const calendarChannels = {
   (`useNow` second precision), active timezone, quick-create button, palette trigger, theme
   control. Content area scrolls independently. Minimum supported width ~960 px; the Calendar
   right panel collapses under ~1180 px.
+* macOS title bar: the window uses `titleBarStyle: 'hiddenInset'` with `trafficLightPosition
+  { x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px inside the 48 px brand
+  row of the sidebar (which is the `-webkit-app-region: drag` area together with the top bar).
+  Expanded, the brand is offset to `pl-[84px]`; collapsed (56 px rail) the brand icon is hidden
+  and the top bar gets `pl-9` so the page title clears the buttons. Nothing else may be placed in
+  that region on macOS.
 * Accessibility: Radix primitives for focus management; every icon-only button has `aria-label`;
   `prefers-reduced-motion` disables non-essential animation; status badges include text.
 
@@ -332,10 +346,10 @@ utility classes (`bg-status-ahead/15 text-status-ahead`). Color is never the onl
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | electron-vite dev with HMR (via `scripts/with-electron-env.mjs`) |
-| `npm run typecheck` | `tsc` for node (main/preload/shared/tests) and web (renderer/shared) |
+| `npm run typecheck` | `tsc` for node (main/preload/shared/unit+integration tests), web (renderer/shared) and e2e (`tsconfig.e2e.json`: `tests/e2e` with DOM + Node types) |
 | `npm run lint` | ESLint 10 flat config |
 | `npm test` | Vitest: project `node` (`src/shared`, `src/main`, `tests/unit`, `tests/integration`) and project `renderer` (jsdom, `src/renderer/**/*.test.tsx`) |
-| `npm run test:e2e` | Playwright Electron tests in `tests/e2e` against `out/` (run `npm run build` first); each test uses a fresh temp `MY_PHD_OS_USER_DATA` |
+| `npm run test:e2e` | Playwright Electron tests in `tests/e2e` against `out/` (run `npm run build` first); each test uses a fresh temp `MY_PHD_OS_USER_DATA`; `visual.spec.ts` also writes screenshots to `tests/e2e/__screenshots__/` (git-ignored) |
 | `npm run build` | typecheck + electron-vite production build into `out/` (via `scripts/with-electron-env.mjs`) |
 | `npm run build:mac` / `build:win` / `build:linux` / `build:unpack` | `npm run build` then electron-builder (via the wrapper) into `release/` |
 
@@ -463,3 +477,35 @@ Main-process / persistence phase, 2026-09-04:
 26. **E2E harness**: `tests/e2e/helpers/launchApp.ts` launches `out/` with a fresh temp
     `MY_PHD_OS_USER_DATA`, `MY_PHD_OS_E2E=1`, and `ELECTRON_RUN_AS_NODE`/`ELECTRON_RENDERER_URL`
     removed from the environment; it collects renderer console errors and page errors.
+
+
+Integration / verification phase (shell e2e), 2026-09-04:
+
+27. **E2E specs are type-checked by a third project, `tsconfig.e2e.json`** (extends the web
+    tsconfig for the DOM lib, adds Node types, includes `tests/e2e`, `src/preload/index.d.ts` and
+    `src/shared`). `npm run typecheck` runs node → web → e2e. In specs the Playwright page variable
+    is called `page` (never `window`), so `window.api` inside `page.evaluate(...)` resolves to the
+    renderer's typed global. `LaunchedApp.window` was renamed to `LaunchedApp.page` accordingly.
+28. **`launchApp` gained `{ userDataDir }` and `close({ keepUserData })`** for relaunch tests (theme,
+    last page and window bounds must survive a restart), plus `consoleMessages` (all levels) so
+    CSP violations (`Refused to …`) can be asserted absent. `waitForShell(page)` waits for the
+    primary navigation.
+29. **Real `userData` is asserted untouched by e2e**: `tests/e2e/helpers/realUserData.ts` snapshots
+    `~/Library/Application Support/my-phd-os` (per-platform equivalent) before the suite and the
+    last shell test compares the listing + mtimes; a missing directory snapshots as `<missing>`.
+30. **macOS traffic-light layout fix** (Sidebar/TopBar): the brand icon previously sat under the
+    native buttons (both at y 18–30 / x 16–40). See §7 "macOS title bar" for the rule now in force.
+31. **Palette trigger label is `Search commands…`** (was `Search or run a command…`, which truncated
+    at the 224 px trigger width). The accessible name stays `Open command palette (⌘K)`.
+32. **Dev CSP verified, not relaxed further.** With `npm run dev`, Vite injects the React-refresh
+    preamble *before* the `<meta http-equiv="Content-Security-Policy">` tag, so the production meta
+    policy does not apply to it; the header policy (`DEVELOPMENT_CSP`) allows `'unsafe-inline'`
+    scripts and `ws://localhost:*`. Renderer console in dev (`ELECTRON_ENABLE_LOGGING=1`) showed
+    `[vite] connected.` and no `Refused to …` lines. `src/main/security/csp.ts` is unchanged.
+33. **Shell e2e harness facts**: Playwright's synthesized `Meta+K` / `Meta+1…5` key events reach the
+    renderer's keydown dispatcher directly (the native menu accelerators are not triggered by CDP
+    input), so both routes are exercised: menu accelerators by `app:command`, keyboard by
+    `shortcuts.ts`. Window-bounds persistence is checked with a 4 px tolerance after `setBounds` +
+    600 ms (300 ms debounce) + relaunch.
+34. **`tests/e2e/__screenshots__/` is git-ignored**; screenshots are inspection aids, not golden
+    images. No pixel-diff assertions exist yet.
