@@ -1,6 +1,6 @@
 {
   "name": "my-phd-os",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "My PhD OS — a local-first desktop app for a PhD student's calendar, deadlines, long-term timeline, and habits.",
   "main": "./out/main/index.js",
   "author": "My PhD OS contributors",

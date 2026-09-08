@@ -14,7 +14,7 @@ is [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); the delivery report is
 
 ## Download
 
-**[my-phd-os-0.1.0-universal.dmg](https://github.com/Alessange/my-phd-os/releases/latest)** — macOS,
+**[my-phd-os-0.1.1-universal.dmg](https://github.com/Alessange/my-phd-os/releases/latest)** — macOS,
 Apple Silicon and Intel. Drag it into Applications, then the first launch needs System Settings ›
 Privacy & Security › **Open Anyway**, because the app is not signed with a paid Apple Developer ID.
 
@@ -73,7 +73,7 @@ every installation starts empty.
 
 The current build is published as a release, so a link is enough:
 
-**[Download my-phd-os-0.1.0-universal.dmg](https://github.com/Alessange/my-phd-os/releases/latest)**
+**[Download my-phd-os-0.1.1-universal.dmg](https://github.com/Alessange/my-phd-os/releases/latest)**
 — macOS, Apple Silicon and Intel, 220 MB.
 
 To build it yourself instead:
