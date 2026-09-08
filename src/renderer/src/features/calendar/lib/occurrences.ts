@@ -78,8 +78,12 @@ const seriesOccurrences = (
   const wallStart = master.allDay
     ? DateTime.fromISO(master.startAt, { zone: 'utc' }).toJSDate()
     : toWall(master.startAt, zone)
+  // An all-day DTSTART is written as a midnight date-time, not `VALUE=DATE`: rrule fails to parse
+  // the date-only form and silently anchors the whole series on the current moment instead, which
+  // slides every occurrence onto the wrong day (and hides itself whenever "today" happens to be
+  // the series start). Midnight in the same floating frame parses and keeps the dates exact.
   const dtstart = master.allDay
-    ? `DTSTART;VALUE=DATE:${digits(master.startAt)}`
+    ? `DTSTART:${digits(master.startAt)}T000000`
     : `DTSTART:${digits(DateTime.fromJSDate(wallStart, { zone: 'utc' }).toFormat(WALL))}`
   const lines = [dtstart]
   if (master.recurrenceRule) {

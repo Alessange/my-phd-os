@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CalendarEvent } from '@shared/types/calendar'
 import { expandOccurrences, occurrenceEndInstant, occurrenceStartInstant } from './occurrences'
 
@@ -154,5 +154,37 @@ describe('expandOccurrences', () => {
     expect(
       occurrenceStartInstant({ startAt: '2026-09-07T10:00:00.000Z', allDay: false }, ZONE)
     ).toBe('2026-09-07T10:00:00.000Z')
+  })
+  // Regression: rrule ignores a `VALUE=DATE` DTSTART and silently anchors the series on the
+  // current moment, so an all-day series drifted onto the wrong days. The bug hid itself whenever
+  // "today" happened to fall on the series start, so the clock is pinned far away from it here.
+  describe('an all-day series is anchored on its own start date, not on today', () => {
+    afterEach(() => vi.useRealTimers())
+
+    const labDay = event({
+      id: 'lab',
+      title: 'Lab day',
+      startAt: '2026-09-07',
+      endAt: '2026-09-08',
+      allDay: true,
+      recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=3'
+    })
+    const range = { start: '2026-09-01T00:00:00.000Z', end: '2026-11-01T00:00:00.000Z' }
+    const expected = ['2026-09-07', '2026-09-14', '2026-09-21']
+
+    it.each([
+      ['the day before the series starts', '2026-09-06T22:15:00.000Z'],
+      ['the morning the series starts', '2026-09-07T09:00:00.000Z'],
+      ['late on the day the series starts', '2026-09-07T23:45:00.000Z'],
+      ['weeks after the series ended', '2026-10-20T08:00:00.000Z'],
+      ['a year earlier', '2025-09-07T08:00:00.000Z']
+    ])('holds when today is %s', (_label, nowIso) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(nowIso))
+      const days = expandOccurrences([labDay], range, ZONE)
+        .filter((o) => o.event.id === 'lab')
+        .map((o) => o.startAt)
+      expect(days).toEqual(expected)
+    })
   })
 })
