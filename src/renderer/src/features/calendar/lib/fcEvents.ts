@@ -37,7 +37,14 @@ export const applyOccurrenceFilters = (
     return true
   })
 
-/** Source colour when the event belongs to a source, else the category token. */
+/**
+ * Source colour when the event belongs to a source, else the category token.
+ *
+ * The raw `--<token>` property, never the `--color-<token>` theme name: `@theme inline` resolves
+ * theme names at build time and Tailwind drops any it cannot see used by a utility class, so a
+ * palette colour looked up at runtime by name resolves to nothing and FullCalendar paints an
+ * uncoloured box.
+ */
 export const occurrenceColor = (
   occurrence: Pick<Occurrence, 'event'>,
   sources: ReadonlyMap<string, CalendarSource>
@@ -45,7 +52,7 @@ export const occurrenceColor = (
   const source = occurrence.event.sourceCalendarId
     ? sources.get(occurrence.event.sourceCalendarId)
     : undefined
-  return source?.color ?? `var(--color-${getCategory(occurrence.event.category).colorToken})`
+  return source?.color ?? `var(--${getCategory(occurrence.event.category).colorToken})`
 }
 
 /** Maps expanded occurrences to FullCalendar inputs; series occurrences and managed events are not draggable. */

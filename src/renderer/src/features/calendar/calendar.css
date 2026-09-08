@@ -5,7 +5,7 @@
   --fc-neutral-bg-color: var(--color-muted);
   --fc-neutral-text-color: var(--color-muted-foreground);
   --fc-today-bg-color: color-mix(in oklab, var(--color-primary) 8%, transparent);
-  --fc-now-indicator-color: var(--color-status-overdue);
+  --fc-now-indicator-color: var(--status-overdue);
   --fc-event-border-color: transparent;
   --fc-event-text-color: #fff;
   --fc-list-event-hover-bg-color: var(--color-accent);
