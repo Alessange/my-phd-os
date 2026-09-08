@@ -1,9 +1,11 @@
 import { CalendarCheck } from 'lucide-react'
+import { useMemo } from 'react'
 import {
+  assignConferenceColors,
   conferenceSubline,
-  followedTimeProgress,
-  urgencyLevel,
-  type UrgencyLevel
+  maxRemainingMs,
+  remainingFraction,
+  urgencyLevel
 } from '@shared/conferences/views'
 import { tryResolveZone } from '@shared/dates/zones'
 import type { ConferenceDeadlineView } from '@shared/types/conference'
@@ -15,25 +17,9 @@ import {
   pointInWindow
 } from '@renderer/features/timeline/layout'
 import { useFormat } from '@renderer/hooks/useFormat'
-import { cn } from '@renderer/lib/utils'
+import { chipStyle, cn } from '@renderer/lib/utils'
 import { DeadlineCountdown } from './DeadlineCountdown'
 
-const BAR_FILL: Record<UrgencyLevel, string> = {
-  far: 'bg-status-on-track',
-  near: 'bg-status-ahead',
-  soon: 'bg-status-behind',
-  urgent: 'bg-status-urgent',
-  passed: 'bg-status-passed',
-  tbd: 'bg-transparent'
-}
-const DOT_FILL: Record<UrgencyLevel, string> = {
-  far: 'bg-status-on-track',
-  near: 'bg-status-ahead',
-  soon: 'bg-status-behind',
-  urgent: 'bg-status-urgent',
-  passed: 'bg-status-passed',
-  tbd: 'bg-status-tbd'
-}
 const OVERVIEW_LANE = 22
 
 export interface ConferenceBoardProps {
@@ -46,10 +32,10 @@ export interface ConferenceBoardProps {
 }
 
 /**
- * "My conferences": one row per followed deadline — name, a start → deadline bar filled with the
- * time already gone (coloured by how close the deadline is), the dates underneath, and a big
- * countdown. A short axis above shows where the deadlines sit over the coming months. Everything
- * else is one click away in the details sheet.
+ * "My conferences": one row per chosen conference, each in its own colour so rows are told apart
+ * at a glance. The bar is the time still left, drawn against one shared scale — the furthest
+ * deadline fills the track, a nearly empty bar means time is nearly up — with the exact figure in
+ * the countdown beside it. A months axis above places the same deadlines on a real timeline.
  */
 export function ConferenceBoard({
   items,
@@ -59,15 +45,17 @@ export function ConferenceBoard({
   onOpen
 }: ConferenceBoardProps): React.JSX.Element {
   const format = useFormat()
+  const colors = useMemo(() => assignConferenceColors(items), [items])
+  const scaleMs = maxRemainingMs(items, nowIso)
+
   return (
     <div className="flex flex-col gap-3">
-      <Overview items={items} nowIso={nowIso} onOpen={onOpen} />
+      <Overview items={items} nowIso={nowIso} colors={colors} onOpen={onOpen} />
       <ul className="flex flex-col gap-2" aria-label="My conferences">
         {items.map((item) => {
           const level = urgencyLevel(item, nowIso)
-          const progress = followedTimeProgress(item, nowIso)
-          const percent = level === 'passed' ? 100 : Math.round((progress?.fraction ?? 0) * 100)
-          const start = item.followed?.followedAt ?? item.firstSeenAt
+          const fraction = remainingFraction(item, nowIso, scaleMs)
+          const token = colors.get(item.id) ?? 'conference-1'
           const zoneLabel = item.originalTimezoneLabel ?? item.originalTimezone
           const zone = zoneLabel ? tryResolveZone(zoneLabel) : undefined
           const subline = conferenceSubline(item)
@@ -86,15 +74,21 @@ export function ConferenceBoard({
                 aria-label={item.title}
                 data-conference-id={item.id}
                 data-urgency={level}
+                data-color={token}
                 data-highlighted={item.id === highlightId || undefined}
+                style={chipStyle(token)}
                 className={cn(
-                  'grid w-full grid-cols-[minmax(8rem,13rem)_minmax(0,1fr)_5.5rem] items-center gap-4 rounded-lg border bg-card px-4 py-3 text-left shadow-xs transition-colors outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring',
+                  'grid w-full grid-cols-[minmax(8rem,13rem)_minmax(0,1fr)_5.5rem] items-center gap-4 rounded-lg border border-l-4 border-l-(--chip) bg-card px-4 py-3 text-left shadow-xs transition-colors outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring',
                   item.id === highlightId && 'ring-2 ring-ring',
                   level === 'passed' && 'opacity-70'
                 )}
               >
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className="size-2.5 shrink-0 rounded-full bg-(--chip)"
+                    />
                     <span className="truncate text-sm font-semibold">{item.title}</span>
                     {item.followed?.calendarEventId && (
                       <CalendarCheck
@@ -112,37 +106,42 @@ export function ConferenceBoard({
                     )}
                   </span>
                   {subline && (
-                    <span className="truncate text-[11px] text-muted-foreground">{subline}</span>
+                    <span className="truncate pl-4 text-[11px] text-muted-foreground">
+                      {subline}
+                    </span>
                   )}
                 </span>
 
                 <span className="flex min-w-0 flex-col gap-1">
                   <span
                     role="progressbar"
-                    aria-label="Time elapsed since you followed"
+                    aria-label="Time remaining, against the furthest deadline"
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-valuenow={level === 'tbd' ? undefined : percent}
+                    aria-valuenow={fraction === undefined ? undefined : Math.round(fraction * 100)}
                     className={cn(
                       'relative block h-3 overflow-hidden rounded-full bg-muted',
-                      level === 'tbd' && 'border border-dashed border-status-tbd/60 bg-transparent'
+                      fraction === undefined &&
+                        'border border-dashed border-status-tbd/60 bg-transparent',
+                      level === 'urgent' && 'ring-1 ring-status-urgent/60'
                     )}
                   >
-                    <span
-                      aria-hidden="true"
-                      className={cn('absolute inset-y-0 left-0 rounded-full', BAR_FILL[level])}
-                      style={{ width: `${percent}%` }}
-                    />
-                    {level !== 'tbd' && level !== 'passed' && (
+                    {fraction !== undefined && fraction > 0 && (
                       <span
                         aria-hidden="true"
-                        className="absolute inset-y-0 w-0.5 bg-foreground/70"
-                        style={{ left: `calc(${percent}% - 1px)` }}
+                        className="absolute inset-y-0 left-0 rounded-full bg-(--chip)"
+                        style={{ width: `${fraction * 100}%` }}
                       />
                     )}
                   </span>
                   <span className="tabular flex justify-between gap-2 text-[10px] text-muted-foreground">
-                    <span className="truncate">{format.formatDate(start)}</span>
+                    <span className="truncate">
+                      {fraction === undefined
+                        ? 'Waiting for a date'
+                        : fraction === 0
+                          ? 'No time left'
+                          : 'Time left'}
+                    </span>
                     <span className="truncate text-right">
                       {when}
                       {local && <span className="ml-1.5 opacity-80">· {local}</span>}
@@ -156,6 +155,10 @@ export function ConferenceBoard({
           )
         })}
       </ul>
+      <p className="px-1 text-[11px] text-muted-foreground">
+        Each conference keeps its own colour. Bars share one scale, longest = furthest away,
+        shortest = nearly out of time; the exact figure is the countdown on the right.
+      </p>
     </div>
   )
 }
@@ -163,8 +166,11 @@ export function ConferenceBoard({
 function Overview({
   items,
   nowIso,
+  colors,
   onOpen
-}: Pick<ConferenceBoardProps, 'items' | 'nowIso' | 'onOpen'>): React.JSX.Element | null {
+}: Pick<ConferenceBoardProps, 'items' | 'nowIso' | 'onOpen'> & {
+  colors: Map<string, string>
+}): React.JSX.Element | null {
   const format = useFormat()
   const dated = items.filter((i) => i.deadlineAt && i.status !== 'tbd')
   if (dated.length === 0) return null
@@ -228,8 +234,8 @@ function Overview({
           />
         )}
         {points.map(({ item, fraction }) => {
-          const level = urgencyLevel(item, nowIso)
           const lane = lanes.laneOf.get(item.id) ?? 0
+          const passed = item.status === 'passed'
           return (
             <button
               key={item.id}
@@ -237,16 +243,21 @@ function Overview({
               onClick={() => onOpen(item)}
               title={`${item.title} · ${format.formatDateTime(item.deadlineAt as string)}`}
               aria-label={`${item.title} on the timeline`}
-              className="absolute z-[2] flex max-w-40 -translate-x-1/2 items-center gap-1 rounded-sm px-1 text-[10px] leading-tight whitespace-nowrap outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
               style={{
                 left: `${Math.min(Math.max(fraction, 0.04), 0.96) * 100}%`,
                 top: lane * OVERVIEW_LANE + 5,
-                height: OVERVIEW_LANE - 4
+                height: OVERVIEW_LANE - 4,
+                ...chipStyle(colors.get(item.id) ?? 'conference-1')
               }}
+              className={cn(
+                'absolute z-[2] flex max-w-40 -translate-x-1/2 items-center gap-1 rounded-sm px-1 text-[10px] leading-tight whitespace-nowrap outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
+                passed && 'opacity-60'
+              )}
+              data-conference-id={item.id}
             >
               <span
                 aria-hidden="true"
-                className={cn('size-2.5 shrink-0 rounded-full ring-2 ring-card', DOT_FILL[level])}
+                className="size-2.5 shrink-0 rounded-full bg-(--chip) ring-2 ring-card"
               />
               <span className="truncate">{item.conferenceName ?? item.title}</span>
             </button>

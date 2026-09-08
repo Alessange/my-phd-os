@@ -14,7 +14,12 @@ import {
   sortConferenceDeadlines,
   updatedDeadlineIds,
   urgencyLevel,
-  conferenceSubline
+  conferenceSubline,
+  CONFERENCE_COLOR_COUNT,
+  MIN_BAR_FRACTION,
+  assignConferenceColors,
+  maxRemainingMs,
+  remainingFraction
 } from './views'
 
 const NOW = '2026-09-05T12:00:00.000Z'
@@ -298,5 +303,97 @@ describe('urgencyLevel / conferenceSubline', () => {
       })
     ).toBe('CCF A · CORE A* · Abstract · Round 2')
     expect(conferenceSubline({ deadlineKind: 'deadline' })).toBe('')
+  })
+})
+
+describe('conference row colours', () => {
+  const item = (id: string, stableKey: string): { id: string; stableKey: string } => ({
+    id,
+    stableKey
+  })
+
+  it('gives every conference on screen its own palette slot', () => {
+    const items = Array.from({ length: CONFERENCE_COLOR_COUNT }, (_, i) =>
+      item(`id${i}`, `conf-${i}|2027|deadline|`)
+    )
+    const colors = assignConferenceColors(items)
+    expect(colors.size).toBe(CONFERENCE_COLOR_COUNT)
+    expect(new Set(colors.values()).size).toBe(CONFERENCE_COLOR_COUNT)
+    for (const token of colors.values()) expect(token).toMatch(/^conference-([1-9]|10)$/)
+  })
+
+  it('keeps a conference on the same colour when the list is reordered or shrinks', () => {
+    const all = [
+      item('a', 'neurips|2027|deadline|'),
+      item('b', 'icml|2027|deadline|'),
+      item('c', 'icse|2027|deadline|')
+    ]
+    const first = assignConferenceColors(all)
+    const reversed = assignConferenceColors([...all].reverse())
+    expect([...reversed.entries()].sort()).toEqual([...first.entries()].sort())
+    // Dropping one leaves the others where they were.
+    const fewer = assignConferenceColors([all[0], all[2]])
+    expect(fewer.get('a')).toBe(first.get('a'))
+    expect(fewer.get('c')).toBe(first.get('c'))
+  })
+
+  it('repeats the palette beyond ten conferences rather than failing', () => {
+    const items = Array.from({ length: 14 }, (_, i) => item(`id${i}`, `c-${i}|2027|deadline|`))
+    const colors = assignConferenceColors(items)
+    expect(colors.size).toBe(14)
+    expect(new Set(colors.values()).size).toBe(CONFERENCE_COLOR_COUNT)
+  })
+})
+
+describe('bar length on the shared scale', () => {
+  const now = '2026-09-05T12:00:00.000Z'
+  const at = (days: number): ConferenceDeadlineView =>
+    view({
+      id: `d${days}`,
+      title: `d${days}`,
+      deadlineAt: new Date(Date.parse(now) + days * 86_400_000).toISOString()
+    })
+
+  it('scales bars against the furthest upcoming deadline, keeping the order exact', () => {
+    const items = [at(10), at(100), at(50)]
+    const max = maxRemainingMs(items, now)
+    expect(remainingFraction(at(100), now, max)).toBeCloseTo(1, 5)
+    expect(remainingFraction(at(50), now, max)).toBeCloseTo(Math.SQRT1_2, 5)
+    expect(remainingFraction(at(10), now, max)).toBeCloseTo(Math.sqrt(0.1), 5)
+    const widths = [at(1), at(10), at(50), at(100)].map((i) => remainingFraction(i, now, max))
+    expect(widths).toEqual([...widths].sort((a, b) => (a ?? 0) - (b ?? 0)))
+  })
+
+  it('keeps near deadlines legible when one conference is far away', () => {
+    const max = maxRemainingMs([at(200)], now)
+    // Linear, half a day against 200 days is 0.25 % and a fortnight is 7 %: both would sit on the
+    // floor and look identical. The root separates them.
+    const halfDay = remainingFraction(at(0.5), now, max) as number
+    const fortnight = remainingFraction(at(14), now, max) as number
+    expect(fortnight).toBeGreaterThan(halfDay * 3)
+    expect(fortnight).toBeGreaterThan(0.2)
+  })
+
+  it('never draws an upcoming deadline as an invisible sliver', () => {
+    const max = maxRemainingMs([at(365)], now)
+    // An hour against a year is 0.01 % even after the root; the floor keeps it visible.
+    expect(remainingFraction(at(1 / 24), now, max)).toBe(MIN_BAR_FRACTION)
+  })
+
+  it('empties the bar once a deadline has passed and skips TBD entirely', () => {
+    const passed = view({
+      id: 'p',
+      title: 'p',
+      status: 'passed',
+      deadlineAt: '2026-08-01T00:00:00.000Z'
+    })
+    const tbd = view({ id: 't', title: 't', status: 'tbd', deadlineAt: undefined })
+    expect(remainingFraction(passed, now, 1000)).toBe(0)
+    expect(remainingFraction(tbd, now, 1000)).toBeUndefined()
+    expect(maxRemainingMs([passed, tbd], now)).toBe(0)
+  })
+
+  it('fills the bar when there is nothing to compare against', () => {
+    expect(remainingFraction(at(30), now, 0)).toBe(1)
   })
 })

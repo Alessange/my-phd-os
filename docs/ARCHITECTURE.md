@@ -724,3 +724,20 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     builder and manager remain for filtered feeds, custom URLs and Settings. The Personal tab
     defaults to its bar timeline (`DEFAULT_UI_STATE.personalDeadlinesView = 'timeline'`). Rule going
     forward: bars over words; show only what the owner chose; details on click.
+62. **`chipStyle` points at the raw `--<token>`, never `--color-<token>`.** The theme block is
+    `@theme inline`, which resolves `--color-*` at build time and does **not** emit them as runtime
+    custom properties, so `--chip: var(--color-status-ahead)` resolved to nothing and every chip,
+    tint and coloured bar rendered transparent. The raw `--status-*` / `--category-*` /
+    `--conference-*` properties are declared for both themes, so `--chip: var(--<token>)` is correct
+    and stays theme-aware. Anything reading a palette value at runtime must use the raw name.
+63. **Conference rows are colour-coded per conference, not per urgency.** A ten-hue
+    `--conference-1…10` palette (spaced around the wheel _and_ varied in lightness, because hue alone
+    separates poorly across green-to-teal) gives each followed conference a stripe, dot and bar in
+    its own colour; `assignConferenceColors` picks a slot from a hash of the stable key so the colour
+    survives reordering, resolving collisions greedily so up to ten on screen are always distinct.
+    Urgency stays legible through the countdown and an urgent ring, not through the bar colour.
+64. **The conference bar measures time remaining on one shared scale**, not elapsed-since-followed:
+    the old bar started at `followedAt`, so a conference added today rendered a 0%-wide fill. The
+    scale is the square root of `remaining / furthest remaining`, which keeps the ordering exact
+    while stopping one far-off conference from collapsing every near one onto the minimum width; the
+    exact figure is always the countdown beside it. TBD draws a dashed empty track, never a guess.

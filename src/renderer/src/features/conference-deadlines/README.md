@@ -18,8 +18,10 @@ Renderer:
   Refresh / Sources. Quick-create and `{ create }` open the picker; `{ id }` opens the sheet (also
   for a conference that is not followed, fetched by id).
 - `components/ConferenceBoard.tsx`: months axis with a dot per deadline, then one row per
-  conference: title + subline (ranks / abstract / round), start → deadline bar (fill = time gone,
-  colour = `urgencyLevel`), dates, `DeadlineCountdown`.
+  conference: a colour stripe, dot, title + subline (ranks / abstract / round), a bar whose length
+  is the time still left on one shared root scale, the dates, and `DeadlineCountdown`. Each
+  conference owns a palette colour (`assignConferenceColors`, stable across reordering); urgency
+  shows through the countdown and a ring, not the colour.
 - `components/DeadlineCountdown.tsx`: `32 d` / `08h 14m` (seconds, red, under 24 h) / `Passed` /
   `TBD`.
 - `components/ConferencePicker.tsx`: search over the cached list, Add / Remove per row, show

@@ -322,3 +322,91 @@ export const conferenceSubline = (
   ]
     .filter((part): part is string => Boolean(part))
     .join(' · ')
+
+// ---------------------------------------------------------------------------
+// Row colour and bar length (the board reads as one row per conference)
+
+export const CONFERENCE_COLOR_COUNT = 10
+
+/** Theme colour token for a palette slot: `conference-1` … `conference-10`. */
+export const conferenceColorToken = (slot: number): string =>
+  `conference-${(((slot % CONFERENCE_COLOR_COUNT) + CONFERENCE_COLOR_COUNT) % CONFERENCE_COLOR_COUNT) + 1}`
+
+/** Small deterministic string hash (FNV-1a), so a conference keeps its colour between runs. */
+const hashKey = (key: string): number => {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < key.length; i += 1) {
+    hash ^= key.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash >>> 0
+}
+
+/**
+ * One colour per conference, keyed by `id`. The preferred slot comes from a hash of the stable
+ * key, so a conference keeps its colour as deadlines pass and the list reorders; collisions take
+ * the next free slot, so up to ten conferences on screen are always distinguishable. Assignment
+ * runs in stable-key order, never render order, so the result does not depend on sorting.
+ */
+export const assignConferenceColors = (
+  items: readonly Pick<ConferenceDeadlineView, 'id' | 'stableKey'>[]
+): Map<string, string> => {
+  const ordered = [...items].sort(
+    (a, b) => a.stableKey.localeCompare(b.stableKey) || a.id.localeCompare(b.id)
+  )
+  const taken = new Set<number>()
+  const colors = new Map<string, string>()
+  for (const item of ordered) {
+    const preferred = hashKey(item.stableKey) % CONFERENCE_COLOR_COUNT
+    let slot = preferred
+    // Once every slot is in use the palette simply repeats.
+    if (taken.size < CONFERENCE_COLOR_COUNT) {
+      for (let step = 0; taken.has(slot) && step < CONFERENCE_COLOR_COUNT; step += 1) {
+        slot = (preferred + step + 1) % CONFERENCE_COLOR_COUNT
+      }
+    }
+    taken.add(slot)
+    colors.set(item.id, conferenceColorToken(slot))
+  }
+  return colors
+}
+
+/** Shortest bar drawn for an upcoming deadline, so a near one is never an invisible sliver. */
+export const MIN_BAR_FRACTION = 0.04
+
+/** Longest remaining time among the upcoming items — the shared scale every bar is drawn against. */
+export const maxRemainingMs = (
+  items: readonly ConferenceDeadlineView[],
+  nowIso: string
+): number => {
+  let max = 0
+  for (const item of items) {
+    if (item.status !== 'upcoming' || !item.deadlineAt) continue
+    const remaining = calculateRemainingTime(item.deadlineAt, nowIso)
+    if (!remaining.isPast && remaining.totalMs > max) max = remaining.totalMs
+  }
+  return max
+}
+
+/**
+ * How much of the shared scale this conference still has left: a full bar is the furthest
+ * deadline, a short bar means time is nearly up. `undefined` for TBD (nothing to measure) and
+ * `0` for a deadline that has passed.
+ *
+ * The scale is the square root of the raw ratio. A single far-off conference otherwise dominates
+ * it — against a deadline 200 days away, everything inside a fortnight collapses onto the minimum
+ * width and the near ones become indistinguishable, which is exactly when the bar matters most.
+ * The root keeps the ordering exact while spreading the near end out; the precise figure is always
+ * spelled out in the countdown beside the bar.
+ */
+export const remainingFraction = (
+  item: ConferenceDeadlineView,
+  nowIso: string,
+  maxMs: number
+): number | undefined => {
+  if (item.status === 'tbd' || !item.deadlineAt) return undefined
+  const remaining = calculateRemainingTime(item.deadlineAt, nowIso)
+  if (item.status === 'passed' || remaining.isPast) return 0
+  if (maxMs <= 0) return 1
+  return Math.min(1, Math.max(MIN_BAR_FRACTION, Math.sqrt(remaining.totalMs / maxMs)))
+}

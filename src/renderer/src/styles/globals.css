@@ -66,6 +66,22 @@
   --status-passed: oklch(0.48 0.02 260);
   --status-neutral: oklch(0.5 0.02 260);
 
+  /* Conference palette: one colour per followed conference so rows are told apart at a glance.
+     Ten hues spaced right around the wheel and pushed near the sRGB gamut edge, with lightness
+     varied too: hue alone separates poorly in the green-to-teal band, so the greens differ in
+     lightness as well. These only ever paint graphics (a dot, a bar), never
+     a text background, so they are free to be far more saturated than the category palette. */
+  --conference-1: oklch(0.55 0.2 236);
+  --conference-2: oklch(0.62 0.21 20);
+  --conference-3: oklch(0.58 0.19 140);
+  --conference-4: oklch(0.52 0.26 305);
+  --conference-5: oklch(0.72 0.18 60);
+  --conference-6: oklch(0.62 0.13 197);
+  --conference-7: oklch(0.6 0.24 344);
+  --conference-8: oklch(0.78 0.18 95);
+  --conference-9: oklch(0.48 0.24 272);
+  --conference-10: oklch(0.76 0.13 168);
+
   --priority-low: oklch(0.5 0.06 240);
   --priority-medium: oklch(0.52 0.13 85);
   --priority-high: oklch(0.54 0.17 50);
@@ -130,6 +146,17 @@
   --status-passed: oklch(0.88 0.014 260);
   --status-neutral: oklch(0.88 0.014 260);
 
+  --conference-1: oklch(0.72 0.17 236);
+  --conference-2: oklch(0.72 0.19 20);
+  --conference-3: oklch(0.74 0.18 140);
+  --conference-4: oklch(0.7 0.22 305);
+  --conference-5: oklch(0.82 0.16 60);
+  --conference-6: oklch(0.76 0.12 197);
+  --conference-7: oklch(0.74 0.21 344);
+  --conference-8: oklch(0.88 0.17 95);
+  --conference-9: oklch(0.66 0.21 272);
+  --conference-10: oklch(0.86 0.12 168);
+
   --priority-low: oklch(0.88 0.046 240);
   --priority-medium: oklch(0.88 0.11 85);
   --priority-high: oklch(0.88 0.115 50);
@@ -192,6 +219,17 @@
   --color-status-tbd: var(--status-tbd);
   --color-status-passed: var(--status-passed);
   --color-status-neutral: var(--status-neutral);
+
+  --color-conference-1: var(--conference-1);
+  --color-conference-2: var(--conference-2);
+  --color-conference-3: var(--conference-3);
+  --color-conference-4: var(--conference-4);
+  --color-conference-5: var(--conference-5);
+  --color-conference-6: var(--conference-6);
+  --color-conference-7: var(--conference-7);
+  --color-conference-8: var(--conference-8);
+  --color-conference-9: var(--conference-9);
+  --color-conference-10: var(--conference-10);
 
   --color-priority-low: var(--priority-low);
   --color-priority-medium: var(--priority-medium);

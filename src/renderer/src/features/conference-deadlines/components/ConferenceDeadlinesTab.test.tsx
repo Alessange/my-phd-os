@@ -283,4 +283,39 @@ describe('ConferenceDeadlinesTab', () => {
     expect(within(sheet).getByRole('heading', { name: 'SIGGRAPH 2027' })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Follow' })).toBeInTheDocument()
   })
+  it('gives every row its own colour and a visible bar, even for a conference added just now', async () => {
+    // Regression: the bar used to measure time elapsed since following, so a conference added
+    // today rendered a 0%-wide fill (an empty grey track), and the colour came only from urgency,
+    // so everything more than 30 days out was the same blue.
+    const justAdded = view({
+      id: 'c5',
+      title: 'CHI 2027',
+      conferenceName: 'CHI',
+      conferenceYear: 2027,
+      deadlineAt: at(60),
+      followed: follow('c5', 0)
+    })
+    windowApi.respond('conferences:listFollowed', [NEURIPS, justAdded, ICML_TBD])
+    renderWithProviders(<ConferenceDeadlinesTab />)
+
+    const neurips = await screen.findByRole('button', { name: 'NeurIPS 2027' })
+    const chi = screen.getByRole('button', { name: 'CHI 2027' })
+    const icml = screen.getByRole('button', { name: 'ICML 2027' })
+
+    // Distinct colours per conference.
+    const colours = [neurips, chi, icml].map((row) => row.getAttribute('data-color'))
+    expect(new Set(colours).size).toBe(3)
+    for (const c of colours) expect(c).toMatch(/^conference-([1-9]|10)$/)
+
+    // The freshly added conference has the longest runway, so it fills the shared scale.
+    expect(Number(within(chi).getByRole('progressbar').getAttribute('aria-valuenow'))).toBe(100)
+    // NeurIPS is half as far away, and still clearly visible.
+    const neuripsBar = Number(
+      within(neurips).getByRole('progressbar').getAttribute('aria-valuenow')
+    )
+    expect(neuripsBar).toBeGreaterThan(0)
+    expect(neuripsBar).toBeLessThan(100)
+    // A round with no announced date measures nothing rather than showing a fake bar.
+    expect(within(icml).getByRole('progressbar')).not.toHaveAttribute('aria-valuenow')
+  })
 })
