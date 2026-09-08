@@ -741,3 +741,18 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     scale is the square root of `remaining / furthest remaining`, which keeps the ordering exact
     while stopping one far-off conference from collapsing every near one onto the minimum width; the
     exact figure is always the countdown beside it. TBD draws a dashed empty track, never a guess.
+65. **Palette colours are read at runtime through the raw `--<token>` property.** Tailwind emits a
+    `@theme inline` variable only when it can see a utility class using it, so every palette name
+    that is only ever applied dynamically (`--color-category-*`, `--color-status-*`,
+    `--color-conference-*`) is tree-shaken out of the stylesheet. `var(--color-…)` therefore resolves
+    to nothing at runtime. This shipped three times — transparent chips, an invisible conference bar,
+    and calendar events painted as uncoloured boxes (`occurrenceColor`). `tokens.test.ts` now scans
+    every `.ts`, `.tsx` and `.css` file under `src` and fails on any `var(--color-<palette token>)`,
+    including a lookup built from a template literal. Base UI names (`--color-border`, `--color-card`)
+    survive because utilities reference them, but prefer the raw property there too.
+66. **A new event's default end needs its own date.** `defaultEventTimes`
+    (`features/calendar/lib/eventDefaults.ts`) returns `startDate`/`endDate` separately, because both
+    ends can cross midnight independently. Deriving the end date from the start date broke exactly
+    one hour of the day: at 22:xx the start rolls to 23:00 and the end wraps to 00:00, which on the
+    start's date is twenty-three hours earlier, so the form failed validation and no event could be
+    created at all. The helper is unit-tested across all twenty-four hours.
