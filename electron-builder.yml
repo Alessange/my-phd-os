@@ -24,6 +24,10 @@ mac:
   target:
     - dmg
     - zip
+  # Ad-hoc signature. There is no paid Developer ID, but every nested binary still has to be signed
+  # or Apple Silicon refuses to run the app at all ("damaged and can't be opened"). This does not
+  # remove Gatekeeper's first-launch prompt on a downloaded copy — only notarisation would.
+  identity: '-'
   hardenedRuntime: false
   notarize: false
   entitlementsInherit: build/entitlements.mac.plist
