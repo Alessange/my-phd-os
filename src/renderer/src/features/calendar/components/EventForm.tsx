@@ -55,6 +55,7 @@ import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import { chipStyle, cn } from '@renderer/lib/utils'
 import { useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api'
+import { defaultEventTimes } from '../lib/eventDefaults'
 import {
   RECURRENCE_PRESETS,
   RECURRENCE_PRESET_LABELS,
@@ -91,21 +92,6 @@ const toInstant = (date: string, time: string, zone: string): string | undefined
     return wallTimeToInstant(`${date}T${time}:00`, zone)
   } catch {
     return undefined
-  }
-}
-
-/** Start of a new event: the next full hour in `zone`, one hour long. */
-const nextHour = (
-  nowIso: string,
-  zone: string
-): { date: string; time: string; endTime: string } => {
-  const wall = instantToWallTime(nowIso, zone)
-  const hour = (Number(wall.time.slice(0, 2)) + 1) % 24
-  const pad = (n: number): string => String(n).padStart(2, '0')
-  return {
-    date: hour === 0 ? addDays(wall.date, 1) : wall.date,
-    time: `${pad(hour)}:00`,
-    endTime: `${pad((hour + 1) % 24)}:00`
   }
 }
 
@@ -154,12 +140,12 @@ const emptyState = (nowIso: string, zone: string, initial?: EventFormInitial): F
       endTime: end.time
     }
   }
-  const next = nextHour(nowIso, zone)
+  const next = defaultEventTimes(nowIso, zone)
   return {
     ...base(zone),
-    startDate: next.date,
-    startTime: next.time,
-    endDate: next.date,
+    startDate: next.startDate,
+    startTime: next.startTime,
+    endDate: next.endDate,
     endTime: next.endTime
   }
 }

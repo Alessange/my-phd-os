@@ -61,6 +61,10 @@ describe('CalendarPage', () => {
   })
 
   it('lists today’s events in the panel, names the next one, and renders the board', async () => {
+    // The clock is pinned to mid-morning: the fixtures below are "two hours from now", which is
+    // only still today if the test does not happen to run late in the evening.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-09-07T17:00:00.000Z'))
     windowApi.respond('calendar:listEvents', [
       event({ id: 'e1', title: 'Supervisor meeting' }),
       event({ id: 'e2', title: 'Far away', startAt: at(24 * 30), endAt: at(24 * 30 + 1) })
@@ -94,6 +98,15 @@ describe('CalendarPage', () => {
         })
       )
     )
+    // The default slot must be a real hour forward. It used to wrap to midnight on the start's own
+    // date between 22:00 and 22:59, putting the end before the start so the form never submitted.
+    const created = windowApi.invoke.mock.calls.find(
+      (c) => c[0] === 'calendar:createEvent'
+    )?.[1] as {
+      startAt: string
+      endAt: string
+    }
+    expect(Date.parse(created.endAt) - Date.parse(created.startAt)).toBe(60 * 60 * 1000)
   })
 
   it('opens a deep-linked event in the details drawer and offers Edit for editable events only', async () => {
