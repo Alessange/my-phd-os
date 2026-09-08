@@ -3,9 +3,15 @@ import { twMerge } from 'tailwind-merge'
 
 export const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs))
 
-/** Inline style that points the `chip-tint` utility at a theme colour token (`status-ahead`, `category-paper`). */
+/**
+ * Inline style that points the `chip-tint` utility at a theme colour token (`status-ahead`,
+ * `category-paper`, `conference-3`). It references the raw `--<token>` custom property, not the
+ * `--color-<token>` theme name: `@theme inline` resolves those at build time and never emits them
+ * as runtime variables, so `var(--color-…)` resolves to nothing and the chip renders transparent.
+ * The raw properties are declared for both themes, so this stays theme-aware.
+ */
 export const chipStyle = (colorToken: string): React.CSSProperties =>
-  ({ '--chip': `var(--color-${colorToken})` }) as React.CSSProperties
+  ({ '--chip': `var(--${colorToken})` }) as React.CSSProperties
 
 export const isEditableTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false
