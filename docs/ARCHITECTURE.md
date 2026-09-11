@@ -756,3 +756,12 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     one hour of the day: at 22:xx the start rolls to 23:00 and the end wraps to 00:00, which on the
     start's date is twenty-three hours earlier, so the form failed validation and no event could be
     created at all. The helper is unit-tested across all twenty-four hours.
+67. **The conference bar is progress through its own window, not remaining time on a shared one.**
+    Decision 64's shared scale (`remaining / furthest remaining`) was wrong in practice: the
+    yardstick shrank at the same rate as every bar, so a conference sixty days out moved 0.3% a day
+    and the furthest one sat pinned at 100% for ever — the row read as a static decoration.
+    `deadlineProgress` measures elapsed time from `followed.followedAt` (falling back to
+    `firstSeenAt`) to `deadlineAt`, so every bar starts empty, advances every day and is full
+    exactly at the deadline. The track is the conference colour at 15% and the fill is the solid
+    colour, so a conference added today still reads as its own colour instead of an empty grey box.
+    Comparison across conferences is the months axis above the list, not the bar.

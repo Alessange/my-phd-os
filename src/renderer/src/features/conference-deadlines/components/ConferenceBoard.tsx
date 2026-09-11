@@ -3,8 +3,7 @@ import { useMemo } from 'react'
 import {
   assignConferenceColors,
   conferenceSubline,
-  maxRemainingMs,
-  remainingFraction,
+  deadlineProgress,
   urgencyLevel
 } from '@shared/conferences/views'
 import { tryResolveZone } from '@shared/dates/zones'
@@ -33,8 +32,8 @@ export interface ConferenceBoardProps {
 
 /**
  * "My conferences": one row per chosen conference, each in its own colour so rows are told apart
- * at a glance. The bar is the time still left, drawn against one shared scale — the furthest
- * deadline fills the track, a nearly empty bar means time is nearly up — with the exact figure in
+ * at a glance. The bar fills from the day the conference was added to its deadline, so it starts
+ * empty, creeps forward every day and is full when the deadline arrives; the exact time left is
  * the countdown beside it. A months axis above places the same deadlines on a real timeline.
  */
 export function ConferenceBoard({
@@ -46,7 +45,6 @@ export function ConferenceBoard({
 }: ConferenceBoardProps): React.JSX.Element {
   const format = useFormat()
   const colors = useMemo(() => assignConferenceColors(items), [items])
-  const scaleMs = maxRemainingMs(items, nowIso)
 
   return (
     <div className="flex flex-col gap-3">
@@ -54,7 +52,8 @@ export function ConferenceBoard({
       <ul className="flex flex-col gap-2" aria-label="My conferences">
         {items.map((item) => {
           const level = urgencyLevel(item, nowIso)
-          const fraction = remainingFraction(item, nowIso, scaleMs)
+          const progress = deadlineProgress(item, nowIso)
+          const percent = progress === undefined ? undefined : Math.round(progress * 100)
           const token = colors.get(item.id) ?? 'conference-1'
           const zoneLabel = item.originalTimezoneLabel ?? item.originalTimezone
           const zone = zoneLabel ? tryResolveZone(zoneLabel) : undefined
@@ -115,32 +114,39 @@ export function ConferenceBoard({
                 <span className="flex min-w-0 flex-col gap-1">
                   <span
                     role="progressbar"
-                    aria-label="Time remaining, against the furthest deadline"
+                    aria-label="Time gone since you added this conference"
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-valuenow={fraction === undefined ? undefined : Math.round(fraction * 100)}
+                    aria-valuenow={percent}
                     className={cn(
-                      'relative block h-3 overflow-hidden rounded-full bg-muted',
-                      fraction === undefined &&
+                      // The track carries the conference colour at low strength, so the row reads
+                      // as its own colour even on the day it is added, when the fill is still zero.
+                      'relative block h-3 overflow-hidden rounded-full bg-(--chip)/15',
+                      percent === undefined &&
                         'border border-dashed border-status-tbd/60 bg-transparent',
                       level === 'urgent' && 'ring-1 ring-status-urgent/60'
                     )}
                   >
-                    {fraction !== undefined && fraction > 0 && (
+                    {percent !== undefined && (
                       <span
                         aria-hidden="true"
-                        className="absolute inset-y-0 left-0 rounded-full bg-(--chip)"
-                        style={{ width: `${fraction * 100}%` }}
+                        className="absolute inset-y-0 left-0 rounded-full bg-(--chip) transition-[width] duration-500"
+                        style={{ width: `${percent}%` }}
+                      />
+                    )}
+                    {percent !== undefined && percent > 0 && percent < 100 && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-y-0 w-0.5 bg-foreground/70"
+                        style={{ left: `calc(${percent}% - 1px)` }}
                       />
                     )}
                   </span>
                   <span className="tabular flex justify-between gap-2 text-[10px] text-muted-foreground">
-                    <span className="truncate">
-                      {fraction === undefined
+                    <span className="shrink-0">
+                      {percent === undefined
                         ? 'Waiting for a date'
-                        : fraction === 0
-                          ? 'No time left'
-                          : 'Time left'}
+                        : `${percent}% of the way there`}
                     </span>
                     <span className="truncate text-right">
                       {when}
@@ -156,8 +162,8 @@ export function ConferenceBoard({
         })}
       </ul>
       <p className="px-1 text-[11px] text-muted-foreground">
-        Each conference keeps its own colour. Bars share one scale, longest = furthest away,
-        shortest = nearly out of time; the exact figure is the countdown on the right.
+        Each conference keeps its own colour. The bar fills from the day you added it to its
+        deadline, so it is empty when you start and full when the deadline arrives.
       </p>
     </div>
   )

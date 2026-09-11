@@ -371,42 +371,27 @@ export const assignConferenceColors = (
   return colors
 }
 
-/** Shortest bar drawn for an upcoming deadline, so a near one is never an invisible sliver. */
-export const MIN_BAR_FRACTION = 0.04
-
-/** Longest remaining time among the upcoming items — the shared scale every bar is drawn against. */
-export const maxRemainingMs = (
-  items: readonly ConferenceDeadlineView[],
-  nowIso: string
-): number => {
-  let max = 0
-  for (const item of items) {
-    if (item.status !== 'upcoming' || !item.deadlineAt) continue
-    const remaining = calculateRemainingTime(item.deadlineAt, nowIso)
-    if (!remaining.isPast && remaining.totalMs > max) max = remaining.totalMs
-  }
-  return max
-}
-
 /**
- * How much of the shared scale this conference still has left: a full bar is the furthest
- * deadline, a short bar means time is nearly up. `undefined` for TBD (nothing to measure) and
- * `0` for a deadline that has passed.
+ * How far this conference has travelled from the day you added it to its deadline, 0 to 1.
+ * `undefined` for TBD (there is nothing to measure) and 1 once the deadline has passed.
  *
- * The scale is the square root of the raw ratio. A single far-off conference otherwise dominates
- * it — against a deadline 200 days away, everything inside a fortnight collapses onto the minimum
- * width and the near ones become indistinguishable, which is exactly when the bar matters most.
- * The root keeps the ordering exact while spreading the near end out; the precise figure is always
- * spelled out in the countdown beside the bar.
+ * Each conference is measured against its own window, so every bar starts empty, fills as the
+ * deadline nears and is full when it arrives. An earlier version drew the time *remaining* against
+ * a scale set by the furthest deadline; because that yardstick shrank at exactly the same rate,
+ * the bars hardly changed from one day to the next and the furthest conference sat pinned at 100%
+ * forever, which made the whole row look like a static decoration.
  */
-export const remainingFraction = (
+export const deadlineProgress = (
   item: ConferenceDeadlineView,
-  nowIso: string,
-  maxMs: number
+  nowIso: string
 ): number | undefined => {
   if (item.status === 'tbd' || !item.deadlineAt) return undefined
-  const remaining = calculateRemainingTime(item.deadlineAt, nowIso)
-  if (item.status === 'passed' || remaining.isPast) return 0
-  if (maxMs <= 0) return 1
-  return Math.min(1, Math.max(MIN_BAR_FRACTION, Math.sqrt(remaining.totalMs / maxMs)))
+  const end = instant(item.deadlineAt)
+  const start = instant(item.followed?.followedAt ?? item.firstSeenAt)
+  const now = instant(nowIso)
+  if (Number.isNaN(end) || Number.isNaN(start) || Number.isNaN(now)) return undefined
+  if (item.status === 'passed' || now >= end) return 1
+  // Added at or after the deadline: there was never any runway to show.
+  if (end <= start) return 1
+  return Math.min(1, Math.max(0, (now - start) / (end - start)))
 }

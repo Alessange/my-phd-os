@@ -283,16 +283,19 @@ describe('ConferenceDeadlinesTab', () => {
     expect(within(sheet).getByRole('heading', { name: 'SIGGRAPH 2027' })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Follow' })).toBeInTheDocument()
   })
-  it('gives every row its own colour and a visible bar, even for a conference added just now', async () => {
-    // Regression: the bar used to measure time elapsed since following, so a conference added
-    // today rendered a 0%-wide fill (an empty grey track), and the colour came only from urgency,
-    // so everything more than 30 days out was the same blue.
+  it('gives every row its own colour and a bar that actually advances', async () => {
+    // Regressions guarded here: the bar once measured time elapsed since following, so a
+    // conference added today rendered a 0%-wide fill on a grey track and looked broken; and the
+    // colour came only from urgency, so everything past thirty days was the same blue. A later
+    // version scaled every bar against the furthest deadline, which left that conference pinned
+    // at 100% for ever and the rest moving too slowly to see.
     const justAdded = view({
       id: 'c5',
       title: 'CHI 2027',
       conferenceName: 'CHI',
       conferenceYear: 2027,
       deadlineAt: at(60),
+      firstSeenAt: at(0),
       followed: follow('c5', 0)
     })
     windowApi.respond('conferences:listFollowed', [NEURIPS, justAdded, ICML_TBD])
@@ -302,20 +305,27 @@ describe('ConferenceDeadlinesTab', () => {
     const chi = screen.getByRole('button', { name: 'CHI 2027' })
     const icml = screen.getByRole('button', { name: 'ICML 2027' })
 
-    // Distinct colours per conference.
     const colours = [neurips, chi, icml].map((row) => row.getAttribute('data-color'))
     expect(new Set(colours).size).toBe(3)
     for (const c of colours) expect(c).toMatch(/^conference-([1-9]|10)$/)
 
-    // The freshly added conference has the longest runway, so it fills the shared scale.
-    expect(Number(within(chi).getByRole('progressbar').getAttribute('aria-valuenow'))).toBe(100)
-    // NeurIPS is half as far away, and still clearly visible.
-    const neuripsBar = Number(
+    // Added moments ago: nothing has elapsed yet, but the track still carries its own colour
+    // rather than rendering as an empty grey box.
+    const chiBar = within(chi).getByRole('progressbar')
+    expect(Number(chiBar.getAttribute('aria-valuenow'))).toBe(0)
+    expect(chiBar.className).toContain('bg-(--chip)/15')
+
+    // Followed five days ago with thirty days to run: about a seventh of the way along, and
+    // crucially neither pinned at nought nor at full.
+    const neuripsValue = Number(
       within(neurips).getByRole('progressbar').getAttribute('aria-valuenow')
     )
-    expect(neuripsBar).toBeGreaterThan(0)
-    expect(neuripsBar).toBeLessThan(100)
-    // A round with no announced date measures nothing rather than showing a fake bar.
+    expect(neuripsValue).toBeGreaterThan(0)
+    expect(neuripsValue).toBeLessThan(100)
+    expect(within(neurips).getByText(`${neuripsValue}% of the way there`)).toBeInTheDocument()
+
+    // No announced date means nothing to measure, rather than a fabricated bar.
     expect(within(icml).getByRole('progressbar')).not.toHaveAttribute('aria-valuenow')
+    expect(within(icml).getByText('Waiting for a date')).toBeInTheDocument()
   })
 })

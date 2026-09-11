@@ -16,10 +16,8 @@ import {
   urgencyLevel,
   conferenceSubline,
   CONFERENCE_COLOR_COUNT,
-  MIN_BAR_FRACTION,
   assignConferenceColors,
-  maxRemainingMs,
-  remainingFraction
+  deadlineProgress
 } from './views'
 
 const NOW = '2026-09-05T12:00:00.000Z'
@@ -345,55 +343,72 @@ describe('conference row colours', () => {
   })
 })
 
-describe('bar length on the shared scale', () => {
-  const now = '2026-09-05T12:00:00.000Z'
-  const at = (days: number): ConferenceDeadlineView =>
+describe('deadlineProgress', () => {
+  const followedOn = (followedAt: string, deadlineAt: string): ConferenceDeadlineView =>
     view({
-      id: `d${days}`,
-      title: `d${days}`,
-      deadlineAt: new Date(Date.parse(now) + days * 86_400_000).toISOString()
+      id: 'x',
+      title: 'x',
+      deadlineAt,
+      firstSeenAt: followedAt,
+      followed: { conferenceDeadlineId: 'x', followedAt }
     })
+  const span = followedOn('2026-09-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z')
 
-  it('scales bars against the furthest upcoming deadline, keeping the order exact', () => {
-    const items = [at(10), at(100), at(50)]
-    const max = maxRemainingMs(items, now)
-    expect(remainingFraction(at(100), now, max)).toBeCloseTo(1, 5)
-    expect(remainingFraction(at(50), now, max)).toBeCloseTo(Math.SQRT1_2, 5)
-    expect(remainingFraction(at(10), now, max)).toBeCloseTo(Math.sqrt(0.1), 5)
-    const widths = [at(1), at(10), at(50), at(100)].map((i) => remainingFraction(i, now, max))
-    expect(widths).toEqual([...widths].sort((a, b) => (a ?? 0) - (b ?? 0)))
+  it('runs from empty on the day it was added to full at the deadline', () => {
+    expect(deadlineProgress(span, '2026-09-01T00:00:00.000Z')).toBe(0)
+    expect(deadlineProgress(span, '2026-09-16T00:00:00.000Z')).toBeCloseTo(0.5, 5)
+    expect(deadlineProgress(span, '2026-10-01T00:00:00.000Z')).toBe(1)
   })
 
-  it('keeps near deadlines legible when one conference is far away', () => {
-    const max = maxRemainingMs([at(200)], now)
-    // Linear, half a day against 200 days is 0.25 % and a fortnight is 7 %: both would sit on the
-    // floor and look identical. The root separates them.
-    const halfDay = remainingFraction(at(0.5), now, max) as number
-    const fortnight = remainingFraction(at(14), now, max) as number
-    expect(fortnight).toBeGreaterThan(halfDay * 3)
-    expect(fortnight).toBeGreaterThan(0.2)
+  it('moves every single day, which the old shared scale did not', () => {
+    // The furthest conference used to define the scale and so sat pinned at 100% for ever.
+    const daily = Array.from({ length: 8 }, (_, d) =>
+      deadlineProgress(
+        span,
+        new Date(Date.parse('2026-09-01T00:00:00.000Z') + d * 86_400_000).toISOString()
+      )
+    ) as number[]
+    for (let i = 1; i < daily.length; i += 1) {
+      expect(daily[i]).toBeGreaterThan(daily[i - 1])
+      expect(daily[i] - daily[i - 1]).toBeCloseTo(1 / 30, 3)
+    }
   })
 
-  it('never draws an upcoming deadline as an invisible sliver', () => {
-    const max = maxRemainingMs([at(365)], now)
-    // An hour against a year is 0.01 % even after the root; the floor keeps it visible.
-    expect(remainingFraction(at(1 / 24), now, max)).toBe(MIN_BAR_FRACTION)
+  it('measures each conference against its own window, so none is pinned', () => {
+    const near = followedOn('2026-09-01T00:00:00.000Z', '2026-09-11T00:00:00.000Z')
+    const far = followedOn('2026-09-01T00:00:00.000Z', '2027-09-01T00:00:00.000Z')
+    const now = '2026-09-06T00:00:00.000Z'
+    expect(deadlineProgress(near, now)).toBeCloseTo(0.5, 5)
+    expect(deadlineProgress(far, now)).toBeLessThan(0.05)
+    // The far one still advances rather than standing still.
+    expect(deadlineProgress(far, '2026-12-01T00:00:00.000Z') as number).toBeGreaterThan(
+      deadlineProgress(far, now) as number
+    )
   })
 
-  it('empties the bar once a deadline has passed and skips TBD entirely', () => {
-    const passed = view({
-      id: 'p',
-      title: 'p',
-      status: 'passed',
-      deadlineAt: '2026-08-01T00:00:00.000Z'
+  it('is full for a passed deadline and undefined for TBD', () => {
+    expect(deadlineProgress({ ...span, status: 'passed' }, '2026-09-05T00:00:00.000Z')).toBe(1)
+    expect(deadlineProgress(span, '2027-01-01T00:00:00.000Z')).toBe(1)
+    expect(
+      deadlineProgress(
+        { ...span, status: 'tbd', deadlineAt: undefined },
+        '2026-09-05T00:00:00.000Z'
+      )
+    ).toBeUndefined()
+  })
+
+  it('is full when the conference was added at or after its own deadline', () => {
+    const late = followedOn('2026-10-05T00:00:00.000Z', '2026-10-01T00:00:00.000Z')
+    expect(deadlineProgress(late, '2026-10-06T00:00:00.000Z')).toBe(1)
+  })
+
+  it('falls back to when the app first saw a conference that is not followed', () => {
+    const unfollowed = view({
+      id: 'u',
+      title: 'u',
+      deadlineAt: '2026-10-01T00:00:00.000Z',
+      firstSeenAt: '2026-09-01T00:00:00.000Z'
     })
-    const tbd = view({ id: 't', title: 't', status: 'tbd', deadlineAt: undefined })
-    expect(remainingFraction(passed, now, 1000)).toBe(0)
-    expect(remainingFraction(tbd, now, 1000)).toBeUndefined()
-    expect(maxRemainingMs([passed, tbd], now)).toBe(0)
-  })
-
-  it('fills the bar when there is nothing to compare against', () => {
-    expect(remainingFraction(at(30), now, 0)).toBe(1)
+    expect(deadlineProgress(unfollowed, '2026-09-16T00:00:00.000Z')).toBeCloseTo(0.5, 5)
   })
 })
