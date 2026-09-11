@@ -1,8 +1,8 @@
 # My PhD OS — Delivery Report
 
-Date: 2026-09-07 · Version 0.1.2 · 中文版: `docs/DELIVERY_REPORT.zh-CN.md` · Platform verified: macOS (Apple Silicon), Electron 44.2 /
+Date: 2026-09-10 · Version 0.1.3 · 中文版: `docs/DELIVERY_REPORT.zh-CN.md` · Platform verified: macOS (Apple Silicon), Electron 44.2 /
 Node 24 runtime. Spec: `prompt.md` §28. Contract and decisions: `docs/ARCHITECTURE.md` (decisions
-1–66).
+1–67).
 
 ## 1. Pages implemented
 
@@ -121,11 +121,11 @@ progress: `completed` (stored) → `overdue` (past, not completed) → `urgent` 
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run typecheck` (node, web, e2e)  | clean                                                                                                                                                                                                                                                                                                                                                                      |
 | `npm run lint` (ESLint 10 + Prettier) | 0 problems                                                                                                                                                                                                                                                                                                                                                                 |
-| `npm test` (Vitest, node + jsdom)     | 59 files, 603 tests passed (shared logic, repositories, handlers, integration: migrations, backup, `.ics` import, subscriptions; renderer pages and features)                                                                                                                                                                                                              |
+| `npm test` (Vitest, node + jsdom)     | 59 files, 604 tests passed (shared logic, repositories, handlers, integration: migrations, backup, `.ics` import, subscriptions; renderer pages and features)                                                                                                                                                                                                              |
 | `npm run build`                       | preload bundle 448 kB, renderer bundle 2.7 MB JS + 78 kB CSS                                                                                                                                                                                                                                                                                                               |
 | `npm run test:e2e` (Playwright)       | 18 passed against `out/` (shell, navigation, persistence, fresh-install invariants, screenshots); the real-data-directory check skips itself while the installed app is open (last run: 17 passed, 1 skipped)                                                                                                                                                              |
 | Packaging (`electron-builder --dir`)  | `My PhD OS.app` (arm64, 303MB, ad-hoc signed) built from the final code; launch check on the same-day build: `isPackaged: true`, zero user records on first launch, no renderer errors. Unpacked bundles were removed afterwards to save disk space; install from the DMG below                                                                                            |
-| Installers (DMG / NSIS / AppImage)    | `release/my-phd-os-0.1.2-universal.dmg` (224 MB, Intel + Apple Silicon, ad-hoc signed, mounts and contains the app + Applications link, no personal strings in the shipped code) — this is the file to install from or give to a friend; first launch of a downloaded copy needs System Settings › Privacy & Security › Open Anyway. NSIS / AppImage configured, not built |
+| Installers (DMG / NSIS / AppImage)    | `release/my-phd-os-0.1.3-universal.dmg` (224 MB, Intel + Apple Silicon, ad-hoc signed, mounts and contains the app + Applications link, no personal strings in the shipped code) — this is the file to install from or give to a friend; first launch of a downloaded copy needs System Settings › Privacy & Security › Open Anyway. NSIS / AppImage configured, not built |
 
 ## 13. Known limitations
 

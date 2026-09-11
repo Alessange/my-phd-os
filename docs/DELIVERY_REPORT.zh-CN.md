@@ -1,7 +1,7 @@
 # My PhD OS — 交付报告（中文版）
 
-日期：2026-09-07 · 版本 0.1.2 · 已验证平台：macOS（Apple Silicon），Electron 44.2 / Node 24 运行时。
-规格：`prompt.md` §28。工程契约与决策记录：`docs/ARCHITECTURE.md`（决策 1–66）。英文版：
+日期：2026-09-10 · 版本 0.1.3 · 已验证平台：macOS（Apple Silicon），Electron 44.2 / Node 24 运行时。
+规格：`prompt.md` §28。工程契约与决策记录：`docs/ARCHITECTURE.md`（决策 1–67）。英文版：
 `docs/DELIVERY_REPORT.md`。
 
 这是一个只给一个人用的轻量桌面应用：没有账号、没有云同步、没有遥测、没有 AI、没有自动更新。所有数据都
@@ -106,11 +106,11 @@ URL = `https://ccfddl.com/conference/deadlines_{en|zh}[_ccf_R][_core_R][_thcpl_R
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run typecheck`（node、web、e2e）  | 通过，无错误                                                                                                                                                                                                                                                                            |
 | `npm run lint`（ESLint 10 + Prettier） | 0 个问题                                                                                                                                                                                                                                                                                |
-| `npm test`（Vitest，node + jsdom）     | 59 个文件、603 个测试全部通过（共享逻辑、仓储层、处理器、集成测试：迁移、备份、`.ics` 导入、订阅；渲染层页面与功能）                                                                                                                                                                    |
+| `npm test`（Vitest，node + jsdom）     | 59 个文件、604 个测试全部通过（共享逻辑、仓储层、处理器、集成测试：迁移、备份、`.ics` 导入、订阅；渲染层页面与功能）                                                                                                                                                                    |
 | `npm run build`                        | 预加载包 448 kB，渲染包 2.7 MB JS + 78 kB CSS                                                                                                                                                                                                                                           |
 | `npm run test:e2e`（Playwright）       | 18 个通过，针对 `out/` 运行（外壳、导航、持久化、全新安装不变量、截图）；“真实数据目录未被写入”这一项在已安装的应用正在运行时会自动跳过（最后一次运行：17 个通过、1 个跳过）                                                                                                            |
 | 打包（`electron-builder --dir`）       | `My PhD OS.app`（arm64，303MB，ad-hoc 签名）已从最终代码生成；同日构建的启动验证：`isPackaged: true`，首次启动零用户记录，渲染层无错误。解包的应用目录之后已删除以节省磁盘，请从下面的 DMG 安装                                                                                         |
-| 安装包（DMG / NSIS / AppImage）        | `release/my-phd-os-0.1.2-universal.dmg`（224 MB，Intel + Apple Silicon 通用，ad-hoc 签名，可正常挂载，内含应用与“应用程序”快捷方式，发布代码中不含任何个人字符串）——用它安装或发给朋友；下载来的副本首次打开需在“系统设置 › 隐私与安全性”中点“仍要打开”。NSIS / AppImage 已配置但未构建 |
+| 安装包（DMG / NSIS / AppImage）        | `release/my-phd-os-0.1.3-universal.dmg`（224 MB，Intel + Apple Silicon 通用，ad-hoc 签名，可正常挂载，内含应用与“应用程序”快捷方式，发布代码中不含任何个人字符串）——用它安装或发给朋友；下载来的副本首次打开需在“系统设置 › 隐私与安全性”中点“仍要打开”。NSIS / AppImage 已配置但未构建 |
 
 ## 13. 已知限制
 
