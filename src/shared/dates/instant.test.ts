@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { Settings } from 'luxon'
+import { afterEach, describe, expect, it } from 'vitest'
 import { AppError } from '../errors'
 import {
   compareInstants,
@@ -29,6 +30,28 @@ describe('wallTimeToInstant', () => {
     expect(wallTimeToInstant('2026-11-01T23:59:00', 'PT')).toBe('2026-11-02T07:59:00.000Z') // PST −8
     // ambiguous 01:30 resolves to the earlier (PDT) offset
     expect(wallTimeToInstant('2026-11-01T01:30:00', 'PT')).toBe('2026-11-01T08:30:00.000Z')
+  })
+
+  describe('the repeated hour does not depend on the day the app runs', () => {
+    const realNow = Settings.now
+    afterEach(() => {
+      Settings.now = realNow
+    })
+
+    it.each([
+      ['summer, before the clocks go back', Date.UTC(2026, 5, 1)],
+      ['winter, after the clocks went back', Date.UTC(2026, 10, 27)],
+      ['the day before', Date.UTC(2026, 9, 31)],
+      ['the day after', Date.UTC(2026, 10, 2)]
+    ])('resolves 01:30 on 2026-11-01 to the earlier (PDT) instant: %s', (_label, now) => {
+      Settings.now = () => now
+      expect(wallTimeToInstant('2026-11-01T01:30:00', 'PT')).toBe('2026-11-01T08:30:00.000Z')
+      // Hours either side of the repeated one are unaffected.
+      expect(wallTimeToInstant('2026-11-01T00:59:00', 'PT')).toBe('2026-11-01T07:59:00.000Z')
+      expect(wallTimeToInstant('2026-11-01T02:00:00', 'PT')).toBe('2026-11-01T10:00:00.000Z')
+      // The same holds for another DST zone.
+      expect(wallTimeToInstant('2026-11-01T01:30:00', 'ET')).toBe('2026-11-01T05:30:00.000Z')
+    })
   })
 
   it('does not treat PT as a fixed UTC−8 offset', () => {
