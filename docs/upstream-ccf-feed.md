@@ -7,11 +7,11 @@ Real trimmed samples live in `tests/fixtures/ccf/`. **Never** fabricate fields t
 
 ## URLs
 
-| Purpose | URL |
-| --- | --- |
-| English, unfiltered | `https://ccfddl.com/conference/deadlines_en.ics` |
-| Simplified Chinese, unfiltered | `https://ccfddl.com/conference/deadlines_zh.ics` |
-| Filtered | `https://ccfddl.com/conference/deadlines_{lang}[_ccf_{R}][_core_{R}][_thcpl_{R}][_{SUB}].ics` |
+| Purpose                        | URL                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| English, unfiltered            | `https://ccfddl.com/conference/deadlines_en.ics`                                              |
+| Simplified Chinese, unfiltered | `https://ccfddl.com/conference/deadlines_zh.ics`                                              |
+| Filtered                       | `https://ccfddl.com/conference/deadlines_{lang}[_ccf_{R}][_core_{R}][_thcpl_{R}][_{SUB}].ics` |
 
 Filter order is fixed: CCF rank, CORE rank, TH-CPL rank, subject. `A*` is written `Astar`.
 Confirmed live: `deadlines_en_core_Astar_SE.ics`, `deadlines_en_ccf_A.ics`, `deadlines_en_AI.ics`,
@@ -19,18 +19,18 @@ Confirmed live: `deadlines_en_core_Astar_SE.ics`, `deadlines_en_ccf_A.ics`, `dea
 
 Ranks: CCF `A|B|C`; CORE `A*|A|B|C`; TH-CPL `A|B`. Subjects (from `conference/types.yml`):
 
-| sub | name_en | name (zh) |
-| --- | --- | --- |
-| DS | Computer Architecture/Parallel Programming/Storage Technology | 计算机体系结构/并行与分布计算/存储系统 |
-| NW | Network System | 计算机网络 |
-| SC | Network and System Security | 网络与信息安全 |
-| SE | Software Engineering/Operating System/Programming Language Design | 软件工程/系统软件/程序设计语言 |
-| DB | Database/Data Mining/Information Retrieval | 数据库/数据挖掘/内容检索 |
-| CT | Computing Theory | 计算机科学理论 |
-| CG | Graphics | 计算机图形学与多媒体 |
-| AI | Artificial Intelligence | 人工智能 |
-| HI | Computer-Human Interaction | 人机交互与普适计算 |
-| MX | Interdiscipline/Mixture/Emerging | 交叉/综合/新兴 |
+| sub | name_en                                                           | name (zh)                              |
+| --- | ----------------------------------------------------------------- | -------------------------------------- |
+| DS  | Computer Architecture/Parallel Programming/Storage Technology     | 计算机体系结构/并行与分布计算/存储系统 |
+| NW  | Network System                                                    | 计算机网络                             |
+| SC  | Network and System Security                                       | 网络与信息安全                         |
+| SE  | Software Engineering/Operating System/Programming Language Design | 软件工程/系统软件/程序设计语言         |
+| DB  | Database/Data Mining/Information Retrieval                        | 数据库/数据挖掘/内容检索               |
+| CT  | Computing Theory                                                  | 计算机科学理论                         |
+| CG  | Graphics                                                          | 计算机图形学与多媒体                   |
+| AI  | Artificial Intelligence                                           | 人工智能                               |
+| HI  | Computer-Human Interaction                                        | 人机交互与普适计算                     |
+| MX  | Interdiscipline/Mixture/Emerging                                  | 交叉/综合/新兴                         |
 
 ## HTTP behaviour
 
@@ -78,16 +78,16 @@ URL:https://aaai.org/conference/aaai/aaai-26/
 
 DESCRIPTION lines (English feed; Chinese labels are `会议时间`, `会议地点`, `原始截止时间`, `分类`, `会议官网`, `DBLP索引`):
 
-| # | Line | Notes |
-| --- | --- | --- |
-| 0 | `{full conference name}` | e.g. `AAAI Conference on Artificial Intelligence` |
-| 1 | `🗓️ Date: {text}` | free text such as `February 22 - March 1, 2022`; may be `TBD` |
-| 2 | `📍 Location: {text}` | may be `TBD` |
-| 3 | `⏰ Original Deadline ({tz}): {YYYY-MM-DD HH:MM:SS}` | `tz` is the upstream label: `AoE`, `UTC-12`, `UTC-8`, `UTC+8`, `UTC`, `UTC+0` … (18 variants seen). This is the **authoritative original timezone label**; DTSTART's TZID is the numeric equivalent (`AoE` → `UTC-12:00`). |
-| 4 | `Category: {zh name} ({SUB})` | subject code in parentheses |
-| 5 | `CCF A, CORE A*, THCPL A` | **optional line** — ranks with value `N` are omitted; the line is absent when all are `N` (54 events have 7 lines). Any subset appears, e.g. `CCF C`, `CORE A`, `CCF B, THCPL B`. |
-| 6 | `Conference Website: {url}` | same as `URL:` property |
-| 7 | `DBLP Index: https://dblp.org/db/conf/{key}` | |
+| #   | Line                                                 | Notes                                                                                                                                                                                                                      |
+| --- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | `{full conference name}`                             | e.g. `AAAI Conference on Artificial Intelligence`                                                                                                                                                                          |
+| 1   | `🗓️ Date: {text}`                                    | free text such as `February 22 - March 1, 2022`; may be `TBD`                                                                                                                                                              |
+| 2   | `📍 Location: {text}`                                | may be `TBD`                                                                                                                                                                                                               |
+| 3   | `⏰ Original Deadline ({tz}): {YYYY-MM-DD HH:MM:SS}` | `tz` is the upstream label: `AoE`, `UTC-12`, `UTC-8`, `UTC+8`, `UTC`, `UTC+0` … (18 variants seen). This is the **authoritative original timezone label**; DTSTART's TZID is the numeric equivalent (`AoE` → `UTC-12:00`). |
+| 4   | `Category: {zh name} ({SUB})`                        | subject code in parentheses                                                                                                                                                                                                |
+| 5   | `CCF A, CORE A*, THCPL A`                            | **optional line** — ranks with value `N` are omitted; the line is absent when all are `N` (54 events have 7 lines). Any subset appears, e.g. `CCF C`, `CORE A`, `CCF B, THCPL B`.                                          |
+| 6   | `Conference Website: {url}`                          | same as `URL:` property                                                                                                                                                                                                    |
+| 7   | `DBLP Index: https://dblp.org/db/conf/{key}`         |                                                                                                                                                                                                                            |
 
 Observed `⏰ Original Deadline` labels: AoE(1175) UTC-12(362) UTC-8(94) UTC+0(92) UTC-7(78) UTC(65)
 UTC-4(47) UTC-5(40) UTC+8(39) UTC+1(15) UTC+7(6) UTC+10(4) UTC-11(3) UTC+2 UTC-6 UTC-10 UTC+3 UTC+9.
@@ -95,21 +95,21 @@ Generator regex for tz: `AoE` → UTC-12; `UTC` → UTC; `UTC([+-])(\d{1,2})$`.
 
 ## Identity and change detection — critical
 
-* `UID` is `uuid.uuid4()` per event **per generation**. It differs between `_en` and `_zh` and between
+- `UID` is `uuid.uuid4()` per event **per generation**. It differs between `_en` and `_zh` and between
   two fetches. It **cannot** be used as a stable identifier. Derive `stableKey` from normalized
   fields: `subscriptionId` + `conferenceName` (SUMMARY prefix before the year) + `conferenceYear` +
   `deadlineKind` (`abstract` | `deadline`) + normalized `comment` (the `[...]` suffix, lower-cased,
   whitespace-collapsed). Never use array position.
-* TBD deadlines are **skipped** by the generator (`if deadline_str == "TBD": continue`), so a TBD
+- TBD deadlines are **skipped** by the generator (`if deadline_str == "TBD": continue`), so a TBD
   round never appears in the feed. A round that was present and then disappears from a
   successfully fetched snapshot is the only observable "became TBD / withdrawn" signal. Record it as
   a change (`field: "status"`, previous `upcoming`/`passed`, current `tbd`), keep the record and its
   followed state, clear the countdown, and never invent a date.
-* "Conference dates TBD" (`🗓️ Date: TBD`) and "Location TBD" are separate from deadline TBD and
+- "Conference dates TBD" (`🗓️ Date: TBD`) and "Location TBD" are separate from deadline TBD and
   are displayed as-is.
-* Deadline changes show up as a different DTSTART for the same `stableKey`; timezone changes as a
+- Deadline changes show up as a different DTSTART for the same `stableKey`; timezone changes as a
   different `⏰ Original Deadline (tz)` label / TZID; homepage changes as a different `URL`.
-* `DTSTAMP` changes every regeneration; do not treat it as an upstream update timestamp.
+- `DTSTAMP` changes every regeneration; do not treat it as an upstream update timestamp.
 
 ## Ranking of hosts
 
