@@ -17,14 +17,16 @@ Renderer:
   a switch), "Add conference", the change banner for followed conferences, a one-line status with
   Refresh / Sources. Quick-create and `{ create }` open the picker; `{ id }` opens the sheet (also
   for a conference that is not followed, fetched by id).
-- `components/ConferenceBoard.tsx`: months axis with a dot per deadline, then one row per
-  conference: a colour stripe, dot, title + subline (ranks / abstract / round), a bar that fills
-  from the day it was added to its deadline (`deadlineProgress`), the dates, and
-  `DeadlineCountdown`. Each
-  conference owns a palette colour (`assignConferenceColors`, stable across reordering); urgency
-  shows through the countdown and a ring, not the colour.
-- `components/DeadlineCountdown.tsx`: `32 d` / `08h 14m` (seconds, red, under 24 h) / `Passed` /
-  `TBD`.
+- `components/ConferenceBoard.tsx`: months axis (one 9 px dot per deadline, names alternating above
+  and below the line), then hairline rows under one ink rule. The first upcoming dated conference
+  leads (28 px title, 64 px countdown, Local and Original times); the others show title, ranks,
+  local date and a 28 px countdown. A 2 px line on the row's lower edge is the time gone since it
+  was added (`deadlineProgress`, `role=progressbar`, "N% of the way there" in the lead row and
+  sr-only elsewhere). The original-timezone line is in the DOM on every row and appears on hover
+  and focus. No per-conference colour: rows differ by name and position.
+- `components/DeadlineCountdown.tsx`: `9 d 09 h` / `09 h 29 m 49 s` (seconds only under 24 h; the
+  hero size turns signal there) / `Passed 2 days ago` / `TBD`. Also used by the Personal list and
+  the Calendar panel compacts.
 - `components/ConferencePicker.tsx`: search over the cached list, Add / Remove per row, show
   passed, refresh; one-click "Load list" (English / 简体中文) when no source exists yet; link to the
   advanced builder.

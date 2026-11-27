@@ -39,14 +39,18 @@ export function CommandDialog({
       <DialogContent
         hideClose
         size="md"
-        className={cn('top-[18%] translate-y-0 overflow-hidden p-0', className)}
+        className={cn(
+          'top-[16%] translate-y-0 overflow-hidden p-0 sm:max-w-[640px] sm:p-0',
+          'data-[state=open]:duration-100 data-[state=closed]:duration-100',
+          className
+        )}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description}</DialogDescription>
         <Command
           loop
-          className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-1.5"
+          className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-ink-3 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2"
         >
           {children}
         </Command>
@@ -60,16 +64,19 @@ export function CommandInput({
   ...props
 }: ComponentProps<typeof CommandPrimitive.Input>): React.JSX.Element {
   return (
-    <div data-slot="command-input-wrapper" className="flex h-11 items-center gap-2 border-b px-3">
-      <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    <div data-slot="command-input-wrapper" className="flex h-14 items-center gap-3 border-b px-5">
+      <Search className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          'flex h-10 w-full bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-12 w-full bg-transparent text-lead outline-none placeholder:text-ink-3 disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}
         {...props}
       />
+      <span aria-hidden="true" className="shrink-0 text-xs text-ink-3">
+        esc
+      </span>
     </div>
   )
 }
@@ -82,7 +89,7 @@ export function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        'max-h-[min(360px,50vh)] scroll-py-1 overflow-x-hidden overflow-y-auto py-1.5',
+        'max-h-[min(456px,60vh)] scroll-py-1 overflow-x-hidden overflow-y-auto py-2',
         className
       )}
       {...props}
@@ -97,7 +104,7 @@ export function CommandEmpty({
   return (
     <CommandPrimitive.Empty
       data-slot="command-empty"
-      className={cn('py-6 text-center text-[13px] text-muted-foreground', className)}
+      className={cn('py-8 text-center text-sm text-ink-3', className)}
       {...props}
     />
   )
@@ -123,7 +130,7 @@ export function CommandSeparator({
   return (
     <CommandPrimitive.Separator
       data-slot="command-separator"
-      className={cn('-mx-1 my-1 h-px bg-border', className)}
+      className={cn('-mx-1 my-1 h-px bg-line', className)}
       {...props}
     />
   )
@@ -137,9 +144,9 @@ export function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        'relative flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-[13px] outline-hidden select-none',
-        'data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50',
-        '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4 [&_svg:not([class*="text-"])]:text-muted-foreground',
+        'relative flex h-[38px] cursor-default items-center gap-3 rounded-sm px-3 text-sm outline-hidden select-none',
+        'data-[selected=true]:bg-selected data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50',
+        '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4 [&_svg:not([class*="text-"])]:text-ink-3',
         className
       )}
       {...props}
@@ -154,7 +161,7 @@ export function CommandShortcut({
   return (
     <span
       data-slot="command-shortcut"
-      className={cn('ml-auto flex items-center gap-0.5 text-xs text-muted-foreground', className)}
+      className={cn('ml-auto flex items-center gap-0.5 text-xs text-ink-3', className)}
       {...props}
     />
   )

@@ -1,18 +1,24 @@
-import { Timer } from 'lucide-react'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
 import { describeDeadlines, nearestUpcomingDeadline } from '@shared/personal-deadlines/views'
 import { useNavigation } from '@renderer/app/navigation'
-import { Countdown } from '@renderer/components/common/Countdown'
 import { EmptyState } from '@renderer/components/common/EmptyState'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
 import { StatusBadge } from '@renderer/components/common/StatusBadge'
+import { DeadlineCountdown } from '@renderer/features/conference-deadlines/components/DeadlineCountdown'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import { usePersonalDeadlines } from '../api'
 
+export interface PersonalDeadlineCompactProps {
+  /** Render nothing (instead of the empty line) when there is no upcoming deadline; the caller shows one shared line. */
+  hideEmpty?: boolean
+}
+
 /** Nearest upcoming personal deadline (Calendar right panel); opens its details on the Deadlines page. */
-export function PersonalDeadlineCompact(): React.JSX.Element {
+export function PersonalDeadlineCompact({
+  hideEmpty = false
+}: PersonalDeadlineCompactProps): React.JSX.Element | null {
   const format = useFormat()
   const nowIso = useNow({ precision: 'minute' })
   const navigate = useNavigation((state) => state.navigate)
@@ -29,23 +35,27 @@ export function PersonalDeadlineCompact(): React.JSX.Element {
       />
     )
   const nearest = nearestUpcomingDeadline(describeDeadlines(query.data, nowIso))
-  if (!nearest)
-    return <EmptyState variant="compact" icon={Timer} title={EMPTY_STATES.nearestDeadline.title} />
+  if (!nearest) {
+    return hideEmpty ? null : (
+      <EmptyState variant="compact" title={EMPTY_STATES.nearestDeadline.title} />
+    )
+  }
 
   const { deadline, computed } = nearest
   return (
     <button
       type="button"
       onClick={() => navigate('deadlines', { tab: 'personal', id: deadline.id })}
-      className="flex w-full flex-col gap-1 rounded-md border bg-card px-3 py-2 text-left shadow-xs transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+      className="app-no-drag flex w-full flex-col items-start gap-1 rounded-sm text-left"
       data-deadline-id={deadline.id}
     >
-      <span className="flex items-center justify-between gap-2">
-        <span className="truncate text-[13px] font-medium">{deadline.title}</span>
-        <StatusBadge status={computed.status} size="sm" />
+      <span className="text-body w-full truncate text-ink">{deadline.title}</span>
+      <DeadlineCountdown targetIso={deadline.deadlineAt} size="compact" />
+      <span className="text-meta flex items-center gap-2 text-ink-3">
+        Personal
+        <StatusBadge status={computed.status} size="sm" attentionGlyphOnly />
       </span>
-      <Countdown targetIso={deadline.deadlineAt} variant="inline" className="text-xs font-medium" />
-      <span className="tabular text-[11px] text-muted-foreground">
+      <span className="text-meta tabular text-ink-3">
         {format.formatDateTimeWithZone(deadline.deadlineAt, deadline.timezone)}
       </span>
     </button>

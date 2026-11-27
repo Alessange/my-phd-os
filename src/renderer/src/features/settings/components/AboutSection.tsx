@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
+import { useId, useState } from 'react'
 import { CCF_DEADLINES_HOMEPAGE, CCF_DEADLINES_REPOSITORY } from '@shared/constants/hosts'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
-import { Button } from '@renderer/components/ui/button'
 import { api } from '@renderer/lib/api'
 import { queryKeys } from '@renderer/lib/queryKeys'
 import { toastError } from '@renderer/lib/toast'
+import { cn } from '@renderer/lib/utils'
 import { OPEN_SOURCE_LICENSES } from '../licenses'
 
 const openExternal = (url: string): void => {
@@ -15,103 +16,138 @@ const openExternal = (url: string): void => {
   )
 }
 
-function ExternalButton({ url, children }: { url: string; children: string }): React.JSX.Element {
+function ExternalLink({
+  url,
+  children,
+  className
+}: {
+  url: string
+  children: string
+  className?: string
+}): React.JSX.Element {
   return (
-    <Button
-      variant="link"
-      size="sm"
-      className="h-auto px-0"
+    <button
+      type="button"
+      className={cn('link-quiet text-left', className)}
       onClick={() => openExternal(url)}
       aria-label={`${children} (opens in your browser)`}
+      title={children}
     >
       {children}
-      <ExternalLink aria-hidden="true" className="size-3" />
-    </Button>
+    </button>
+  )
+}
+
+/** One About block: an ink title and an ink-2 paragraph, separated from the next by a hairline. */
+function Block({
+  title,
+  children
+}: {
+  title: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-1 border-b border-line py-4 first:pt-2">
+      <h3 className="text-body text-ink">{title}</h3>
+      {children}
+    </div>
   )
 }
 
 export function AboutSection(): React.JSX.Element {
   const info = useQuery({ queryKey: queryKeys.app.info(), queryFn: () => api('app:getInfo') })
+  const [licensesOpen, setLicensesOpen] = useState(false)
+  const licensesId = useId()
 
   return (
-    <div className="flex flex-col gap-6 text-[13px]">
-      <div>
-        <h3 className="mb-1.5 text-sm font-semibold">Version</h3>
+    <div className="flex flex-col text-body text-ink-2">
+      <Block title="Version">
         {info.isPending ? (
           <LoadingState variant="inline" label="Reading version…" />
         ) : info.error ? (
           <ErrorState variant="compact" error={info.error} onRetry={() => void info.refetch()} />
         ) : (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-            <dt className="text-muted-foreground">My PhD OS</dt>
+          <dl className="tabular grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-0.5">
+            <dt className="text-ink-3">My PhD OS</dt>
             <dd>
-              {info.data.version}
-              {!info.data.isPackaged && (
-                <span className="ml-1 text-muted-foreground">(development build)</span>
-              )}
+              <span>{info.data.version}</span>
+              {!info.data.isPackaged && <span className="text-ink-3"> (development build)</span>}
             </dd>
-            <dt className="text-muted-foreground">Platform</dt>
+            <dt className="text-ink-3">Platform</dt>
             <dd>
               {info.data.platform} {info.data.arch}
             </dd>
-            <dt className="text-muted-foreground">Runtime</dt>
+            <dt className="text-ink-3">Runtime</dt>
             <dd>
               Electron {info.data.electron} · Chromium {info.data.chrome} · Node {info.data.node}
             </dd>
-            <dt className="text-muted-foreground">Data directory</dt>
-            <dd className="font-mono break-all">{info.data.userDataPath}</dd>
           </dl>
         )}
-      </div>
+      </Block>
 
-      <div>
-        <h3 className="mb-1.5 text-sm font-semibold">Where your data lives</h3>
-        <p className="text-muted-foreground">
-          Everything you enter is stored in a single SQLite database inside the application data
-          directory on this computer. There is no account, no cloud copy and no telemetry. Use
-          Settings › Data to export a JSON backup or the calendar as .ics, and to open the
-          directory.
+      <Block title="Where your data lives">
+        <p>
+          Everything is stored in a single SQLite database in the application data directory on this
+          computer: no account, no cloud copy, no telemetry. Export a backup or open the directory
+          from Settings › Data.
         </p>
-      </div>
+      </Block>
 
-      <div>
-        <h3 className="mb-1.5 text-sm font-semibold">Offline behaviour</h3>
-        <p className="text-muted-foreground">
-          The app works fully offline. The only network requests it ever makes fetch the public
-          conference-deadline feeds you subscribe to, from the main process, carrying no personal
-          data. When a refresh fails, the last successfully retrieved snapshot stays available and
-          is marked as cached.
+      <Block title="Offline behaviour">
+        <p>
+          The app works fully offline. The only network requests it makes fetch the conference feeds
+          you subscribe to, from the main process, with no personal data. When a refresh fails, the
+          last good snapshot stays available and is marked as cached.
         </p>
-      </div>
+      </Block>
 
-      <div>
-        <h3 className="mb-1.5 text-sm font-semibold">Conference data</h3>
-        <p className="text-muted-foreground">
-          Conference deadlines come from the community-maintained <strong>CCF Deadlines</strong>{' '}
-          project. Deadlines are shown exactly as published upstream; the app never edits or
-          extrapolates them.
+      <Block title="Conference data">
+        <p>
+          Conference deadlines come from the community-maintained CCF Deadlines project. Deadlines
+          are shown exactly as published upstream; the app never edits or extrapolates them.
         </p>
-        <div className="mt-1 flex flex-wrap gap-4">
-          <ExternalButton url={CCF_DEADLINES_HOMEPAGE}>ccfddl.com</ExternalButton>
-          <ExternalButton url={CCF_DEADLINES_REPOSITORY}>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1">
+          <ExternalLink url={CCF_DEADLINES_HOMEPAGE}>ccfddl.com</ExternalLink>
+          <ExternalLink url={CCF_DEADLINES_REPOSITORY}>
             github.com/ccfddl/ccf-deadlines
-          </ExternalButton>
+          </ExternalLink>
         </div>
-      </div>
+      </Block>
 
-      <div>
-        <h3 className="mb-1.5 text-sm font-semibold">Open-source licenses</h3>
-        <ul className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-          {OPEN_SOURCE_LICENSES.map((entry) => (
-            <li
-              key={entry.name}
-              className="flex items-baseline justify-between gap-2 border-b border-dashed py-1"
-            >
-              <ExternalButton url={entry.url}>{entry.name}</ExternalButton>
-              <span className="shrink-0 text-muted-foreground">{entry.license}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="flex flex-col gap-3 py-4">
+        <h3 className="text-body text-ink">
+          <button
+            type="button"
+            aria-expanded={licensesOpen}
+            aria-controls={licensesId}
+            onClick={() => setLicensesOpen((open) => !open)}
+            className="hit-28 -mx-1 inline-flex items-center gap-1.5 rounded-sm px-1 hover:bg-hover"
+          >
+            Open-source licenses
+            <ChevronDown
+              aria-hidden="true"
+              className={cn(
+                'size-4 text-ink-3 transition-transform duration-100',
+                licensesOpen && 'rotate-180'
+              )}
+            />
+          </button>
+        </h3>
+        {licensesOpen && (
+          <ul id={licensesId} className="grid gap-x-10 sm:grid-cols-2">
+            {OPEN_SOURCE_LICENSES.map((entry) => (
+              <li
+                key={entry.name}
+                className="flex min-w-0 items-baseline justify-between gap-3 border-b border-line py-1.5"
+              >
+                <ExternalLink url={entry.url} className="min-w-0 truncate">
+                  {entry.name}
+                </ExternalLink>
+                <span className="shrink-0 text-meta text-ink-3">{entry.license}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

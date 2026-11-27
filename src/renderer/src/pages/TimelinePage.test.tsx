@@ -50,10 +50,10 @@ describe('TimelinePage', () => {
     }))
   })
 
-  it('renders the empty state with the exact copy and an Add Milestone action', async () => {
+  it('renders the empty state with the exact copy and an Add milestone action', async () => {
     renderWithProviders(<TimelinePage />)
     expect(await screen.findByText('Your timeline starts here.')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Add Milestone' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Add milestone' }).length).toBeGreaterThan(0)
     expect(screen.queryByRole('figure', { name: 'Milestone timeline' })).not.toBeInTheDocument()
   })
 
@@ -112,10 +112,79 @@ describe('TimelinePage', () => {
     expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument()
   })
 
+  it('collapses three or more checks into one summary line that opens on Review', async () => {
+    windowApi.respond('milestones:list', [
+      milestone({ id: 'a', title: 'Old A', startAt: at(-300), targetAt: at(-200) }),
+      milestone({
+        id: 'b',
+        title: 'Old B',
+        startAt: at(-190),
+        targetAt: at(-100),
+        category: 'coursework'
+      }),
+      milestone({
+        id: 'c',
+        title: 'Old C',
+        startAt: at(-90),
+        targetAt: at(-10),
+        category: 'career'
+      })
+    ])
+    renderWithProviders(<TimelinePage />)
+    expect(await screen.findByText('3 open · 3 past target')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Dismiss/ })).not.toBeInTheDocument()
+    const review = screen.getByRole('button', { name: 'Review' })
+    expect(review).toHaveAttribute('aria-expanded', 'false')
+    await user.click(review)
+    expect(screen.getByRole('button', { name: 'Hide' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('button', { name: /^Dismiss/ })).toHaveLength(3)
+  })
+
+  it('prints check dates in the user format and lets each milestone in a pair open itself', async () => {
+    windowApi.respond('milestones:list', [
+      milestone({ id: 'm1', title: 'Pilot study' }),
+      milestone({ id: 'm2', title: 'Paper draft', category: 'publication' }),
+      milestone({
+        id: 'm3',
+        title: 'Old',
+        startAt: at(-100),
+        targetAt: at(-10),
+        category: 'career'
+      })
+    ])
+    renderWithProviders(<TimelinePage />)
+    await screen.findByText('Milestone "Old" is past its target but not complete')
+    expect(screen.queryByText(/\d{4}-\d{2}-\d{2}/)).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '"Paper draft"' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Title')).toHaveValue('Paper draft')
+  })
+
+  it('keeps a pristine form calm and never sends or clears the stored colour', async () => {
+    windowApi.respond('milestones:list', [
+      milestone({ id: 'm1', title: 'Pilot study', color: '#ef4444' })
+    ])
+    windowApi.respond('milestones:update', (payload) => ({
+      ...milestone({ id: 'm1', title: 'Pilot study' }),
+      ...(payload as { patch: object }).patch
+    }))
+    useNavigation.setState({ page: 'timeline', params: { milestoneId: 'm1' }, hydrated: true })
+    renderWithProviders(<TimelinePage />)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Title')).not.toHaveAttribute('aria-invalid')
+    expect(within(dialog).queryByLabelText(/colour/i)).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() =>
+      expect(windowApi.invoke).toHaveBeenCalledWith('milestones:update', expect.anything())
+    )
+    const call = windowApi.invoke.mock.calls.find(([channel]) => channel === 'milestones:update')
+    expect((call?.[1] as { patch: Record<string, unknown> }).patch).not.toHaveProperty('color')
+  })
+
   it('creates a milestone through the form', async () => {
     renderWithProviders(<TimelinePage />)
     await screen.findByText('Your timeline starts here.')
-    await user.click(screen.getAllByRole('button', { name: 'Add Milestone' })[0])
+    await user.click(screen.getAllByRole('button', { name: 'Add milestone' })[0])
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Title'), 'Qualifying exam')
     await user.click(within(dialog).getByRole('button', { name: 'Create milestone' }))

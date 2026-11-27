@@ -1,5 +1,5 @@
-import { CalendarDays, Database, FileJson, FolderOpen, Trash2, Upload } from 'lucide-react'
-import { useCallback, useState, type ReactNode } from 'react'
+import { CircleAlert } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import {
   CLEAR_ALL_DATA_CONFIRMATION,
   type BackupImportMode,
@@ -31,7 +31,9 @@ import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
 import { useFormat } from '@renderer/hooks/useFormat'
+import { SettingRow } from './GeneralSection'
 import { toastSuccess } from '@renderer/lib/toast'
+import { cn } from '@renderer/lib/utils'
 import {
   useClearAllData,
   useCommitBackupImport,
@@ -42,35 +44,33 @@ import {
   useStorageInfo
 } from '../api'
 
-function DataRow({
-  icon: Icon,
-  title,
-  description,
-  children
-}: {
-  icon: typeof Database
-  title: string
-  description: ReactNode
-  children: ReactNode
-}): React.JSX.Element {
+/** A quiet text action inside a row (DESIGN.md 6: actions in lists are text links). */
+function TextAction({
+  danger = false,
+  className,
+  ...props
+}: React.ComponentProps<'button'> & { danger?: boolean }): React.JSX.Element {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 py-3 not-last:border-b">
-      <div className="flex min-w-0 flex-1 gap-3">
-        <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <div className="min-w-0">
-          <h3 className="text-[13px] font-medium">{title}</h3>
-          <div className="text-xs text-muted-foreground">{description}</div>
-        </div>
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">{children}</div>
-    </div>
+    <button
+      type="button"
+      className={cn(
+        danger ? 'link text-signal' : 'link',
+        'text-body disabled:no-underline disabled:opacity-50',
+        className
+      )}
+      {...props}
+    />
   )
 }
 
 const countsList = (counts: BackupImportSummary['counts']): string =>
   Object.entries(counts)
     .filter(([, n]) => n > 0)
-    .map(([entity, n]) => `${n} ${entity.replace(/([A-Z])/g, ' $1').toLowerCase()}`)
+    .map(([entity, n]) => {
+      const name = entity.replace(/([A-Z])/g, ' $1').toLowerCase()
+      // Every entity name is a plural noun: "1 habit", "2 habits".
+      return `${n} ${n === 1 ? name.replace(/s$/, '') : name}`
+    })
     .join(', ') || 'no records'
 
 const formatBytes = (bytes: number): string =>
@@ -161,13 +161,14 @@ export function DataSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col">
-      <DataRow
-        icon={Database}
-        title="Local database"
-        description={
+      <SettingRow
+        label="Local database"
+        detail={
           storage.data ? (
             <>
-              <span className="font-mono break-all">{storage.data.databasePath}</span>
+              <span className="tabular block [overflow-wrap:anywhere]">
+                {storage.data.databasePath}
+              </span>
               <span className="tabular block" data-testid="storage-summary">
                 {formatBytes(storage.data.databaseSizeBytes)} · {countsList(storage.data.counts)}
               </span>
@@ -184,55 +185,40 @@ export function DataSection(): React.JSX.Element {
           )
         }
       >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => openDirectory.mutate()}
-          disabled={openDirectory.isPending}
-        >
-          <FolderOpen aria-hidden="true" />
+        <TextAction onClick={() => openDirectory.mutate()} disabled={openDirectory.isPending}>
           Open data directory
-        </Button>
-      </DataRow>
+        </TextAction>
+      </SettingRow>
 
-      <DataRow
-        icon={FileJson}
-        title="JSON backup"
-        description="Export everything (events, deadlines, milestones, habits, subscriptions, settings) to a file you choose. Import shows a preview before anything changes."
+      <SettingRow
+        label="JSON backup"
+        description="Events, deadlines, milestones, habits, subscriptions and settings. Import shows a preview first."
       >
-        <Button variant="outline" size="sm" onClick={runExport} disabled={exportBackup.isPending}>
+        <TextAction onClick={runExport} disabled={exportBackup.isPending}>
           Export backup…
-        </Button>
-        <Button variant="outline" size="sm" onClick={runPreview} disabled={previewImport.isPending}>
-          <Upload aria-hidden="true" />
+        </TextAction>
+        <TextAction onClick={runPreview} disabled={previewImport.isPending}>
           Import backup…
-        </Button>
-      </DataRow>
+        </TextAction>
+      </SettingRow>
 
-      <DataRow
-        icon={CalendarDays}
-        title="Calendar export"
-        description="Save all calendar events as an .ics file. Exporting one source, a date range or selected events is available from the Calendar page."
+      <SettingRow
+        label="Calendar export"
+        description="All calendar events as an .ics file. One source, a date range or selected events is exported from the Calendar page."
       >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={runExportCalendar}
-          disabled={exportCalendar.isPending}
-        >
+        <TextAction onClick={runExportCalendar} disabled={exportCalendar.isPending}>
           Export calendar (.ics)…
-        </Button>
-      </DataRow>
+        </TextAction>
+      </SettingRow>
 
-      <DataRow
-        icon={Trash2}
-        title="Clear all local data"
+      <SettingRow
+        label="Clear all local data"
         description="Deletes every record in the local database. This cannot be undone: export a backup first."
       >
-        <Button variant="destructive" size="sm" onClick={() => setClearOpen(true)}>
+        <TextAction danger onClick={() => setClearOpen(true)}>
           Clear all data…
-        </Button>
-      </DataRow>
+        </TextAction>
+      </SettingRow>
 
       <Dialog
         open={importPreview !== undefined}
@@ -246,19 +232,21 @@ export function DataSection(): React.JSX.Element {
             </DialogDescription>
           </DialogHeader>
           {importPreview && (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-muted/60 p-3 text-xs">
-              <dt className="text-muted-foreground">Exported</dt>
-              <dd>
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 border-y border-line py-4 text-body">
+              <dt className="text-ink-3">Exported</dt>
+              <dd className="tabular">
                 {format.formatDateTime(importPreview.summary.exportedAt)} · app{' '}
                 {importPreview.summary.appVersion} · format v{importPreview.summary.formatVersion}
               </dd>
-              <dt className="text-muted-foreground">Contains</dt>
-              <dd data-testid="import-contains">{countsList(importPreview.summary.counts)}</dd>
+              <dt className="text-ink-3">Contains</dt>
+              <dd className="tabular" data-testid="import-contains">
+                {countsList(importPreview.summary.counts)}
+              </dd>
               {importPreview.summary.warnings.length > 0 && (
                 <>
-                  <dt className="text-muted-foreground">Warnings</dt>
+                  <dt className="text-ink-3">Warnings</dt>
                   <dd>
-                    <ul className="list-disc pl-4">
+                    <ul className="flex flex-col gap-1">
                       {importPreview.summary.warnings.map((warning) => (
                         <li key={warning}>{warning}</li>
                       ))}
@@ -268,7 +256,7 @@ export function DataSection(): React.JSX.Element {
               )}
             </dl>
           )}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label>Import mode</Label>
             <SegmentedControl
               aria-label="Import mode"
@@ -279,21 +267,23 @@ export function DataSection(): React.JSX.Element {
                 { value: 'replace', label: 'Replace everything' }
               ]}
             />
-            <p className="text-xs text-muted-foreground">
-              {importMode === 'replace'
-                ? 'Replace deletes your current data first. Export a backup before continuing.'
-                : 'Merge keeps current records and adds the backup’s records; identical ids are updated.'}
-            </p>
+            {importMode === 'replace' ? (
+              <p className="flex items-baseline gap-1.5 text-meta text-signal">
+                <CircleAlert aria-hidden="true" className="size-3.5 shrink-0 translate-y-0.5" />
+                Replace deletes your current data first. Export a backup before continuing.
+              </p>
+            ) : (
+              <p className="text-meta text-ink-2">
+                Merge keeps current records and adds the backup’s records; identical ids are
+                updated.
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportPreview(undefined)}>
+            <Button variant="ghost" onClick={() => setImportPreview(undefined)}>
               Cancel
             </Button>
-            <Button
-              variant={importMode === 'replace' ? 'destructive' : 'default'}
-              onClick={runCommit}
-              disabled={commitImport.isPending}
-            >
+            <Button onClick={runCommit} disabled={commitImport.isPending}>
               {importMode === 'replace' ? 'Replace and import' : 'Import'}
             </Button>
           </DialogFooter>
@@ -312,13 +302,16 @@ export function DataSection(): React.JSX.Element {
             <AlertDialogTitle>Clear all local data?</AlertDialogTitle>
             <AlertDialogDescription>
               This permanently deletes all events, deadlines, conference snapshots, milestones,
-              habits and subscriptions from this computer. It cannot be undone. Only the application
-              data directory is affected. We recommend exporting a backup first.
+              habits and subscriptions from this computer. It cannot be undone, and only the
+              application data directory is affected. Export a backup first.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="clear-confirmation">
-              Type <span className="font-mono">{CLEAR_ALL_DATA_CONFIRMATION}</span> to confirm
+              <span>
+                Type <span className="tabular text-ink">{CLEAR_ALL_DATA_CONFIRMATION}</span> to
+                confirm
+              </span>
             </Label>
             <Input
               id="clear-confirmation"

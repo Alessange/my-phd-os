@@ -42,19 +42,17 @@ export function ZonedTime({
       )}
     >
       {originalText ? (
-        <span className="font-medium text-foreground" data-zoned="original">
+        <span className="text-ink" data-zoned="original">
           {originalText}
         </span>
       ) : (
         <span className="text-foreground" data-zoned="utc">
-          <span className="font-medium">{format.formatDateTimeWithZone(instantIso, 'UTC')}</span>
-          <span className="ml-1.5 text-xs text-muted-foreground">
-            (original timezone unavailable)
-          </span>
+          <span>{format.formatDateTimeWithZone(instantIso, 'UTC')}</span>
+          <span className="ml-1.5 text-xs text-ink-3 italic">(original timezone unavailable)</span>
         </span>
       )}
       {showLocal && !sameZone && (
-        <span className="text-xs text-muted-foreground" data-zoned="local">
+        <span className="text-xs text-ink-3" data-zoned="local">
           Local: {localText}
         </span>
       )}

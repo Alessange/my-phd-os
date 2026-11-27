@@ -1,4 +1,4 @@
-import { Plus, Timer, X } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { getCategory } from '@shared/constants/categories'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
@@ -26,12 +26,15 @@ import {
 } from '@shared/types/personalDeadline'
 import type { PersonalDeadlinesView } from '@shared/types/settings'
 import { useCommandListener } from '@renderer/app/commandBus'
-import { useNavigation } from '@renderer/app/navigation'
+import { CREATE_LABELS, useNavigation } from '@renderer/app/navigation'
 import { DEADLINES_QUICK_CREATE } from '@renderer/app/quickCreate'
 import { EmptyState } from '@renderer/components/common/EmptyState'
+import { PageAction } from '@renderer/components/common/PageAction'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
 import { Button } from '@renderer/components/ui/button'
+import { Label } from '@renderer/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
 import {
   Select,
@@ -145,160 +148,159 @@ export function PersonalDeadlinesTab(): React.JSX.Element {
     const copy = EMPTY_STATES.personalDeadlines
     body = (
       <EmptyState
-        icon={Timer}
         title={copy.title}
         description={copy.description}
-        actions={[{ label: copy.actions[0], onClick: openCreate, icon: Plus }]}
+        actions={[{ label: copy.actions[0], onClick: openCreate }]}
       />
     )
   } else {
+    const activeFilters = [filters.category, filters.priority, filters.status, filters.tag].filter(
+      (value) => value !== undefined
+    ).length
     body = (
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <SegmentedControl
-              aria-label="Deadline view"
-              size="sm"
-              value={ui.personalDeadlinesView}
-              onValueChange={(view) => void updateUi({ personalDeadlinesView: view })}
-              options={VIEW_OPTIONS}
-            />
-            <SegmentedControl
-              aria-label="Show"
-              size="sm"
-              value={filters.scope}
-              onValueChange={(scope) => setFilters((f) => ({ ...f, scope }))}
-              options={SCOPE_OPTIONS}
-            />
-          </div>
+      <div className="flex flex-col gap-6">
+        <PageAction>
           <Button size="sm" onClick={openCreate}>
-            <Plus aria-hidden="true" />
-            Add Personal Deadline
+            {CREATE_LABELS.personalDeadline}
           </Button>
-        </div>
+        </PageAction>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={filters.category ?? ALL}
-            onValueChange={(v) =>
-              setFilters((f) => ({
-                ...f,
-                category: v === ALL ? undefined : (v as PersonalDeadlineCategory)
-              }))
-            }
-          >
-            <SelectTrigger size="sm" aria-label="Filter by category">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All categories</SelectItem>
-              {PERSONAL_DEADLINE_CATEGORIES.map((id) => (
-                <SelectItem key={id} value={id}>
-                  {getCategory(id).label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.priority ?? ALL}
-            onValueChange={(v) =>
-              setFilters((f) => ({ ...f, priority: v === ALL ? undefined : (v as Priority) }))
-            }
-          >
-            <SelectTrigger size="sm" aria-label="Filter by priority">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All priorities</SelectItem>
-              {Object.values(PRIORITY_DEFINITIONS).map((def) => (
-                <SelectItem key={def.id} value={def.id}>
-                  {def.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.status ?? ALL}
-            onValueChange={(v) =>
-              setFilters((f) => ({ ...f, status: v === ALL ? undefined : (v as DeadlineStatus) }))
-            }
-          >
-            <SelectTrigger size="sm" aria-label="Filter by status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All statuses</SelectItem>
-              {Object.values(DEADLINE_STATUS_DEFINITIONS).map((def) => (
-                <SelectItem key={def.id} value={def.id}>
-                  {def.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {tags.length > 0 && (
-            <Select
-              value={filters.tag ?? ALL}
-              onValueChange={(v) => setFilters((f) => ({ ...f, tag: v === ALL ? undefined : v }))}
-            >
-              <SelectTrigger size="sm" aria-label="Filter by tag">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-ink">
+          <SegmentedControl
+            aria-label="Show"
+            size="md"
+            value={filters.scope}
+            onValueChange={(scope) => setFilters((f) => ({ ...f, scope }))}
+            options={SCOPE_OPTIONS}
+            className="gap-x-7"
+          />
+          <div className="flex flex-wrap items-center gap-x-4">
+            <span className="tabular text-meta text-ink-3" data-testid="deadline-count">
+              {visible.length} of {deadlines.length} deadlines
+            </span>
+            {filtersActive && visible.length > 0 && (
+              <button
+                type="button"
+                className="link-quiet app-no-drag"
+                onClick={() => setFilters(DEFAULT_DEADLINE_FILTERS)}
+              >
+                Clear filters
+              </button>
+            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 px-2">
+                  Filters
+                  {activeFilters > 0 && <span className="tabular text-ink-3">{activeFilters}</span>}
+                  <ChevronDown className="size-4 text-ink-3" aria-hidden="true" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="flex w-80 flex-col gap-5 p-5">
+                <FilterSelect
+                  label="Category"
+                  ariaLabel="Filter by category"
+                  value={filters.category ?? ALL}
+                  allLabel="All categories"
+                  onChange={(v) =>
+                    setFilters((f) => ({
+                      ...f,
+                      category: v === ALL ? undefined : (v as PersonalDeadlineCategory)
+                    }))
+                  }
+                  options={PERSONAL_DEADLINE_CATEGORIES.map((id) => ({
+                    value: id,
+                    label: getCategory(id).label
+                  }))}
+                />
+                <FilterSelect
+                  label="Priority"
+                  ariaLabel="Filter by priority"
+                  value={filters.priority ?? ALL}
+                  allLabel="All priorities"
+                  onChange={(v) =>
+                    setFilters((f) => ({ ...f, priority: v === ALL ? undefined : (v as Priority) }))
+                  }
+                  options={Object.values(PRIORITY_DEFINITIONS).map((def) => ({
+                    value: def.id,
+                    label: def.label
+                  }))}
+                />
+                <FilterSelect
+                  label="Status"
+                  ariaLabel="Filter by status"
+                  value={filters.status ?? ALL}
+                  allLabel="All statuses"
+                  onChange={(v) =>
+                    setFilters((f) => ({
+                      ...f,
+                      status: v === ALL ? undefined : (v as DeadlineStatus)
+                    }))
+                  }
+                  options={Object.values(DEADLINE_STATUS_DEFINITIONS).map((def) => ({
+                    value: def.id,
+                    label: def.label
+                  }))}
+                />
+                {tags.length > 0 && (
+                  <FilterSelect
+                    label="Tag"
+                    ariaLabel="Filter by tag"
+                    value={filters.tag ?? ALL}
+                    allLabel="All tags"
+                    onChange={(v) => setFilters((f) => ({ ...f, tag: v === ALL ? undefined : v }))}
+                    options={tags.map((tag) => ({ value: tag, label: `#${tag}` }))}
+                  />
+                )}
+                {filtersActive && (
+                  <button
+                    type="button"
+                    className="link-quiet self-start"
+                    onClick={() => setFilters(DEFAULT_DEADLINE_FILTERS)}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Select value={sort} onValueChange={(v) => setSort(v as DeadlineSort)}>
+              <SelectTrigger size="sm" variant="bare" aria-label="Sort deadlines">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>All tags</SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag} value={tag}>
-                    #{tag}
+                {DEADLINE_SORTS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {DEADLINE_SORT_LABELS[s]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          )}
-          <Select value={sort} onValueChange={(v) => setSort(v as DeadlineSort)}>
-            <SelectTrigger size="sm" aria-label="Sort deadlines">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DEADLINE_SORTS.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {DEADLINE_SORT_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {filtersActive && (
-            <Button size="sm" variant="ghost" onClick={() => setFilters(DEFAULT_DEADLINE_FILTERS)}>
-              <X aria-hidden="true" />
-              Clear filters
-            </Button>
-          )}
-          <span
-            className="tabular ml-auto text-xs text-muted-foreground"
-            data-testid="deadline-count"
-          >
-            {visible.length} of {deadlines.length} deadlines
-          </span>
+            <span aria-hidden="true" className="mx-1 h-5 w-px bg-line-strong" />
+            <SegmentedControl
+              aria-label="Deadline view"
+              size="md"
+              value={ui.personalDeadlinesView}
+              onValueChange={(view) => void updateUi({ personalDeadlinesView: view })}
+              options={VIEW_OPTIONS}
+              className="gap-x-4"
+            />
+          </div>
         </div>
 
         {visible.length === 0 ? (
           <EmptyState
             variant="compact"
-            icon={Timer}
             title="No deadlines match these filters."
             actions={[
-              {
-                label: 'Clear filters',
-                onClick: () => setFilters(DEFAULT_DEADLINE_FILTERS),
-                variant: 'outline'
-              }
+              { label: 'Clear filters', onClick: () => setFilters(DEFAULT_DEADLINE_FILTERS) }
             ]}
           />
         ) : ui.personalDeadlinesView === 'list' ? (
-          <PersonalDeadlineList items={visible} onOpen={openDetails} />
+          <PersonalDeadlineList items={visible} onOpen={openDetails} grouped={sort === 'nearest'} />
         ) : ui.personalDeadlinesView === 'timeline' ? (
           <PersonalDeadlineTimeline items={visible} nowIso={nowIso} onOpen={openDetails} />
         ) : (
           <div
-            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+            className="grid gap-x-16 min-[1100px]:grid-cols-2"
             role="list"
             aria-label="Personal deadlines"
           >
@@ -339,5 +341,43 @@ export function PersonalDeadlinesTab(): React.JSX.Element {
         deadline={editing}
       />
     </>
+  )
+}
+
+interface FilterSelectProps {
+  label: string
+  ariaLabel: string
+  value: string
+  allLabel: string
+  onChange: (value: string) => void
+  options: readonly { value: string; label: string }[]
+}
+
+/** One labelled underline select of the Filters popover; `All ...` clears that filter. */
+function FilterSelect({
+  label,
+  ariaLabel,
+  value,
+  allLabel,
+  onChange,
+  options
+}: FilterSelectProps): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label>{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full" aria-label={ariaLabel}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>{allLabel}</SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

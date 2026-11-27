@@ -15,6 +15,7 @@ export function Tabs({
   )
 }
 
+/** Text tabs, gap 28 (pass `gap-5` in toolbars). Same look as `SegmentedControl`. */
 export function TabsList({
   className,
   ...props
@@ -22,15 +23,13 @@ export function TabsList({
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn(
-        'inline-flex h-8 w-fit items-center justify-center gap-0.5 rounded-md bg-muted p-0.5 text-muted-foreground',
-        className
-      )}
+      className={cn('inline-flex h-9 w-fit items-center gap-7', className)}
       {...props}
     />
   )
 }
 
+/** Inactive ink-3, active ink with a 1.5 px ink underline. Width never shifts: both states are Regular. */
 export function TabsTrigger({
   className,
   ...props
@@ -39,9 +38,9 @@ export function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        'inline-flex h-full flex-1 items-center justify-center gap-1.5 rounded-[6px] border border-transparent px-3 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none',
-        'hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+        'relative inline-flex h-full items-center justify-center gap-1.5 text-sm whitespace-nowrap text-ink-3 transition-colors duration-100',
+        'hover:text-ink data-[state=active]:text-ink disabled:pointer-events-none disabled:opacity-50',
+        'after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-ink after:opacity-0 data-[state=active]:after:opacity-100',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4',
         className
       )}
@@ -58,6 +57,7 @@ export function TabsContent({
     <TabsPrimitive.Content
       data-slot="tabs-content"
       className={cn('flex-1 outline-none', className)}
+      tabIndex={-1}
       {...props}
     />
   )

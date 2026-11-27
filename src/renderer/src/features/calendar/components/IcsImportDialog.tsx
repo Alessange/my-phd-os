@@ -1,10 +1,10 @@
-import { FileUp, Upload } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { ICS_DUPLICATE_REASON_LABELS } from '@shared/constants/statuses'
 import type { IcsConflictPolicy, IcsFileInput, IcsImportPreview } from '@shared/types/calendar'
+import { ColourSwatchPicker } from '@renderer/components/common/ColourSwatchPicker'
 import { StatusBadge } from '@renderer/components/common/StatusBadge'
 import { ICS_IMPORT_ITEM_STATUS_DEFINITIONS } from '@shared/constants/statuses'
-import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
@@ -27,6 +27,7 @@ import {
 } from '@renderer/components/ui/select'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { toastSuccess } from '@renderer/lib/toast'
+import { COLOUR_SWATCHES } from '@renderer/lib/colourSwatches'
 import { cn } from '@renderer/lib/utils'
 import {
   useCalendarSources,
@@ -35,17 +36,6 @@ import {
   usePreviewIcsImport
 } from '../api'
 import { readDroppedIcsFiles } from '../lib/dropFiles'
-
-const SOURCE_COLORS = [
-  '#3b82f6',
-  '#22c55e',
-  '#f59e0b',
-  '#a855f7',
-  '#ec4899',
-  '#14b8a6',
-  '#ef4444',
-  '#64748b'
-] as const
 
 const POLICY_OPTIONS: readonly { value: IcsConflictPolicy; label: string }[] = [
   { value: 'skip', label: 'Skip duplicates' },
@@ -86,7 +76,7 @@ export function IcsImportDialog({
   const [policy, setPolicy] = useState<IcsConflictPolicy>('skip')
   const [sourceMode, setSourceMode] = useState<'new' | 'existing'>('new')
   const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState<string>(SOURCE_COLORS[0])
+  const [newColor, setNewColor] = useState<string>(COLOUR_SWATCHES[0])
   const [existingId, setExistingId] = useState<string>('')
   const [dragging, setDragging] = useState(false)
   const lastDropped = useRef<IcsFileInput[] | undefined>(undefined)
@@ -171,7 +161,7 @@ export function IcsImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent size="lg" className="max-h-[calc(100vh-2rem)] overflow-y-auto">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Import .ics</DialogTitle>
           <DialogDescription>
@@ -190,15 +180,11 @@ export function IcsImportDialog({
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => void onDrop(e)}
             className={cn(
-              'flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors',
-              dragging ? 'border-primary bg-primary/5' : 'border-border'
+              'flex flex-col items-start gap-4 border-y border-line px-0 py-8 transition-colors',
+              dragging && 'bg-selected'
             )}
           >
-            <FileUp className="size-8 text-muted-foreground" aria-hidden="true" />
-            <div className="text-sm">
-              Drop one or more <span className="font-mono">.ics</span> files here
-            </div>
-            <div className="text-xs text-muted-foreground">or</div>
+            <p className="text-sm text-ink-2">Drop one or more .ics files here, or choose them.</p>
             <Button
               onClick={() =>
                 pick.mutate(undefined, {
@@ -209,7 +195,6 @@ export function IcsImportDialog({
               }
               disabled={pick.isPending || preview.isPending}
             >
-              <Upload aria-hidden="true" />
               Choose files…
             </Button>
             {preview.isPending && <LoadingState variant="inline" label="Reading files…" />}
@@ -217,16 +202,17 @@ export function IcsImportDialog({
         )}
 
         {result && (
-          <div className="flex flex-col gap-4">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-muted/60 p-3 text-xs">
-              <dt className="text-muted-foreground">Files</dt>
+          <div className="flex flex-col gap-6">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              <dt className="text-ink-3">Files</dt>
               <dd className="flex flex-col gap-0.5">
                 {result.files.map((file) => (
                   <span key={file.name}>
-                    <span className="font-medium">{file.name}</span> · {formatBytes(file.sizeBytes)}{' '}
-                    · {file.eventCount} event{file.eventCount === 1 ? '' : 's'}
+                    {file.name} <span className="text-ink-3">·</span> {formatBytes(file.sizeBytes)}{' '}
+                    <span className="text-ink-3">·</span> {file.eventCount} event
+                    {file.eventCount === 1 ? '' : 's'}
                     {file.warnings.length > 0 && (
-                      <ul className="mt-0.5 list-disc pl-4 text-muted-foreground">
+                      <ul className="mt-0.5 flex flex-col gap-0.5 text-xs text-ink-3">
                         {file.warnings.map((warning) => (
                           <li key={warning}>{warning}</li>
                         ))}
@@ -235,18 +221,19 @@ export function IcsImportDialog({
                   </span>
                 ))}
                 {result.invalidFiles.map((file) => (
-                  <span key={file.name} className="text-destructive">
+                  <span key={file.name} className="flex items-center gap-1.5 text-xs text-signal">
+                    <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
                     {file.name}: {file.reason}
                   </span>
                 ))}
               </dd>
-              <dt className="text-muted-foreground">Recognised</dt>
+              <dt className="text-ink-3">Recognised</dt>
               <dd data-testid="import-recognized">
                 {result.recognizedEvents} event{result.recognizedEvents === 1 ? '' : 's'}
               </dd>
               {result.dateRange && (
                 <>
-                  <dt className="text-muted-foreground">Range</dt>
+                  <dt className="text-ink-3">Range</dt>
                   <dd className="tabular">
                     {format.formatDate(result.dateRange.start)} –{' '}
                     {format.formatDate(result.dateRange.end)}
@@ -254,36 +241,28 @@ export function IcsImportDialog({
                 </>
               )}
               {result.warnings.map((warning) => (
-                <dd key={warning} className="col-span-2 text-status-at-risk">
+                <dd key={warning} className="col-span-2 text-xs text-ink-2">
                   {warning}
                 </dd>
               ))}
             </dl>
 
             {result.sampleEvents.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Preview
-                </h3>
-                <ul className="divide-y rounded-md border text-sm">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-sm text-ink-2">Preview</h3>
+                <ul className="divide-y divide-line border-y border-line text-sm">
                   {result.sampleEvents.map((sample) => (
-                    <li
-                      key={sample.key}
-                      className="flex items-center justify-between gap-3 px-3 py-1.5"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
+                    <li key={sample.key} className="flex items-baseline justify-between gap-4 py-2">
+                      <span className="flex min-w-0 items-baseline gap-3">
                         <span
-                          className={cn(
-                            'truncate',
-                            sample.cancelled && 'line-through text-muted-foreground'
-                          )}
+                          className={cn('truncate', sample.cancelled && 'text-ink-3 line-through')}
                         >
                           {sample.title}
                         </span>
-                        {sample.recurring && <Badge variant="outline">Repeats</Badge>}
-                        {sample.cancelled && <Badge variant="outline">Cancelled</Badge>}
+                        {sample.recurring && <span className="text-xs text-ink-3">Repeats</span>}
+                        {sample.cancelled && <span className="text-xs text-ink-3">Cancelled</span>}
                       </span>
-                      <span className="tabular shrink-0 text-xs text-muted-foreground">
+                      <span className="tabular shrink-0 text-xs text-ink-3">
                         {format.formatDateRange(sample.startAt, sample.endAt, {
                           allDay: sample.allDay
                         })}
@@ -292,7 +271,7 @@ export function IcsImportDialog({
                   ))}
                 </ul>
                 {result.recognizedEvents > result.sampleEvents.length && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-ink-3">
                     Showing the first {result.sampleEvents.length} of {result.recognizedEvents}.
                   </p>
                 )}
@@ -300,24 +279,22 @@ export function IcsImportDialog({
             )}
 
             {result.conflicts.length > 0 && (
-              <div className="flex flex-col gap-2 rounded-md border border-status-at-risk/40 bg-status-at-risk/6 p-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3 text-sm">
                   <StatusBadge status={ICS_IMPORT_ITEM_STATUS_DEFINITIONS.duplicate} size="sm" />
                   {result.conflicts.length} of {result.recognizedEvents} events already exist
                 </div>
-                <ul className="max-h-40 overflow-y-auto text-xs">
+                <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto text-xs">
                   {result.conflicts.slice(0, 20).map((conflict) => (
-                    <li key={conflict.key} className="flex justify-between gap-3 py-0.5">
+                    <li key={conflict.key} className="flex justify-between gap-4">
                       <span className="truncate">{conflict.incoming.title}</span>
-                      <span className="shrink-0 text-muted-foreground">
+                      <span className="shrink-0 text-ink-3">
                         {ICS_DUPLICATE_REASON_LABELS[conflict.reason]} · “{conflict.existingTitle}”
                       </span>
                     </li>
                   ))}
                   {result.conflicts.length > 20 && (
-                    <li className="text-muted-foreground">
-                      … and {result.conflicts.length - 20} more
-                    </li>
+                    <li className="text-ink-3">… and {result.conflicts.length - 20} more</li>
                   )}
                 </ul>
                 <SegmentedControl
@@ -327,7 +304,7 @@ export function IcsImportDialog({
                   onValueChange={setPolicy}
                   options={POLICY_OPTIONS}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ink-2">
                   {policy === 'skip'
                     ? 'Existing events are kept; matching imports are skipped.'
                     : policy === 'replace'
@@ -351,38 +328,22 @@ export function IcsImportDialog({
                 disabled={existingSources.length === 0}
               />
               {sourceMode === 'new' ? (
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col gap-3">
                   <Input
                     aria-label="Source name"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    className="w-56"
                     placeholder="Source name"
                   />
-                  <div
-                    className="flex items-center gap-1.5"
-                    role="group"
-                    aria-label="Source colour"
-                  >
-                    {SOURCE_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        aria-label={`Colour ${color}`}
-                        aria-pressed={newColor === color}
-                        onClick={() => setNewColor(color)}
-                        className={cn(
-                          'size-5 rounded-full border-2',
-                          newColor === color ? 'border-foreground' : 'border-transparent'
-                        )}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
+                  <ColourSwatchPicker
+                    value={newColor}
+                    onChange={setNewColor}
+                    label="Source colour"
+                  />
                 </div>
               ) : (
                 <Select value={existingId} onValueChange={setExistingId}>
-                  <SelectTrigger className="w-64" aria-label="Existing source">
+                  <SelectTrigger className="w-full" aria-label="Existing source">
                     <SelectValue placeholder="Choose a source" />
                   </SelectTrigger>
                   <SelectContent>
@@ -404,11 +365,12 @@ export function IcsImportDialog({
               variant="ghost"
               onClick={() => setResult(undefined)}
               disabled={commit.isPending}
+              className="sm:mr-auto"
             >
               Choose other files
             </Button>
           )}
-          <Button variant="outline" onClick={() => close(false)}>
+          <Button variant="ghost" onClick={() => close(false)}>
             Cancel
           </Button>
           {result && (

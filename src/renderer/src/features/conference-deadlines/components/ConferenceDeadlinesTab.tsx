@@ -1,16 +1,17 @@
-import { CalendarClock, Plus } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { sortConferenceDeadlines, updatedDeadlineIds } from '@shared/conferences/views'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
 import type { ConferenceDeadlineView } from '@shared/types/conference'
 import { useCommandListener } from '@renderer/app/commandBus'
-import { useNavigation } from '@renderer/app/navigation'
+import { CREATE_LABELS, useNavigation } from '@renderer/app/navigation'
 import { DEADLINES_QUICK_CREATE } from '@renderer/app/quickCreate'
 import { EmptyState } from '@renderer/components/common/EmptyState'
+import { PageAction } from '@renderer/components/common/PageAction'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
 import { Button } from '@renderer/components/ui/button'
-import { Switch } from '@renderer/components/ui/switch'
+import { Section } from '@renderer/components/ui/section'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import {
@@ -25,15 +26,16 @@ import {
 import { ConferenceBoard } from './ConferenceBoard'
 import { ConferenceChangesBanner } from './ConferenceChangesBanner'
 import { ConferencePicker } from './ConferencePicker'
+import { PassedToggle } from './PassedToggle'
 import { ConferenceSheet } from './ConferenceSheet'
 import { SubscriptionBuilder, type BuilderMode } from './SubscriptionBuilder'
 
 const NO_ITEMS: ConferenceDeadlineView[] = []
 
 /**
- * Conference Deadlines tab, kept deliberately small: the conferences you chose, each as a bar with
- * a big countdown, plus "Add conference" (search the CCF Deadlines list) and a one-line status.
- * Details live in a sheet. Quick-create and `{ create }` open the picker; `{ id }` opens the sheet.
+ * Conference Deadlines tab, kept deliberately small: the conferences you chose as hairline rows,
+ * the first with the one big countdown, plus "Add conference" (search the CCF Deadlines list) and a
+ * one-line feed status. Details live in a sheet. Quick-create and `{ create }` open the picker; `{ id }` opens the sheet.
  */
 export function ConferenceDeadlinesTab(): React.JSX.Element {
   const format = useFormat()
@@ -101,41 +103,28 @@ export function ConferenceDeadlinesTab(): React.JSX.Element {
     const copy = EMPTY_STATES.conferenceDeadlinesNoSubscription
     body = (
       <EmptyState
-        icon={CalendarClock}
         title={noSource ? copy.title : 'No conferences chosen yet.'}
         description="Add the few conferences you care about. The CCF Deadlines list is only a source to search."
         actions={[
-          { label: 'Add conference', onClick: openPicker, icon: Plus },
+          { label: CREATE_LABELS.conference, onClick: openPicker },
           ...(noSource ? [{ label: copy.actions[1], onClick: () => setBuilder('custom') }] : [])
         ]}
       />
     )
   } else {
+    const stale = status.data?.lastError !== undefined && !inProgress
     body = (
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm text-muted-foreground" data-testid="board-summary">
-            {visible.length} {visible.length === 1 ? 'conference' : 'conferences'}
-            {nextItem?.deadlineAt &&
-              ` · next: ${nextItem.title} ${format.formatRelative(nextItem.deadlineAt, nowIso)}`}
-          </span>
-          <span className="flex items-center gap-3">
-            {passedCount > 0 && (
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Switch
-                  checked={showPassed}
-                  onCheckedChange={setShowPassed}
-                  aria-label="Show passed"
-                />
-                Show passed ({passedCount})
-              </label>
-            )}
-            <Button size="sm" onClick={openPicker}>
-              <Plus aria-hidden="true" />
-              Add conference
-            </Button>
-          </span>
-        </div>
+      <div className="flex flex-col gap-6">
+        <PageAction>
+          <Button size="sm" onClick={openPicker}>
+            {CREATE_LABELS.conference}
+          </Button>
+        </PageAction>
+        <span className="sr-only" data-testid="board-summary">
+          {visible.length} {visible.length === 1 ? 'conference' : 'conferences'}
+          {nextItem?.deadlineAt &&
+            ` · next: ${nextItem.title} ${format.formatRelative(nextItem.deadlineAt, nowIso)}`}
+        </span>
 
         {changes.data && changes.data.length > 0 && (
           <ConferenceChangesBanner
@@ -149,11 +138,8 @@ export function ConferenceDeadlinesTab(): React.JSX.Element {
         {visible.length === 0 ? (
           <EmptyState
             variant="compact"
-            icon={CalendarClock}
             title="Only passed conferences remain."
-            actions={[
-              { label: 'Show passed', onClick: () => setShowPassed(true), variant: 'outline' }
-            ]}
+            actions={[{ label: 'Show passed', onClick: () => setShowPassed(true) }]}
           />
         ) : (
           <ConferenceBoard
@@ -162,44 +148,62 @@ export function ConferenceDeadlinesTab(): React.JSX.Element {
             updatedIds={updatedIds}
             highlightId={detailsId}
             onOpen={(item) => setDetailsId(item.id)}
+            header={
+              <Section
+                title="Following"
+                count={visible.length}
+                actions={
+                  passedCount > 0 && (
+                    <PassedToggle
+                      checked={showPassed}
+                      onCheckedChange={setShowPassed}
+                      count={passedCount}
+                    />
+                  )
+                }
+              />
+            }
           />
         )}
 
         <div
-          className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground"
+          className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-ink-3"
           data-testid="refresh-indicator"
         >
-          {inProgress ? (
-            <LoadingState variant="inline" label="Refreshing the CCF Deadlines list…" />
-          ) : (
-            <span>
-              {status.data?.lastSuccessAt
-                ? `CCF Deadlines list updated ${format.formatRelative(status.data.lastSuccessAt, nowIso)}`
-                : 'CCF Deadlines list not loaded yet'}
-            </span>
-          )}
-          {status.data?.lastError && !inProgress && (
-            <span className="text-status-at-risk">
-              · last refresh failed: {status.data.lastError.message}
-            </span>
-          )}
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0 text-[11px]"
-            disabled={inProgress}
-            onClick={() => refresh.mutate({ force: true })}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0 text-[11px]"
-            onClick={() => navigate('settings', { section: 'subscriptions' })}
-          >
-            Sources
-          </Button>
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            {inProgress ? (
+              <LoadingState variant="inline" label="Refreshing the CCF Deadlines list…" />
+            ) : (
+              <span>
+                {status.data?.lastSuccessAt
+                  ? `CCF Deadlines list updated ${format.formatRelative(status.data.lastSuccessAt, nowIso)}`
+                  : 'CCF Deadlines list not loaded yet'}
+              </span>
+            )}
+            {stale && status.data?.lastError && (
+              <span className="flex items-center gap-1.5 text-signal">
+                <CircleAlert className="size-3.5" aria-hidden="true" />
+                Last refresh failed: {status.data.lastError.message}
+              </span>
+            )}
+          </span>
+          <span className="flex items-baseline gap-4">
+            <button
+              type="button"
+              className="link-quiet app-no-drag"
+              disabled={inProgress}
+              onClick={() => refresh.mutate({ force: true })}
+            >
+              {stale ? 'Retry' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              className="link-quiet app-no-drag"
+              onClick={() => navigate('settings', { section: 'subscriptions' })}
+            >
+              Sources
+            </button>
+          </span>
         </div>
       </div>
     )

@@ -297,3 +297,32 @@ export const packPointLanes = (points: readonly PointMarkerInput[], minGap: numb
   }
   return { laneOf, count: Math.max(1, laneLast.length) }
 }
+
+// ---------------------------------------------------------------------------
+// Editorial Gantt helpers (additive): where a bar's printed value goes, and how late a bar is.
+
+export type BarLabelSide = 'right' | 'left' | 'below'
+
+/** A bar ending beyond this fraction of the plot leaves no room for a value on its right. */
+const LABEL_EDGE_FRACTION = 0.9
+/** A bar starting before this fraction leaves no room for a value on its left. */
+const LABEL_START_FRACTION = 0.08
+
+/**
+ * Side of the bar on which its value (`40%`, the past-target note) is printed: to the right of the
+ * end by default; to the left of the start when the bar ends at (or runs past) the plot edge; below
+ * the bar when it spans nearly the whole plot so neither side has room.
+ */
+export const barLabelSide = (
+  layout: Pick<BarLayout, 'left' | 'width' | 'clippedEnd'>
+): BarLabelSide => {
+  const end = layout.left + layout.width
+  if (!layout.clippedEnd && end <= LABEL_EDGE_FRACTION) return 'right'
+  return layout.left > LABEL_START_FRACTION ? 'left' : 'below'
+}
+
+/** Whole days by which `targetIso` lies in the past of `nowIso` (0 when it is not past). */
+export const daysPastTarget = (targetIso: string, nowIso: string): number => {
+  const diff = parseInstant(nowIso).toMillis() - parseInstant(targetIso).toMillis()
+  return diff > 0 ? Math.floor(diff / DAY_MS) : 0
+}

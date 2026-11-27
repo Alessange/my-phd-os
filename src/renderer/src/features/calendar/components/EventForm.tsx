@@ -1,4 +1,4 @@
-import { Check, Trash2 } from 'lucide-react'
+import { CircleAlert, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { getCategory } from '@shared/constants/categories'
 import { TIMEZONE_OPTIONS } from '@shared/constants/timezones'
@@ -18,7 +18,6 @@ import {
   type CalendarEvent,
   type CalendarEventCategory
 } from '@shared/types/calendar'
-import { DynamicIcon } from '@renderer/components/common/DynamicIcon'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,11 +48,12 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
+import { PropertyRow, propertyRowClass } from '@renderer/components/ui/property-row'
 import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
-import { chipStyle, cn } from '@renderer/lib/utils'
+import { cn } from '@renderer/lib/utils'
 import { useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api'
 import { defaultEventTimes } from '../lib/eventDefaults'
 import {
@@ -196,9 +196,10 @@ export interface EventFormProps {
 }
 
 /**
- * Create or edit a calendar event (spec §9.2): title, all-day switch, start and end, per-event
- * timezone (app zone by default), category, location, description, link, and a small recurrence
- * model (presets or a raw RRULE). Source-managed events never reach this form. Deleting confirms.
+ * Create or edit a calendar event (spec §9.2). Level 0 is the title and when; timezone (app zone by
+ * default), category and repeat (presets or a raw RRULE) are quiet property rows; location, link
+ * and description sit behind "Add ..." rows until they hold something. Validation shows on blur.
+ * Source-managed events never reach this form. Deleting confirms.
  */
 export function EventForm({
   open,
@@ -215,6 +216,10 @@ export function EventForm({
 
   const [state, setState] = useState<FormState>(() => emptyState(nowIso, zoneDefault, initial))
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Fields the user has left (validation shows on blur, never on a pristine field) and the optional
+  // fields they asked for.
+  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set())
+  const [extras, setExtras] = useState<ReadonlySet<ExtraField>>(new Set())
   // Reset when the dialog opens or its target changes (derived during render, see HabitForm).
   const [prevOpen, setPrevOpen] = useState(open)
   const [prevTarget, setPrevTarget] = useState<{
@@ -227,8 +232,11 @@ export function EventForm({
     if (open) {
       setState(event ? fromEvent(event) : emptyState(nowIso, zoneDefault, initial))
       setConfirmDelete(false)
+      setTouched(new Set())
+      setExtras(new Set())
     }
   }
+  const touch = (field: string): void => setTouched((s) => new Set(s).add(field))
   const patch = (p: Partial<FormState>): void => setState((s) => ({ ...s, ...p }))
   const patchRecurrence = (p: Partial<RecurrenceDraft>): void =>
     setState((s) => ({ ...s, recurrence: { ...s.recurrence, ...p } }))
@@ -312,46 +320,61 @@ export function EventForm({
         : `${format.formatDateTimeWithZone(startAt, state.timezone)} → ${format.formatDateTimeWithZone(endAt, state.timezone)}`
       : undefined
 
+  // Optional fields stay behind quiet "Add ..." rows until they hold something (or are asked for).
+  const showLocation = state.location !== '' || extras.has('location')
+  const showLink = state.url !== '' || extras.has('url')
+  const showDescription = state.description !== '' || extras.has('description')
+  const reveal = (field: ExtraField): void => setExtras((s) => new Set(s).add(field))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-h-[calc(100vh-2rem)] overflow-y-auto">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{event ? 'Edit event' : 'Create event'}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={event?.recurrenceRule ? undefined : 'sr-only'}>
             {event?.recurrenceRule
               ? 'This event repeats. Changes apply to the whole series.'
               : 'Times are interpreted in the event’s timezone and shown in yours.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
-          <div className="flex flex-col gap-1.5">
+        <form
+          className="flex flex-col gap-6"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submit()
+          }}
+        >
+          <div className="flex flex-col gap-1">
             <Label htmlFor="event-title">Title</Label>
             <Input
               id="event-title"
               value={state.title}
               onChange={(e) => patch({ title: e.target.value })}
+              onBlur={() => touch('title')}
               placeholder="e.g. Supervisor meeting"
               autoComplete="off"
-              aria-invalid={!titleValid}
+              aria-invalid={touched.has('title') && !titleValid ? true : undefined}
             />
+            {touched.has('title') && !titleValid && <FieldError>Enter a title.</FieldError>}
           </div>
 
-          <div className="flex items-center justify-between rounded-md border px-3 py-2">
-            <Label htmlFor="event-all-day">All-day</Label>
-            <Switch
-              id="event-all-day"
-              checked={state.allDay}
-              onCheckedChange={(allDay) => patch({ allDay })}
-            />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-start-date">{state.allDay ? 'First day' : 'Start date'}</Label>
+          <div className="flex flex-col">
+            <PropertyRow label="All-day" htmlFor="event-all-day">
+              <Switch
+                id="event-all-day"
+                checked={state.allDay}
+                onCheckedChange={(allDay) => patch({ allDay })}
+              />
+            </PropertyRow>
+            <PropertyRow label={state.allDay ? 'First day' : 'Start'} htmlFor="event-start-date">
               <Input
                 id="event-start-date"
                 type="date"
+                variant="bare"
+                className="w-[9.5rem]"
+                aria-label={state.allDay ? 'First day' : 'Start date'}
                 value={state.startDate}
                 onChange={(e) =>
                   patch({
@@ -359,121 +382,110 @@ export function EventForm({
                     endDate: state.endDate < e.target.value ? e.target.value : state.endDate
                   })
                 }
-                aria-invalid={!isAllDayDate(state.startDate)}
+                onBlur={() => touch('startDate')}
+                aria-invalid={
+                  touched.has('startDate') && !isAllDayDate(state.startDate) ? true : undefined
+                }
               />
-            </div>
-            {!state.allDay && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="event-start-time">Start time</Label>
+              {!state.allDay && (
                 <Input
                   id="event-start-time"
                   type="time"
+                  variant="bare"
+                  className="w-[6.5rem]"
+                  aria-label="Start time"
                   value={state.startTime}
                   onChange={(e) => patch({ startTime: e.target.value })}
                 />
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-end-date">{state.allDay ? 'Last day' : 'End date'}</Label>
+              )}
+            </PropertyRow>
+            <PropertyRow label={state.allDay ? 'Last day' : 'End'} htmlFor="event-end-date">
               <Input
                 id="event-end-date"
                 type="date"
+                variant="bare"
+                className="w-[9.5rem]"
+                aria-label={state.allDay ? 'Last day' : 'End date'}
                 value={state.endDate}
                 onChange={(e) => patch({ endDate: e.target.value })}
-                aria-invalid={!isAllDayDate(state.endDate) || !orderValid}
+                onBlur={() => touch('endDate')}
+                aria-invalid={
+                  touched.has('endDate') && (!isAllDayDate(state.endDate) || !orderValid)
+                    ? true
+                    : undefined
+                }
               />
-            </div>
-            {!state.allDay && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="event-end-time">End time</Label>
+              {!state.allDay && (
                 <Input
                   id="event-end-time"
                   type="time"
+                  variant="bare"
+                  className="w-[6.5rem]"
+                  aria-label="End time"
                   value={state.endTime}
                   onChange={(e) => patch({ endTime: e.target.value })}
-                  aria-invalid={!orderValid}
+                  aria-invalid={!orderValid ? true : undefined}
                 />
-              </div>
+              )}
+            </PropertyRow>
+            {startAt && endAt && !orderValid && (
+              <FieldError className="pb-2">The end must not be before the start.</FieldError>
             )}
-          </div>
-          {startAt && endAt && !orderValid && (
-            <p className="text-xs text-destructive">The end must not be before the start.</p>
-          )}
-
-          {!state.allDay && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-timezone">Timezone</Label>
-              <Select value={state.timezone} onValueChange={(timezone) => patch({ timezone })}>
-                <SelectTrigger id="event-timezone" className="w-full" aria-label="Timezone">
+            {!state.allDay && (
+              <PropertyRow label="Timezone" htmlFor="event-timezone">
+                <Select value={state.timezone} onValueChange={(timezone) => patch({ timezone })}>
+                  <SelectTrigger
+                    id="event-timezone"
+                    variant="bare"
+                    className="max-w-[16rem]"
+                    aria-label="Timezone"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!zoneKnown && (
+                      <SelectGroup>
+                        <SelectLabel>Current</SelectLabel>
+                        <SelectItem value={state.timezone}>{state.timezone}</SelectItem>
+                      </SelectGroup>
+                    )}
+                    {ZONE_GROUPS.map((group) => (
+                      <SelectGroup key={group.group}>
+                        <SelectLabel>{group.group}</SelectLabel>
+                        {group.options.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </PropertyRow>
+            )}
+            <PropertyRow label="Category" htmlFor="event-category">
+              <Select
+                value={state.category}
+                onValueChange={(category) => patch({ category: category as CalendarEventCategory })}
+              >
+                <SelectTrigger id="event-category" variant="bare" aria-label="Category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {!zoneKnown && (
-                    <SelectGroup>
-                      <SelectLabel>Current</SelectLabel>
-                      <SelectItem value={state.timezone}>{state.timezone}</SelectItem>
-                    </SelectGroup>
-                  )}
-                  {ZONE_GROUPS.map((group) => (
-                    <SelectGroup key={group.group}>
-                      <SelectLabel>{group.group}</SelectLabel>
-                      {group.options.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
+                  {CALENDAR_EVENT_CATEGORIES.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {getCategory(id).label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          )}
-          {preview && (
-            <p className="tabular text-xs text-muted-foreground" data-testid="event-preview">
-              {preview}
-            </p>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Category</Label>
-            <div
-              className="grid grid-cols-3 gap-1.5 sm:grid-cols-5"
-              role="group"
-              aria-label="Category"
-            >
-              {CALENDAR_EVENT_CATEGORIES.map((id) => {
-                const definition = getCategory(id)
-                const active = state.category === id
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => patch({ category: id })}
-                    style={active ? chipStyle(definition.colorToken) : undefined}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                      active
-                        ? 'chip-tint border-transparent'
-                        : 'border-border text-muted-foreground hover:bg-accent'
-                    )}
-                  >
-                    <DynamicIcon name={definition.icon} className="size-3.5 shrink-0" />
-                    <span className="truncate">{definition.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-recurrence">Repeat</Label>
+            </PropertyRow>
+            <PropertyRow label="Repeat" htmlFor="event-recurrence">
               <Select
                 value={state.recurrence.preset}
                 onValueChange={(preset) => patchRecurrence({ preset: preset as RecurrencePreset })}
               >
-                <SelectTrigger id="event-recurrence" className="w-full" aria-label="Repeat">
+                <SelectTrigger id="event-recurrence" variant="bare" aria-label="Repeat">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -484,140 +496,163 @@ export function EventForm({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </PropertyRow>
             {state.recurrence.preset !== 'none' && state.recurrence.preset !== 'custom' && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="event-recurrence-end">Ends</Label>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={state.recurrence.end.kind}
-                    onValueChange={(kind) =>
+              <PropertyRow label="Ends" htmlFor="event-recurrence-end">
+                <Select
+                  value={state.recurrence.end.kind}
+                  onValueChange={(kind) =>
+                    patchRecurrence({
+                      end:
+                        kind === 'until'
+                          ? { kind: 'until', date: addDays(state.startDate || '2026-01-01', 90) }
+                          : kind === 'count'
+                            ? { kind: 'count', count: 10 }
+                            : { kind: 'never' }
+                    })
+                  }
+                >
+                  <SelectTrigger id="event-recurrence-end" variant="bare" aria-label="Repeat ends">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="never">Never</SelectItem>
+                    <SelectItem value="until">On date</SelectItem>
+                    <SelectItem value="count">After count</SelectItem>
+                  </SelectContent>
+                </Select>
+                {state.recurrence.end.kind === 'until' && (
+                  <Input
+                    type="date"
+                    variant="bare"
+                    className="w-[9.5rem]"
+                    aria-label="Repeat until"
+                    value={state.recurrence.end.date}
+                    onChange={(e) =>
+                      patchRecurrence({ end: { kind: 'until', date: e.target.value } })
+                    }
+                  />
+                )}
+                {state.recurrence.end.kind === 'count' && (
+                  <Input
+                    type="number"
+                    variant="bare"
+                    min={1}
+                    max={999}
+                    aria-label="Number of occurrences"
+                    className="w-16 text-right"
+                    value={state.recurrence.end.count}
+                    onChange={(e) =>
                       patchRecurrence({
-                        end:
-                          kind === 'until'
-                            ? { kind: 'until', date: addDays(state.startDate || '2026-01-01', 90) }
-                            : kind === 'count'
-                              ? { kind: 'count', count: 10 }
-                              : { kind: 'never' }
+                        end: { kind: 'count', count: Number(e.target.value) || 1 }
                       })
                     }
-                  >
-                    <SelectTrigger
-                      id="event-recurrence-end"
-                      className="w-36"
-                      aria-label="Repeat ends"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="never">Never</SelectItem>
-                      <SelectItem value="until">On date</SelectItem>
-                      <SelectItem value="count">After count</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {state.recurrence.end.kind === 'until' && (
-                    <Input
-                      type="date"
-                      aria-label="Repeat until"
-                      value={state.recurrence.end.date}
-                      onChange={(e) =>
-                        patchRecurrence({ end: { kind: 'until', date: e.target.value } })
-                      }
-                    />
-                  )}
-                  {state.recurrence.end.kind === 'count' && (
-                    <Input
-                      type="number"
-                      min={1}
-                      max={999}
-                      aria-label="Number of occurrences"
-                      className="w-20"
-                      value={state.recurrence.end.count}
-                      onChange={(e) =>
-                        patchRecurrence({
-                          end: { kind: 'count', count: Number(e.target.value) || 1 }
-                        })
-                      }
-                    />
-                  )}
-                </div>
+                  />
+                )}
+              </PropertyRow>
+            )}
+            {state.recurrence.preset === 'custom' && (
+              <div className="flex flex-col gap-1 border-b border-line py-3">
+                <Label htmlFor="event-rrule">RRULE</Label>
+                <Input
+                  id="event-rrule"
+                  value={state.recurrence.custom}
+                  onChange={(e) => patchRecurrence({ custom: e.target.value })}
+                  onBlur={() => touch('rrule')}
+                  placeholder="FREQ=WEEKLY;BYDAY=MO,WE;COUNT=10"
+                  aria-invalid={touched.has('rrule') && ruleError !== undefined ? true : undefined}
+                />
+                {touched.has('rrule') && ruleError && <FieldError>{ruleError}</FieldError>}
+              </div>
+            )}
+
+            {showLocation ? (
+              <div className="flex flex-col gap-1 border-b border-line py-3">
+                <Label htmlFor="event-location">Location</Label>
+                <Input
+                  id="event-location"
+                  value={state.location}
+                  autoFocus={extras.has('location')}
+                  onChange={(e) => patch({ location: e.target.value })}
+                />
+              </div>
+            ) : null}
+            {showLink ? (
+              <div className="flex flex-col gap-1 border-b border-line py-3">
+                <Label htmlFor="event-url">Link</Label>
+                <Input
+                  id="event-url"
+                  type="url"
+                  inputMode="url"
+                  value={state.url}
+                  autoFocus={extras.has('url')}
+                  onChange={(e) => patch({ url: e.target.value })}
+                  onBlur={() => touch('url')}
+                  placeholder="https://"
+                  aria-invalid={touched.has('url') && !urlValid ? true : undefined}
+                />
+                {touched.has('url') && !urlValid && <FieldError>Enter an http(s) link.</FieldError>}
+              </div>
+            ) : null}
+            {showDescription ? (
+              <div className="flex flex-col gap-1 border-b border-line py-3">
+                <Label htmlFor="event-description">Description</Label>
+                <Textarea
+                  id="event-description"
+                  value={state.description}
+                  autoFocus={extras.has('description')}
+                  onChange={(e) => patch({ description: e.target.value })}
+                  rows={2}
+                />
+              </div>
+            ) : null}
+            {(!showLocation || !showLink || !showDescription) && (
+              // One quiet row for whatever is still optional, so the default form stays short enough
+              // to show its footer in a short window.
+              <div
+                data-slot="add-row-group"
+                className={cn(propertyRowClass, 'flex-wrap justify-start gap-x-6 gap-y-1')}
+              >
+                {!showLocation && (
+                  <AddChip onClick={() => reveal('location')}>Add location</AddChip>
+                )}
+                {!showLink && <AddChip onClick={() => reveal('url')}>Add link</AddChip>}
+                {!showDescription && (
+                  <AddChip onClick={() => reveal('description')}>Add description</AddChip>
+                )}
               </div>
             )}
           </div>
-          {state.recurrence.preset === 'custom' && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-rrule">RRULE</Label>
-              <Input
-                id="event-rrule"
-                value={state.recurrence.custom}
-                onChange={(e) => patchRecurrence({ custom: e.target.value })}
-                placeholder="FREQ=WEEKLY;BYDAY=MO,WE;COUNT=10"
-                className="font-mono"
-                aria-invalid={ruleError !== undefined}
-              />
-              {ruleError && <p className="text-xs text-destructive">{ruleError}</p>}
-            </div>
+
+          {preview && (
+            <p className="tabular -mt-2 text-xs text-ink-3" data-testid="event-preview">
+              {preview}
+            </p>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-location">Location (optional)</Label>
-              <Input
-                id="event-location"
-                value={state.location}
-                onChange={(e) => patch({ location: e.target.value })}
-              />
+          <DialogFooter className="sm:justify-between">
+            <div>
+              {event && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={busy}
+                >
+                  Delete
+                </Button>
+              )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="event-url">Link (optional)</Label>
-              <Input
-                id="event-url"
-                type="url"
-                inputMode="url"
-                value={state.url}
-                onChange={(e) => patch({ url: e.target.value })}
-                placeholder="https://"
-                aria-invalid={!urlValid}
-              />
-              {!urlValid && <p className="text-xs text-destructive">Enter an http(s) link.</p>}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="event-description">Description (optional)</Label>
-            <Textarea
-              id="event-description"
-              value={state.description}
-              onChange={(e) => patch({ description: e.target.value })}
-              rows={2}
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="sm:justify-between">
-          <div>
-            {event && (
-              <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setConfirmDelete(true)}
-                disabled={busy}
-              >
-                <Trash2 aria-hidden="true" />
-                Delete
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
               </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={submit} disabled={!canSubmit}>
-              <Check aria-hidden="true" />
-              {event ? 'Save changes' : 'Create event'}
-            </Button>
-          </div>
-        </DialogFooter>
+              <Button type="submit" disabled={!canSubmit}>
+                {event ? 'Save changes' : 'Create event'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
 
         {event && (
           <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
@@ -648,5 +683,43 @@ export function EventForm({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+type ExtraField = 'location' | 'url' | 'description'
+
+/** A field error: signal glyph and 13 px signal text; the field's own rule turns signal too. */
+function FieldError({
+  children,
+  className
+}: {
+  children: React.ReactNode
+  className?: string
+}): React.JSX.Element {
+  return (
+    <p className={cn('flex items-center gap-1.5 text-xs text-signal', className)}>
+      <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+      {children}
+    </p>
+  )
+}
+
+/** A quiet "Add ..." action for an optional field: ink-2 text and a trailing plus, ink on hover. */
+function AddChip({
+  children,
+  onClick
+}: {
+  children: React.ReactNode
+  onClick: () => void
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 text-ink-2 hover:text-ink"
+    >
+      {children}
+      <Plus className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+    </button>
   )
 }

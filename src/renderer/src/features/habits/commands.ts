@@ -1,5 +1,6 @@
 import { Repeat } from 'lucide-react'
 import type { Command } from '@renderer/app/commands'
+import { CREATE_LABELS } from '@renderer/app/navigation'
 
 /**
  * Palette commands for habits. "Create habit" navigates to Habits with a `create` param that the
@@ -9,7 +10,7 @@ import type { Command } from '@renderer/app/commands'
 export const habitCommands: Command[] = [
   {
     id: 'habits:create',
-    title: 'Create Habit',
+    title: CREATE_LABELS.habit,
     group: 'Create',
     keywords: ['new', 'add', 'habit', 'routine', 'streak'],
     icon: Repeat,

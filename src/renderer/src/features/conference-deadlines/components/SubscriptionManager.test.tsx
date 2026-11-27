@@ -95,6 +95,6 @@ describe('SubscriptionManager', () => {
     windowApi.respond('conferences:listSubscriptions', [])
     renderWithProviders(<SubscriptionManager />)
     expect(await screen.findByText('No conference subscription yet.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add CCF Subscription' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add CCF subscription' })).toBeInTheDocument()
   })
 })

@@ -1,4 +1,4 @@
-import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
+import { Contrast, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { THEMES, type ThemeId } from '@shared/types/settings'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -19,15 +19,22 @@ const THEME_OPTIONS: { value: ThemeId; label: string; icon: LucideIcon }[] = [
 ]
 
 export interface ThemeToggleProps {
-  /** Icon-only dropdown for the collapsed sidebar. */
+  /**
+   * `segmented` (default): the text-only Light / Dark / System radiogroup named "Theme" (Settings >
+   * General); icons appear only with `iconsOnly`.
+   * `menu`: the 32 px icon button with the Appearance menu (sidebar footer).
+   */
+  variant?: 'segmented' | 'menu'
+  /** Legacy alias of `variant="menu"`. */
   compact?: boolean
-  /** Show icons only in the segmented control (labels stay as accessible names). */
+  /** Show icons instead of words in the segmented control (labels stay as accessible names). */
   iconsOnly?: boolean
   className?: string
 }
 
 /** Light / Dark / System control persisted through `settings:update`. */
 export function ThemeToggle({
+  variant = 'segmented',
   compact = false,
   iconsOnly = false,
   className
@@ -40,8 +47,7 @@ export function ThemeToggle({
       void updateSettings({ theme: value as ThemeId })
   }
 
-  if (compact) {
-    const Icon = current.icon
+  if (compact || variant === 'menu') {
     return (
       <DropdownMenu>
         <Tooltip>
@@ -50,16 +56,16 @@ export function ThemeToggle({
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Theme: ${current.label}. Change theme`}
+                aria-label={`Appearance: ${current.label}. Change theme`}
                 className={className}
               >
-                <Icon aria-hidden="true" />
+                <Contrast aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right">Theme: {current.label}</TooltipContent>
+          <TooltipContent side="right">Appearance: {current.label}</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent side="right" align="end" className="min-w-36">
+        <DropdownMenuContent side="top" align="start" className="min-w-40">
           <DropdownMenuRadioGroup value={settings.theme} onValueChange={setTheme}>
             {THEME_OPTIONS.map((option) => (
               <DropdownMenuRadioItem key={option.value} value={option.value}>
@@ -76,7 +82,6 @@ export function ThemeToggle({
   return (
     <SegmentedControl
       aria-label="Theme"
-      size="sm"
       className={className}
       value={settings.theme}
       onValueChange={setTheme}
@@ -84,7 +89,7 @@ export function ThemeToggle({
         value: option.value,
         label: iconsOnly ? null : option.label,
         ariaLabel: option.label,
-        icon: <option.icon aria-hidden="true" />
+        icon: iconsOnly ? <option.icon aria-hidden="true" /> : undefined
       }))}
     />
   )

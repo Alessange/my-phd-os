@@ -42,5 +42,10 @@ export const OPEN_SOURCE_LICENSES: readonly LicenseEntry[] = [
   { name: 'Recharts', license: 'MIT', url: 'https://github.com/recharts/recharts' },
   { name: 'Zod', license: 'MIT', url: 'https://github.com/colinhacks/zod' },
   { name: 'Zustand', license: 'MIT', url: 'https://github.com/pmndrs/zustand' },
-  { name: 'TanStack Query', license: 'MIT', url: 'https://github.com/TanStack/query' }
+  { name: 'TanStack Query', license: 'MIT', url: 'https://github.com/TanStack/query' },
+  {
+    name: 'Linux Biolinum',
+    license: 'OFL-1.1 (also GPL with font exception)',
+    url: 'https://www.linuxlibertine.org/'
+  }
 ]

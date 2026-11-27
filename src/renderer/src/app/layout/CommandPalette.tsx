@@ -44,7 +44,6 @@ export function CommandPalette(): React.JSX.Element {
                 keywords={[command.id, group, ...(command.keywords ?? [])]}
                 onSelect={() => void run(command)}
               >
-                {command.icon && <command.icon aria-hidden="true" />}
                 <span className="truncate">{command.title}</span>
                 {command.shortcut && (
                   <CommandShortcut>

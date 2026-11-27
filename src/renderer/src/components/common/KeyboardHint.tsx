@@ -10,18 +10,18 @@ export interface KeyboardHintProps {
   className?: string
 }
 
-/** Renders a shortcut as key caps, per platform (⌘K on macOS, Ctrl+K elsewhere). */
+/** A shortcut as plain 13 px ink-3 text, per platform (`⌘K` on macOS, `Ctrl+K` elsewhere). No key caps. */
 export function KeyboardHint({ shortcut, className }: KeyboardHintProps): React.JSX.Element {
   const { isMac } = usePlatform()
   const keys = shortcutKeys(shortcut, isMac)
   return (
     <span
-      className={cn('inline-flex items-center gap-0.5', className)}
+      className={cn('inline-flex items-center text-xs text-ink-3', className)}
       aria-label={formatShortcutLabel(shortcut, isMac)}
     >
       {keys.map((key, index) => (
         <Fragment key={`${key}-${index}`}>
-          {index > 0 && !isMac && <span className="text-[10px] text-muted-foreground">+</span>}
+          {index > 0 && !isMac && <span aria-hidden="true">+</span>}
           <Kbd aria-hidden="true">{key}</Kbd>
         </Fragment>
       ))}

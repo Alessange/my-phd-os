@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { cn } from '@renderer/lib/utils'
 
 export interface SegmentedOption<V extends string> {
@@ -20,7 +20,10 @@ export interface SegmentedControlProps<V extends string> {
   disabled?: boolean
 }
 
-/** Radio-group semantics with arrow-key movement; used for small enumerations (theme, clock, week start). */
+/**
+ * Radio-group semantics with arrow-key movement for small enumerations (theme, clock, week start,
+ * view switches). Looks exactly like `Tabs`: ink-3 text, the active one in ink with a 1.5 px underline.
+ */
 export function SegmentedControl<V extends string>({
   value,
   onValueChange,
@@ -30,18 +33,25 @@ export function SegmentedControl<V extends string>({
   disabled,
   ...props
 }: SegmentedControlProps<V>): React.JSX.Element {
+  const group = useRef<HTMLDivElement>(null)
+  // Arrow keys move focus together with the selection (WAI-ARIA radio group): the focused radio is
+  // always the checked one and the only tab stop, so a screen reader never says "not checked".
   const move = (delta: number): void => {
     const index = options.findIndex((option) => option.value === value)
-    const next = options[(index + delta + options.length) % options.length]
-    if (next) onValueChange(next.value)
+    const nextIndex = (index + delta + options.length) % options.length
+    const next = options[nextIndex]
+    if (!next) return
+    onValueChange(next.value)
+    group.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus()
   }
   return (
     <div
+      ref={group}
       role="radiogroup"
       aria-label={props['aria-label']}
       className={cn(
-        'inline-flex w-fit items-center gap-0.5 rounded-md bg-muted p-0.5 text-muted-foreground',
-        size === 'sm' ? 'h-7' : 'h-8',
+        'inline-flex w-fit max-w-full flex-wrap items-center gap-x-5 text-ink-3',
+        size === 'sm' ? 'min-h-8' : 'min-h-9',
         disabled && 'opacity-50',
         className
       )}
@@ -68,10 +78,11 @@ export function SegmentedControl<V extends string>({
             disabled={disabled}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'inline-flex h-full items-center justify-center gap-1.5 rounded-[6px] px-2.5 font-medium whitespace-nowrap transition-colors outline-none',
-              size === 'sm' ? 'text-xs' : 'text-[13px]',
-              'hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-muted',
-              selected && 'bg-card text-foreground shadow-xs',
+              'relative inline-flex items-center justify-center gap-1.5 text-sm whitespace-nowrap transition-colors duration-100',
+              'hover:text-ink disabled:cursor-not-allowed',
+              size === 'sm' ? 'h-8' : 'h-9',
+              'after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-ink after:opacity-0',
+              selected && 'text-ink after:opacity-100',
               '[&_svg]:size-4 [&_svg]:shrink-0'
             )}
           >

@@ -4,166 +4,256 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ---------------------------------------------------------------------------
-   Theme tokens. Raw values live on :root / .dark; Tailwind reads them through
-   @theme inline so `bg-status-ahead/15`, `text-category-research`, … all work
-   in both themes and with opacity modifiers.
+   Typeface: Linux Biolinum, bundled (SIL OFL 1.1, see assets/fonts/OFL-1.1.txt). Only these three
+   faces exist: Regular 400, Bold 700 and Italic. CSS weight 500 would silently render Regular and
+   600 Bold, so the Tailwind weights are remapped below. The files are shipped unmodified; Vite
+   hashes them into out/renderer/assets and the CSP (`font-src 'self' data:`) already allows them.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: 'Linux Biolinum';
+  src: url('../assets/fonts/LinBiolinum_R.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Linux Biolinum';
+  src: url('../assets/fonts/LinBiolinum_RB.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Linux Biolinum';
+  src: url('../assets/fonts/LinBiolinum_RI.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens ("Editorial, calmer", DESIGN.md section 3). Raw values live on :root / .dark;
+   `@theme inline` below aliases them so utilities (`text-ink-2`, `bg-wash`, `border-line`, and the
+   palette names `text-status-urgent`, ...) work in both themes.
+
+   Colour policy: neutrals plus ONE signal colour. Hue 85, chroma <= .004 for every neutral.
+   Palette tokens (status, category, priority, conference) are read through the RAW property,
+   never `var(--color-<token>)` (tokens.test.ts enforces it).
    --------------------------------------------------------------------------- */
 
 :root {
-  --background: oklch(0.985 0.002 260);
-  --foreground: oklch(0.2 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 260);
-  --muted: oklch(0.955 0.004 260);
-  --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.945 0.008 260);
-  --accent-foreground: oklch(0.2 0.02 260);
-  --primary: oklch(0.45 0.17 262);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.004 260);
-  --secondary-foreground: oklch(0.25 0.02 260);
-  --destructive: oklch(0.52 0.2 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.9 0.005 260);
-  --input: oklch(0.88 0.006 260);
-  --ring: oklch(0.55 0.16 262);
-  --sidebar: oklch(0.965 0.004 260);
-  --sidebar-foreground: oklch(0.3 0.02 260);
-  --elevated: oklch(1 0 0);
+  /* Ladder. */
+  --paper: oklch(
+    0.985 0.004 85
+  ); /* the single ground: canvas, sidebar, popovers. WINDOW_BACKGROUND.light must equal it (#fbfaf7). */
+  --ink: oklch(0.18 0.004 85); /* primary text, icons, primary fill, today disc */
+  --ink-2: oklch(0.4 0.004 85); /* secondary text */
+  --ink-3: oklch(
+    0.48 0.004 85
+  ); /* tertiary text, units, meta; still >= 4.5:1 on every tint below */
+  --ink-4: oklch(0.7 0.004 85); /* disabled text and decorative strokes only */
+  --line: oklch(0.925 0.003 85); /* hairline between rows (structure, not information) */
+  --line-strong: oklch(0.86 0.003 85); /* emphasis hairline, outlined floating layers */
+  --edge: oklch(0.62 0.004 85); /* boundary of a control when it is the only cue (>= 3:1) */
+  --signal: oklch(
+    0.51 0.19 33
+  ); /* vermilion: urgent, overdue, past target, destructive. Text, glyph, 2 px line. */
+  --signal-ink: oklch(0.99 0 0); /* text on a signal fill */
 
-  /* Category palette (ARCHITECTURE §9). Light: L ≤ 0.55 so text on a 15 % tint stays ≥ 4.5:1. */
-  --category-course: oklch(0.5 0.18 275);
-  --category-coursework: oklch(0.5 0.19 295);
-  --category-research: oklch(0.48 0.11 185);
-  --category-meeting: oklch(0.5 0.14 240);
-  --category-deadline: oklch(0.52 0.2 20);
-  --category-work: oklch(0.46 0.06 250);
-  --category-health: oklch(0.5 0.15 150);
-  --category-personal: oklch(0.52 0.2 340);
-  --category-rest: oklch(0.5 0.11 60);
-  --category-paper: oklch(0.53 0.16 45);
-  --category-publication: oklch(0.5 0.21 320);
-  --category-scholarship: oklch(0.52 0.13 85);
-  --category-internship: oklch(0.49 0.12 210);
-  --category-academic: oklch(0.48 0.17 260);
-  --category-administrative: oklch(0.48 0.03 60);
-  --category-phd-progress: oklch(0.48 0.21 300);
-  --category-career: oklch(0.49 0.14 130);
-  --category-other: oklch(0.48 0.02 260);
+  /* Overlays: ink alpha over paper, never a hued tint. */
+  --hover: color-mix(in oklab, var(--ink) 4%, transparent);
+  --selected: color-mix(in oklab, var(--ink) 7%, transparent);
+  --track: color-mix(in oklab, var(--ink) 10%, transparent);
+  --wash: color-mix(in oklab, var(--ink) 5%, transparent);
+  --scrim: oklch(0 0 0 / 0.2);
 
-  /* Status palette: Ahead green, On Track blue, Behind orange, At Risk red, Urgent coral,
-     Completed muted green, Overdue deep red, TBD violet-gray, Passed neutral. */
-  --status-ahead: oklch(0.5 0.16 150);
-  --status-on-track: oklch(0.5 0.17 255);
-  --status-behind: oklch(0.54 0.17 55);
-  --status-at-risk: oklch(0.52 0.21 25);
-  --status-urgent: oklch(0.54 0.21 32);
-  --status-completed: oklch(0.48 0.08 155);
-  --status-overdue: oklch(0.44 0.2 20);
-  --status-tbd: oklch(0.48 0.05 300);
-  --status-passed: oklch(0.48 0.02 260);
-  --status-neutral: oklch(0.5 0.02 260);
+  /* shadcn names, re-pointed. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --muted: oklch(0.965 0.003 85);
+  --muted-foreground: var(--ink-3);
+  --accent: oklch(0.955 0.003 85);
+  --accent-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper);
+  --secondary-foreground: var(--ink);
+  --destructive: var(--signal);
+  --destructive-foreground: var(--signal-ink);
+  --border: var(--line);
+  --input: var(--edge);
+  --ring: var(--ink);
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink-2);
+  --elevated: var(--paper);
 
-  /* Conference palette: one colour per followed conference so rows are told apart at a glance.
-     Ten hues spaced right around the wheel and pushed near the sRGB gamut edge, with lightness
-     varied too: hue alone separates poorly in the green-to-teal band, so the greens differ in
-     lightness as well. These only ever paint graphics (a dot, a bar), never
-     a text background, so they are free to be far more saturated than the category palette. */
-  --conference-1: oklch(0.55 0.2 236);
-  --conference-2: oklch(0.62 0.21 20);
-  --conference-3: oklch(0.58 0.19 140);
-  --conference-4: oklch(0.52 0.26 305);
-  --conference-5: oklch(0.72 0.18 60);
-  --conference-6: oklch(0.62 0.13 197);
-  --conference-7: oklch(0.6 0.24 344);
-  --conference-8: oklch(0.78 0.18 95);
-  --conference-9: oklch(0.48 0.24 272);
-  --conference-10: oklch(0.76 0.13 168);
+  /* Category: a word, never a colour. Kept so the token test and old call sites pass. */
+  --category-course: var(--ink-2);
+  --category-coursework: var(--ink-2);
+  --category-research: var(--ink-2);
+  --category-meeting: var(--ink-2);
+  --category-deadline: var(--ink-2);
+  --category-work: var(--ink-2);
+  --category-health: var(--ink-2);
+  --category-personal: var(--ink-2);
+  --category-rest: var(--ink-2);
+  --category-paper: var(--ink-2);
+  --category-publication: var(--ink-2);
+  --category-scholarship: var(--ink-2);
+  --category-internship: var(--ink-2);
+  --category-academic: var(--ink-2);
+  --category-administrative: var(--ink-2);
+  --category-phd-progress: var(--ink-2);
+  --category-career: var(--ink-2);
+  --category-other: var(--ink-2);
 
-  --priority-low: oklch(0.5 0.06 240);
-  --priority-medium: oklch(0.52 0.13 85);
-  --priority-high: oklch(0.54 0.17 50);
-  --priority-critical: oklch(0.49 0.21 25);
+  /* Status: TEXT inks only, always beside a word. Normal = quiet, attention = ink, exception = signal. */
+  --status-ahead: var(--ink-2);
+  --status-on-track: var(--ink-2);
+  --status-behind: var(--ink);
+  --status-at-risk: var(--ink);
+  --status-urgent: var(--signal);
+  --status-completed: var(--ink-3);
+  --status-overdue: var(--signal);
+  --status-tbd: var(--ink-3);
+  --status-passed: var(--ink-3);
+  --status-neutral: var(--ink-2);
 
-  /* Progress bars (DualProgress): time is neutral-cool, work is the primary accent. */
-  --progress-time: oklch(0.62 0.05 250);
-  --progress-work: oklch(0.5 0.17 262);
+  /* Conference identity: by name and position, not hue (10 slots kept as an inert token contract, DESIGN.md 4; nothing paints them). */
+  --conference-1: var(--ink-2);
+  --conference-2: var(--ink-2);
+  --conference-3: var(--ink-2);
+  --conference-4: var(--ink-2);
+  --conference-5: var(--ink-2);
+  --conference-6: var(--ink-2);
+  --conference-7: var(--ink-2);
+  --conference-8: var(--ink-2);
+  --conference-9: var(--ink-2);
+  --conference-10: var(--ink-2);
+
+  /* Priority: words; only High and Critical are set in full ink. */
+  --priority-low: var(--ink-3);
+  --priority-medium: var(--ink-2);
+  --priority-high: var(--ink);
+  --priority-critical: var(--ink);
+
+  /* Data ink. */
+  --progress-time: oklch(
+    0.54 0.004 85
+  ); /* time line: lighter than the work line (>= 3:1 on the track) */
+  --progress-work: var(--ink);
+  --bar-track: var(--track);
+  --cell-done: oklch(
+    0.55 0.004 85
+  ); /* habit grid: done is lighter than ink-2 so the grid is texture */
+  --cell-miss: color-mix(in oklab, var(--ink) 11%, transparent); /* due, not done: quiet tile */
+  --event-fill: color-mix(
+    in oklab,
+    var(--ink) 5%,
+    var(--paper)
+  ); /* calendar mark: OPAQUE so hour lines do not show through */
+  --event-rule: var(--ink); /* 2 px leading rule of a calendar mark */
+  --event-rule-past: var(--ink-3);
+  --event-outline: var(--line-strong);
+  --user-l: 0.6; /* stored per-record colours (habit, source) are normalised to this lightness... */
+  --user-c: 0.05; /* ...and chroma before they are painted: oklch(var(--user-l) var(--user-c) <hue>) */
+
+  /* Type roles (DESIGN.md 4.1): six sizes, nothing else. */
+  --t-meta: 13px;
+  --t-meta-lh: 18px;
+  --t-body: 15px;
+  --t-body-lh: 22px;
+  --t-lead: 18px;
+  --t-lead-lh: 26px;
+  --t-title: 28px;
+  --t-title-lh: 34px;
+  --t-display: 40px;
+  --t-display-lh: 44px;
+  --t-hero: 64px;
+  --t-hero-lh: 64px;
+  --track-display: -0.012em; /* only at >= 28 px */
+  --track-caps: 0.06em; /* all-small-caps labels */
+
+  /* Space (4 px base) and layout. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --sidebar-w: 216px;
+  --sidebar-w-collapsed: 64px;
+  --strip-h: 48px; /* top strip: dateline, search, create. A drag region. */
+  --page-pad-x: 64px;
+  --page-max: 1096px;
+  --panel-w: 288px; /* Calendar right panel */
+  --control-h: 36px;
+  --control-h-sm: 32px;
+  --row-h: 56px;
+
+  /* Radius: 2 marks, 4 controls, 8 floating layers. Pills and circles only for check discs, today disc, dots. */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+
+  /* Elevation: nothing at rest; floating layers get a hairline ring and one soft shadow. */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: 0 0 0 1px var(--line), 0 12px 32px -12px oklch(0 0 0 / 0.16);
+  --shadow-lg: 0 0 0 1px var(--line), 0 24px 64px -16px oklch(0 0 0 / 0.22);
+
+  /* Motion: opacity and transform only. */
+  --dur-fast: 100ms;
+  --dur: 150ms;
+  --dur-slow: 200ms;
+  --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .dark {
-  --background: oklch(0.19 0.012 260);
-  --foreground: oklch(0.93 0.005 260);
-  --card: oklch(0.225 0.012 260);
-  --card-foreground: oklch(0.93 0.005 260);
-  --popover: oklch(0.235 0.012 260);
-  --popover-foreground: oklch(0.93 0.005 260);
-  --muted: oklch(0.27 0.012 260);
-  --muted-foreground: oklch(0.7 0.015 260);
-  --accent: oklch(0.29 0.015 260);
-  --accent-foreground: oklch(0.95 0.005 260);
-  --primary: oklch(0.74 0.13 262);
-  --primary-foreground: oklch(0.15 0.03 262);
-  --secondary: oklch(0.27 0.012 260);
-  --secondary-foreground: oklch(0.9 0.005 260);
-  --destructive: oklch(0.7 0.17 25);
-  --destructive-foreground: oklch(0.15 0.03 25);
-  --border: oklch(0.31 0.012 260);
-  --input: oklch(0.34 0.012 260);
-  --ring: oklch(0.72 0.12 262);
-  --sidebar: oklch(0.165 0.012 260);
-  --sidebar-foreground: oklch(0.82 0.01 260);
-  --elevated: oklch(0.26 0.012 260);
+  --paper: oklch(0.165 0.004 85); /* WINDOW_BACKGROUND.dark must equal it (#0f0e0c) */
+  --ink: oklch(0.955 0.004 85);
+  --ink-2: oklch(0.78 0.004 85);
+  --ink-3: oklch(0.68 0.004 85);
+  --ink-4: oklch(0.5 0.004 85);
+  --line: oklch(0.275 0.004 85);
+  --line-strong: oklch(0.36 0.004 85);
+  --edge: oklch(0.56 0.004 85);
+  --signal: oklch(0.72 0.17 36);
+  --signal-ink: oklch(0.16 0.01 36);
 
-  --category-course: oklch(0.88 0.11 275);
-  --category-coursework: oklch(0.88 0.115 295);
-  --category-research: oklch(0.88 0.092 185);
-  --category-meeting: oklch(0.88 0.092 240);
-  --category-deadline: oklch(0.88 0.115 20);
-  --category-work: oklch(0.88 0.046 250);
-  --category-health: oklch(0.88 0.115 150);
-  --category-personal: oklch(0.88 0.115 340);
-  --category-rest: oklch(0.88 0.083 60);
-  --category-paper: oklch(0.88 0.11 45);
-  --category-publication: oklch(0.88 0.115 320);
-  --category-scholarship: oklch(0.88 0.11 85);
-  --category-internship: oklch(0.88 0.092 210);
-  --category-academic: oklch(0.88 0.101 260);
-  --category-administrative: oklch(0.88 0.028 60);
-  --category-phd-progress: oklch(0.88 0.115 300);
-  --category-career: oklch(0.88 0.115 130);
-  --category-other: oklch(0.88 0.014 260);
+  --hover: color-mix(in oklab, var(--ink) 5%, transparent);
+  --selected: color-mix(in oklab, var(--ink) 9%, transparent);
+  --track: color-mix(in oklab, var(--ink) 12%, transparent);
+  --wash: color-mix(in oklab, var(--ink) 7%, transparent);
+  --scrim: oklch(0 0 0 / 0.5);
 
-  --status-ahead: oklch(0.88 0.115 150);
-  --status-on-track: oklch(0.88 0.11 255);
-  --status-behind: oklch(0.88 0.115 55);
-  --status-at-risk: oklch(0.88 0.115 25);
-  --status-urgent: oklch(0.88 0.115 32);
-  --status-completed: oklch(0.88 0.074 155);
-  --status-overdue: oklch(0.88 0.115 20);
-  --status-tbd: oklch(0.88 0.046 300);
-  --status-passed: oklch(0.88 0.014 260);
-  --status-neutral: oklch(0.88 0.014 260);
+  --popover: oklch(0.2 0.004 85); /* floating layers sit one step lighter than the canvas */
+  --popover-foreground: var(--ink);
+  --elevated: oklch(0.2 0.004 85);
+  --muted: oklch(0.21 0.004 85);
+  --accent: oklch(0.24 0.004 85);
 
-  --conference-1: oklch(0.72 0.17 236);
-  --conference-2: oklch(0.72 0.19 20);
-  --conference-3: oklch(0.74 0.18 140);
-  --conference-4: oklch(0.7 0.22 305);
-  --conference-5: oklch(0.82 0.16 60);
-  --conference-6: oklch(0.76 0.12 197);
-  --conference-7: oklch(0.74 0.21 344);
-  --conference-8: oklch(0.88 0.17 95);
-  --conference-9: oklch(0.66 0.21 272);
-  --conference-10: oklch(0.86 0.12 168);
+  --progress-time: oklch(0.58 0.004 85);
+  --cell-done: oklch(0.62 0.004 85);
+  --cell-miss: color-mix(in oklab, var(--ink) 13%, transparent);
+  --event-fill: color-mix(in oklab, var(--ink) 8%, var(--paper));
+  --user-l: 0.7;
+  --user-c: 0.05;
 
-  --priority-low: oklch(0.88 0.046 240);
-  --priority-medium: oklch(0.88 0.11 85);
-  --priority-high: oklch(0.88 0.115 50);
-  --priority-critical: oklch(0.88 0.115 25);
-
-  --progress-time: oklch(0.62 0.04 250);
-  --progress-work: oklch(0.74 0.13 262);
+  --shadow-md: 0 0 0 1px var(--line), 0 12px 32px -12px oklch(0 0 0 / 0.55);
+  --shadow-lg: 0 0 0 1px var(--line-strong), 0 24px 64px -16px oklch(0 0 0 / 0.7);
 }
 
 @theme inline {
@@ -189,7 +279,6 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-elevated: var(--elevated);
-
   --color-category-course: var(--category-course);
   --color-category-coursework: var(--category-coursework);
   --color-category-research: var(--category-research);
@@ -208,7 +297,6 @@
   --color-category-phd-progress: var(--category-phd-progress);
   --color-category-career: var(--category-career);
   --color-category-other: var(--category-other);
-
   --color-status-ahead: var(--status-ahead);
   --color-status-on-track: var(--status-on-track);
   --color-status-behind: var(--status-behind);
@@ -219,7 +307,6 @@
   --color-status-tbd: var(--status-tbd);
   --color-status-passed: var(--status-passed);
   --color-status-neutral: var(--status-neutral);
-
   --color-conference-1: var(--conference-1);
   --color-conference-2: var(--conference-2);
   --color-conference-3: var(--conference-3);
@@ -230,39 +317,99 @@
   --color-conference-8: var(--conference-8);
   --color-conference-9: var(--conference-9);
   --color-conference-10: var(--conference-10);
-
   --color-priority-low: var(--priority-low);
   --color-priority-medium: var(--priority-medium);
   --color-priority-high: var(--priority-high);
   --color-priority-critical: var(--priority-critical);
-
   --color-progress-time: var(--progress-time);
   --color-progress-work: var(--progress-work);
 
+  /* New ladder names (the palette names above stay readable through the raw property). */
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-edge: var(--edge);
+  --color-signal: var(--signal);
+  --color-signal-ink: var(--signal-ink);
+  --color-hover: var(--hover);
+  --color-selected: var(--selected);
+  --color-track: var(--track);
+  --color-wash: var(--wash);
+  --color-scrim: var(--scrim);
+  --color-bar-track: var(--bar-track);
+  --color-event-fill: var(--event-fill);
+  --color-event-rule: var(--event-rule);
+  --color-event-rule-past: var(--event-rule-past);
+  --color-cell-done: var(--cell-done);
+  --color-cell-miss: var(--cell-miss);
+
+  /* One family. The same stack backs --font-mono on purpose: nothing in this app is monospace
+     (Biolinum numerals are tabular lining), so a stray `font-mono` renders Biolinum, not a system monospace. */
   --font-sans:
-    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+    'Linux Biolinum', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans', sans-serif,
     'Apple Color Emoji', 'Segoe UI Emoji';
   --font-mono:
-    'SF Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    'Linux Biolinum', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
 
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  /* Only Regular 400 and Bold 700 exist: 500 and 600 must never silently mean something else. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 700;
 
-  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.06);
-  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.06), 0 1px 3px oklch(0 0 0 / 0.08);
-  --shadow-md: 0 2px 6px oklch(0 0 0 / 0.08), 0 8px 24px oklch(0 0 0 / 0.08);
-  --shadow-lg: 0 4px 12px oklch(0 0 0 / 0.12), 0 16px 48px oklch(0 0 0 / 0.14);
+  /* Six roles; the t-shirt names are mapped onto them so old utilities land on the scale. */
+  --text-meta: 13px;
+  --text-meta--line-height: 18px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-lead: 18px;
+  --text-lead--line-height: 26px;
+  --text-title: 28px;
+  --text-title--line-height: 34px;
+  --text-title--letter-spacing: -0.012em;
+  --text-display: 40px;
+  --text-display--line-height: 44px;
+  --text-display--letter-spacing: -0.012em;
+  --text-hero: 64px;
+  --text-hero--line-height: 64px;
+  --text-hero--letter-spacing: -0.012em;
+  --text-xs: 13px;
+  --text-xs--line-height: 18px;
+  --text-sm: 15px;
+  --text-sm--line-height: 22px;
+  --text-base: 15px;
+  --text-base--line-height: 22px;
+  --text-lg: 18px;
+  --text-lg--line-height: 26px;
+  --text-xl: 18px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 34px;
+  --text-2xl--letter-spacing: -0.012em;
+  --text-3xl: 28px;
+  --text-3xl--line-height: 34px;
+  --text-3xl--letter-spacing: -0.012em;
+  --text-4xl: 40px;
+  --text-4xl--line-height: 44px;
+  --text-4xl--letter-spacing: -0.012em;
 
-  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
 
-  @keyframes pulse-soft {
-    50% {
-      opacity: 0.55;
-    }
-  }
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 }
 
 /* ---------------------------------------------------------------------------
@@ -283,14 +430,39 @@
     color-scheme: dark;
   }
 
+  /* Native date and time pickers: Chromium draws a heavy glyph at full ink. Quiet it; color-scheme already
+     flips its colour per theme. It stays visible because it is the click target that opens the picker. */
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  input[type='date']:hover::-webkit-calendar-picker-indicator,
+  input[type='time']:hover::-webkit-calendar-picker-indicator,
+  input[type='date']:focus-visible::-webkit-calendar-picker-indicator,
+  input[type='time']:focus-visible::-webkit-calendar-picker-indicator {
+    opacity: 1;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans text-[13.5px] leading-normal antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: var(--t-body);
+    line-height: var(--t-body-lh);
     height: 100%;
     margin: 0;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'cv11', 'ss01';
+    /* Biolinum's default figures are tabular lining; say so, so alignment never depends on the font's default. */
+    font-variant-numeric: tabular-nums lining-nums;
+    /* No fake bold or bold italic: only the three real faces are ever drawn. */
+    font-synthesis: none;
+    text-autospace: normal;
+  }
+
+  :lang(zh) {
+    letter-spacing: 0;
   }
 
   #root {
@@ -298,11 +470,13 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--primary) 22%, transparent);
+    background: color-mix(in oklab, var(--ink) 18%, transparent);
   }
 
+  /* One focus rule: a 2 px ink outline, 2 px offset (7 to 18:1). Fields draw their own 2 px rule instead. */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   button,
@@ -314,11 +488,24 @@
   h2,
   h3,
   h4 {
-    @apply font-semibold tracking-tight text-balance;
+    @apply font-normal text-balance;
   }
 
+  /* Links: ink plus a 1 px underline is the affordance, not colour. */
   a {
-    @apply text-primary underline-offset-4 hover:underline;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    text-decoration-color: color-mix(in oklab, var(--ink) 45%, transparent);
+  }
+
+  a:hover {
+    text-decoration-color: var(--ink);
+  }
+
+  svg.lucide {
+    stroke-width: 1.5;
   }
 
   input[type='number']::-webkit-inner-spin-button,
@@ -327,25 +514,110 @@
   }
 }
 
-/* Numerals: countdowns and clocks keep their width while ticking. */
+/* ---------------------------------------------------------------------------
+   Utilities
+   --------------------------------------------------------------------------- */
+
+/* Numerals: Biolinum figures are tabular lining already; this states the intent where alignment matters. */
 @utility tabular {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* Clock and countdown figures. No monospace family any more. */
 @utility numeric {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: 0;
 }
 
-/* Tinted chip: solid ink colour + 14 % tint of itself. Set `--chip` to any theme colour. */
-@utility chip-tint {
-  color: var(--chip);
-  background-color: color-mix(in oklab, var(--chip) 14%, transparent);
+/* Hit area to the 28 px floor (DESIGN.md 3.2) for a bare 22 px text control that is not a `link`: padding grows the box, the margin cancels it, so nothing moves. */
+@utility hit-28 {
+  padding-block: 3px;
+  margin-block: -3px;
 }
 
-@utility chip-border {
-  border-color: color-mix(in oklab, var(--chip) 30%, transparent);
+/* Text link: ink with a 1 px underline. `link-quiet` is the ink-2 variant used for row actions. */
+@utility link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in oklab, var(--ink) 45%, transparent);
+  cursor: default;
+  /* Hit area to the 28 px floor (DESIGN.md 3.2) with no layout change: padding grows it, the margin cancels it. */
+  padding-block: 5px;
+  margin-block: -5px;
+
+  &:hover {
+    text-decoration-color: var(--ink);
+  }
+}
+
+@utility link-quiet {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in oklab, var(--ink-2) 45%, transparent);
+  cursor: default;
+  padding-block: 5px;
+  margin-block: -5px;
+
+  &:hover {
+    color: var(--ink);
+    text-decoration-color: var(--ink);
+  }
+}
+
+/* Small caps: exactly two roles (category label in the Gantt rail, rule tag of a Timeline check). Upper-casing text with CSS is forbidden. */
+@utility small-caps {
+  font-variant-caps: all-small-caps;
+  font-size: var(--t-body);
+  letter-spacing: var(--track-caps);
+  color: var(--ink-3);
+}
+
+/* Underline field (dialogs and forms): 1 px edge rule, 2 px ink rule on focus, signal when invalid.
+   Drawn as a background so nothing shifts and no border or shadow is counted. */
+@utility field {
+  background-color: transparent;
+  background-image: linear-gradient(var(--field-rule, var(--edge)), var(--field-rule, var(--edge)));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 100% 1px;
+  border-radius: 0;
+  outline: none;
+  transition: background-size var(--dur-fast) var(--ease);
+
+  &:focus-visible,
+  &:focus {
+    --field-rule: var(--ring);
+    background-size: 100% 2px;
+    outline: none;
+  }
+
+  &[aria-invalid='true'] {
+    --field-rule: var(--signal);
+  }
+}
+
+/* The page column and the top strip share it so the dateline, the title and the primary action line up.
+   64 px gutters (32 under a 1100 px window), 1096 px of content, left aligned. */
+@utility page-column {
+  width: 100%;
+  max-width: calc(var(--page-max) + 2 * var(--page-pad-x));
+  padding-inline: var(--page-pad-x);
+
+  @media (max-width: 1100px) {
+    padding-inline: 32px;
+  }
+}
+
+/* Floating layer recipe: popover, menu, dialog, palette, toast, tooltip. The only place a ring and shadow exist. */
+@utility floating {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 /* Electron frameless title bar regions (macOS hiddenInset). */
@@ -357,50 +629,18 @@
   -webkit-app-region: no-drag;
 }
 
-/* Thin, theme-aware scrollbars. */
+/* Thin, theme-aware scrollbars (standard properties; no ::-webkit-scrollbar). */
 @utility scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--foreground) 22%, transparent);
-    border: 2px solid transparent;
-    background-clip: padding-box;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  scrollbar-color: color-mix(in oklab, var(--ink) 25%, transparent) transparent;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
+  scrollbar-color: color-mix(in oklab, var(--ink) 25%, transparent) transparent;
 }
 
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-*::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--foreground) 22%, transparent);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Reduced motion: keep state changes instant, keep essential opacity transitions minimal. */
+/* Reduced motion: state changes are instant; opacity transitions stay minimal. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -412,4 +652,4 @@
   }
 }
 
-/* FullCalendar variable overrides are added by the calendar feature (see features/calendar). */
+/* FullCalendar variable overrides live in features/calendar (calendar.css). */

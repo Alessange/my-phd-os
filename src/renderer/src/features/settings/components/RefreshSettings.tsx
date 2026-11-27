@@ -32,7 +32,7 @@ export function RefreshSettings(): React.JSX.Element {
       <SettingRow
         label="Automatic refresh"
         htmlFor={ids.interval}
-        description="Subscriptions are re-fetched in the background when the cached snapshot is older than this."
+        description="Re-fetched in the background once the cached snapshot is older than this."
       >
         <Select
           value={String(settings.subscriptionRefreshIntervalHours)}
@@ -40,7 +40,11 @@ export function RefreshSettings(): React.JSX.Element {
             void updateSettings({ subscriptionRefreshIntervalHours: Number(value) })
           }
         >
-          <SelectTrigger id={ids.interval} className="w-44" aria-label="Automatic refresh interval">
+          <SelectTrigger
+            id={ids.interval}
+            className="w-full"
+            aria-label="Automatic refresh interval"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -55,7 +59,7 @@ export function RefreshSettings(): React.JSX.Element {
       <SettingRow
         label="Refresh on launch"
         htmlFor={ids.onLaunch}
-        description="Check for updates when the app starts, if the cache is stale."
+        description="Check for updates at start, if the cache is stale."
       >
         <Switch
           id={ids.onLaunch}
@@ -66,13 +70,13 @@ export function RefreshSettings(): React.JSX.Element {
       <SettingRow
         label="Request timeout"
         htmlFor={ids.timeout}
-        description="Give up on a slow feed after this long; the last good snapshot is kept."
+        description="A slow feed is abandoned; the last good snapshot is kept."
       >
         <Select
           value={String(settings.requestTimeoutMs)}
           onValueChange={(value) => void updateSettings({ requestTimeoutMs: Number(value) })}
         >
-          <SelectTrigger id={ids.timeout} className="w-36" aria-label="Request timeout">
+          <SelectTrigger id={ids.timeout} className="w-full" aria-label="Request timeout">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

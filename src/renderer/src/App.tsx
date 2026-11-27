@@ -16,7 +16,7 @@ import { useDataChanged } from './hooks/useDataChanged'
 import { useSettings } from './hooks/useSettings'
 import { api } from './lib/api'
 import { queryKeys } from './lib/queryKeys'
-import { toastError } from './lib/toast'
+import { toastError, toasterProps } from './lib/toast'
 import CalendarPage from './pages/CalendarPage'
 import DeadlinesPage from './pages/DeadlinesPage'
 import HabitsPage from './pages/HabitsPage'
@@ -110,7 +110,7 @@ function AppGate(): React.JSX.Element {
 
 function ThemedToaster(): React.JSX.Element {
   const theme = useResolvedTheme()
-  return <Toaster theme={theme} richColors closeButton position="bottom-right" offset={16} />
+  return <Toaster theme={theme} {...toasterProps} />
 }
 
 export default function App(): React.JSX.Element {

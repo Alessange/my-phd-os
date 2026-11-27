@@ -7,22 +7,29 @@ export interface EmptyStateAction {
   label: string
   onClick: () => void
   variant?: ButtonProps['variant']
+  /** Ignored: the design carries no icon tile and no icon on empty-state buttons. Kept so call sites compile. */
   icon?: LucideIcon
 }
 
 export interface EmptyStateProps {
+  /** Ignored: empty states carry no icon (DESIGN.md section 6). Kept so call sites compile. */
   icon?: LucideIcon
   title: string
   description?: ReactNode
   actions?: EmptyStateAction[]
-  /** `compact` renders a one-line variant for right-panel sections and lists. */
+  /** `compact` renders one `role=status` line for right-panel sections and lists. */
   variant?: 'default' | 'compact'
   className?: string
 }
 
-/** Designed empty state (spec §19). Strings come from `EMPTY_STATES`; never render placeholder data instead. */
+/**
+ * Designed empty state (spec section 19), borderless: a 28 px title (exact copy from `EMPTY_STATES`),
+ * an optional 15 px ink-2 sentence and the actions as text links. The strip already carries the
+ * view's one ink primary (DESIGN.md 1, rule 5), so an action is a solid button only when it opts in
+ * with `variant: 'default'` (a surface without a strip, such as a dialog). Never render placeholder
+ * data instead.
+ */
 export function EmptyState({
-  icon: Icon,
   title,
   description,
   actions = [],
@@ -33,24 +40,20 @@ export function EmptyState({
     return (
       <div
         role="status"
-        className={cn(
-          'flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground',
-          className
-        )}
+        className={cn('flex items-baseline gap-3 py-1 text-sm text-ink-3', className)}
       >
-        {Icon && <Icon className="size-3.5 shrink-0" aria-hidden="true" />}
-        <span className="truncate">{title}</span>
+        <span className="min-w-0 truncate">{title}</span>
         {actions.length > 0 && (
-          <span className="ml-auto flex gap-1">
+          <span className="ml-auto flex shrink-0 gap-4">
             {actions.map((action) => (
-              <Button
+              <button
                 key={action.label}
-                size="sm"
-                variant={action.variant ?? 'ghost'}
+                type="button"
+                className="link-quiet app-no-drag"
                 onClick={action.onClick}
               >
                 {action.label}
-              </Button>
+              </button>
             ))}
           </span>
         )}
@@ -60,32 +63,25 @@ export function EmptyState({
   return (
     <div
       role="status"
-      className={cn(
-        'mx-auto flex w-full max-w-md flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-12 text-center',
-        className
-      )}
+      className={cn('flex w-full max-w-xl flex-col items-start gap-4 py-12', className)}
     >
-      {Icon && (
-        <div className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Icon className="size-5" aria-hidden="true" />
-        </div>
-      )}
-      <div className="flex flex-col gap-1">
-        <h2 className="text-base font-semibold">{title}</h2>
-        {description && <p className="text-[13px] text-muted-foreground">{description}</p>}
+      <div className="flex flex-col gap-2">
+        <h2 className="text-title text-ink">{title}</h2>
+        {description && <p className="text-sm text-ink-2">{description}</p>}
       </div>
       {actions.length > 0 && (
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-          {actions.map((action, index) => (
-            <Button
-              key={action.label}
-              variant={action.variant ?? (index === 0 ? 'default' : 'outline')}
-              onClick={action.onClick}
-            >
-              {action.icon && <action.icon aria-hidden="true" />}
-              {action.label}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {actions.map((action) =>
+            action.variant === 'default' ? (
+              <Button key={action.label} onClick={action.onClick}>
+                {action.label}
+              </Button>
+            ) : (
+              <button key={action.label} type="button" className="link" onClick={action.onClick}>
+                {action.label}
+              </button>
+            )
+          )}
         </div>
       )}
     </div>

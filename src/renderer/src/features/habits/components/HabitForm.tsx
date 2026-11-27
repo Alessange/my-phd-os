@@ -1,50 +1,38 @@
-import { Check } from 'lucide-react'
+import { ChevronDown, CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import type { CreateHabitInput, UpdateHabitInput } from '@shared/schemas/habit'
 import type { Habit, HabitFrequencyType } from '@shared/types/habit'
+import { ColourSwatchPicker } from '@renderer/components/common/ColourSwatchPicker'
+import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
+import { propertyRowClass } from '@renderer/components/ui/property-row'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
-import { Button } from '@renderer/components/ui/button'
 import { useFormat } from '@renderer/hooks/useFormat'
-import { cn } from '@renderer/lib/utils'
+import { COLOUR_SWATCHES } from '@renderer/lib/colourSwatches'
+import { cn, userColor } from '@renderer/lib/utils'
 import { useCreateHabit, useUpdateHabit } from '../api'
-import { HABIT_ICON_ENTRIES } from '../icons'
+import { WD_SHORT } from '../habitDisplay'
 
-const COLOR_PRESETS = [
-  '#3b82f6',
-  '#ef4444',
-  '#22c55e',
-  '#f59e0b',
-  '#a855f7',
-  '#ec4899',
-  '#14b8a6',
-  '#64748b'
-] as const
+/** The schema stores 3 or 6 digit hex; both are valid, a stored value is never rewritten. */
+const isHex = (v: string): boolean => /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(v)
 
-const WD_SHORT: Record<number, string> = {
-  1: 'Mon',
-  2: 'Tue',
-  3: 'Wed',
-  4: 'Thu',
-  5: 'Fri',
-  6: 'Sat',
-  7: 'Sun'
-}
-
-const isHex = (v: string): boolean => /^#[0-9a-fA-F]{6}$/.test(v)
+/** The native colour input only takes `#rrggbb`. */
+const toLongHex = (v: string): string =>
+  /^#[0-9a-fA-F]{3}$/.test(v) ? `#${[...v.slice(1)].map((c) => c + c).join('')}` : v
 
 interface FormState {
   name: string
   color: string
+  /** Stored lucide name. No longer editable here; carried through so an edit never clears it. */
   icon?: string
   frequencyType: HabitFrequencyType
   targetCount: number
@@ -62,7 +50,7 @@ const fromHabit = (habit: Habit): FormState => ({
 
 const empty: FormState = {
   name: '',
-  color: COLOR_PRESETS[0],
+  color: COLOUR_SWATCHES[0],
   icon: undefined,
   frequencyType: 'daily',
   targetCount: 3,
@@ -77,15 +65,19 @@ export interface HabitFormProps {
 }
 
 /**
- * Create or edit a habit. The frequency picker switches between daily, a weekly target count, and
- * specific weekdays (ordered by the week-start setting). Icon and colour are optional identity.
- * Validation mirrors the Zod schema; the main process re-validates and surfaces errors as toasts.
+ * Create or edit a habit: a name and how often, then quiet property rows. Colour is a 6 px dot that
+ * opens a swatch popover (the stored hex is kept as chosen); the icon picker is gone but a stored
+ * icon is preserved on edit. Validation mirrors the Zod schema and never shows on a pristine field;
+ * Enter submits.
  */
 export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.JSX.Element {
   const { orderedWeekdays } = useFormat()
   const create = useCreateHabit()
   const update = useUpdateHabit()
   const [state, setState] = useState<FormState>(empty)
+  const [nameTouched, setNameTouched] = useState(false)
+  const [daysTouched, setDaysTouched] = useState(false)
+  const [colorOpen, setColorOpen] = useState(false)
   // Reset the form when the dialog opens or switches target — derived during render, not in an
   // effect, so a stale draft never lingers across open/close cycles (see SettingsPage).
   const [prevOpen, setPrevOpen] = useState(open)
@@ -93,18 +85,25 @@ export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.
   if (open !== prevOpen || habit !== prevHabit) {
     setPrevOpen(open)
     setPrevHabit(habit)
-    if (open) setState(habit ? fromHabit(habit) : empty)
+    if (open) {
+      setState(habit ? fromHabit(habit) : empty)
+      setNameTouched(false)
+      setDaysTouched(false)
+      setColorOpen(false)
+    }
   }
 
   const patch = (p: Partial<FormState>): void => setState((s) => ({ ...s, ...p }))
 
-  const toggleDay = (wd: number): void =>
+  const toggleDay = (wd: number): void => {
+    setDaysTouched(true)
     setState((s) => ({
       ...s,
       days: s.days.includes(wd)
         ? s.days.filter((d) => d !== wd)
         : [...s.days, wd].sort((a, b) => a - b)
     }))
+  }
 
   const nameValid = state.name.trim().length > 0
   const colorValid = isHex(state.color)
@@ -113,6 +112,8 @@ export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.
   const daysValid = state.frequencyType !== 'specific_days' || state.days.length >= 1
   const canSubmit =
     nameValid && colorValid && weeklyValid && daysValid && !create.isPending && !update.isPending
+  const showNameError = nameTouched && !nameValid
+  const showDaysError = daysTouched && !daysValid
 
   const buildInput = (): CreateHabitInput => {
     const base = { name: state.name.trim(), color: state.color, icon: state.icon }
@@ -123,12 +124,16 @@ export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.
   }
 
   const submit = async (): Promise<void> => {
-    if (!canSubmit) return
+    if (!canSubmit) {
+      setNameTouched(true)
+      setDaysTouched(true)
+      return
+    }
     try {
       if (habit) {
-        // `icon: null` clears the icon on update; `undefined` would leave the stored value untouched.
-        const patch: UpdateHabitInput = { ...buildInput(), icon: state.icon ?? null }
-        await update.mutateAsync({ id: habit.id, patch })
+        // The stored icon and colour travel unchanged; `icon: null` (clear) is never sent.
+        const input: UpdateHabitInput = buildInput()
+        await update.mutateAsync({ id: habit.id, patch: input })
       } else {
         await create.mutateAsync(buildInput())
       }
@@ -141,86 +146,43 @@ export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle>{habit ? 'Edit habit' : 'Create habit'}</DialogTitle>
-          <DialogDescription>
-            Habits are intentionally simple — a name, a colour, and how often you aim to do it.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent size="md" aria-describedby={undefined}>
+        <form
+          className="flex flex-col gap-8"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{habit ? 'Edit habit' : 'Create habit'}</DialogTitle>
+          </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="habit-name">Name</Label>
             <Input
               id="habit-name"
               value={state.name}
               onChange={(e) => patch({ name: e.target.value })}
+              onBlur={() => {
+                // A field that was never typed in stays pristine on blur; Enter still reports it.
+                if (state.name.length > 0) setNameTouched(true)
+              }}
               placeholder="e.g. Exercise, Reading, Deep Work"
               autoComplete="off"
-              aria-invalid={!nameValid}
+              aria-invalid={showNameError || undefined}
+              aria-describedby={showNameError ? 'habit-name-error' : undefined}
             />
-            {!nameValid && state.name.length > 0 && (
-              <p className="text-xs text-destructive">Name is required.</p>
+            {showNameError && (
+              <p id="habit-name-error" className="flex items-center gap-1.5 text-meta text-signal">
+                <CircleAlert className="size-3.5" aria-hidden="true" />
+                Name is required.
+              </p>
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>Colour</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              {COLOR_PRESETS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={`Colour ${c}`}
-                  aria-pressed={state.color === c}
-                  onClick={() => patch({ color: c })}
-                  className={cn(
-                    'size-6 rounded-full border-2 transition-transform',
-                    state.color === c
-                      ? 'border-foreground ring-2 ring-ring ring-offset-1'
-                      : 'border-transparent'
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Input
-                  type="color"
-                  value={isHex(state.color) ? state.color : '#3b82f6'}
-                  onChange={(e) => patch({ color: e.target.value })}
-                  className="size-7 w-auto p-0"
-                  aria-label="Custom colour"
-                />
-                Custom
-              </label>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Icon (optional)</Label>
-            <div className="flex flex-wrap gap-2">
-              {HABIT_ICON_ENTRIES.map(({ value, Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-label={value}
-                  aria-pressed={state.icon === value}
-                  onClick={() => patch({ icon: state.icon === value ? undefined : value })}
-                  className={cn(
-                    'flex size-9 items-center justify-center rounded-md border transition-colors',
-                    state.icon === value
-                      ? 'border-foreground bg-accent text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-accent'
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label>Frequency</Label>
             <SegmentedControl
               aria-label="Frequency"
@@ -232,9 +194,12 @@ export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.
                 { value: 'specific_days', label: 'Specific days' }
               ]}
             />
+          </div>
+
+          <div className="flex flex-col">
             {state.frequencyType === 'weekly' && (
-              <div className="flex items-center gap-2 pt-1">
-                <Label htmlFor="habit-target" className="shrink-0">
+              <div className={propertyRowClass}>
+                <Label htmlFor="habit-target" variant="inline">
                   Times per week
                 </Label>
                 <Input
@@ -244,51 +209,91 @@ export function HabitForm({ open, onOpenChange, habit }: HabitFormProps): React.
                   max={7}
                   value={state.targetCount}
                   onChange={(e) => patch({ targetCount: Number(e.target.value) || 0 })}
-                  className="w-20"
-                  aria-invalid={!weeklyValid}
+                  className="w-16 text-right"
+                  aria-invalid={!weeklyValid || undefined}
                 />
-                <span className="text-xs text-muted-foreground">1–7</span>
               </div>
             )}
+
             {state.frequencyType === 'specific_days' && (
-              <div className="flex flex-wrap gap-1.5 pt-1" role="group" aria-label="Weekdays">
-                {orderedWeekdays().map((wd) => {
-                  const active = state.days.includes(wd)
-                  return (
-                    <button
-                      key={wd}
-                      type="button"
-                      aria-pressed={active}
-                      aria-label={WD_SHORT[wd]}
-                      onClick={() => toggleDay(wd)}
-                      className={cn(
-                        'h-9 min-w-9 rounded-md border px-2 text-xs font-medium transition-colors',
-                        active
-                          ? 'border-foreground bg-accent text-foreground'
-                          : 'border-border text-muted-foreground hover:bg-accent'
-                      )}
-                    >
-                      {WD_SHORT[wd]}
-                    </button>
-                  )
-                })}
-                {!daysValid && (
-                  <p className="w-full text-xs text-destructive">Pick at least one day.</p>
+              <div className="flex flex-col gap-3 border-b border-line py-3">
+                <span className="text-body text-ink">Weekdays</span>
+                <div className="flex flex-wrap gap-1" role="group" aria-label="Weekdays">
+                  {orderedWeekdays().map((wd) => {
+                    const active = state.days.includes(wd)
+                    return (
+                      <button
+                        key={wd}
+                        type="button"
+                        aria-pressed={active}
+                        aria-label={WD_SHORT[wd]}
+                        onClick={() => toggleDay(wd)}
+                        className={cn(
+                          'h-9 min-w-11 rounded-sm px-2 text-body transition-colors duration-100',
+                          active ? 'bg-track text-ink' : 'text-ink-3 hover:bg-hover hover:text-ink'
+                        )}
+                      >
+                        {WD_SHORT[wd]}
+                      </button>
+                    )
+                  })}
+                </div>
+                {showDaysError && (
+                  <p className="flex items-center gap-1.5 text-meta text-signal">
+                    <CircleAlert className="size-3.5" aria-hidden="true" />
+                    Pick at least one day.
+                  </p>
                 )}
               </div>
             )}
-          </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={!canSubmit}>
-            <Check aria-hidden="true" />
-            {habit ? 'Save changes' : 'Create habit'}
-          </Button>
-        </DialogFooter>
+            <Popover open={colorOpen} onOpenChange={setColorOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Colour"
+                  className={cn(propertyRowClass, 'w-full text-left hover:bg-hover')}
+                >
+                  Colour
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="size-1.5 rounded-full"
+                      style={{ backgroundColor: userColor(state.color) }}
+                      aria-hidden="true"
+                    />
+                    <ChevronDown className="size-4 text-ink-3" aria-hidden="true" />
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-3">
+                <ColourSwatchPicker
+                  value={state.color}
+                  onChange={(color) => patch({ color })}
+                  label="Colour presets"
+                />
+                <label className="link-quiet mt-2 inline-flex text-meta has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
+                  Custom colour…
+                  <input
+                    type="color"
+                    value={toLongHex(isHex(state.color) ? state.color : COLOUR_SWATCHES[0])}
+                    onChange={(e) => patch({ color: e.target.value })}
+                    className="sr-only"
+                    aria-label="Custom colour"
+                  />
+                </label>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
+              {habit ? 'Save changes' : 'Create habit'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

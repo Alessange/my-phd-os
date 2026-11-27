@@ -11,24 +11,31 @@ export function SelectTrigger({
   className,
   children,
   size = 'md',
+  variant = 'field',
   ...props
-}: ComponentProps<typeof SelectPrimitive.Trigger> & { size?: 'sm' | 'md' }): React.JSX.Element {
+}: ComponentProps<typeof SelectPrimitive.Trigger> & {
+  size?: 'sm' | 'md'
+  /** `field` (default): underline field with a chevron. `bare`: text and chevron for toolbars (`Filters v`). */
+  variant?: 'field' | 'bare'
+}): React.JSX.Element {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        'flex w-fit items-center justify-between gap-2 rounded-md border border-input bg-card px-2.5 py-1 text-[13px] whitespace-nowrap shadow-xs transition-colors outline-none',
-        'data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40',
-        'disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive',
-        '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="text-"])]:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2',
-        size === 'sm' ? 'h-7 text-xs' : 'h-8',
+        'flex w-fit items-center justify-between gap-2 px-0 py-1 text-sm whitespace-nowrap text-foreground',
+        'data-[placeholder]:text-ink-3 disabled:cursor-not-allowed disabled:opacity-50',
+        '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="text-"])]:text-ink-3 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2',
+        variant === 'field'
+          ? 'field outline-none'
+          : 'rounded-sm bg-transparent px-1 hover:bg-hover',
+        size === 'sm' ? 'h-8' : 'h-9',
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="size-4 opacity-60" />
+        <ChevronDown className="size-4" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -45,8 +52,8 @@ export function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          'relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-x-hidden overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md',
-          'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'floating relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-x-hidden overflow-y-auto',
+          'duration-150 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
           className
@@ -81,7 +88,7 @@ export function SelectLabel({
   return (
     <SelectPrimitive.Label
       data-slot="select-label"
-      className={cn('px-2 py-1.5 text-xs font-medium text-muted-foreground', className)}
+      className={cn('px-2 py-1.5 text-xs text-ink-3', className)}
       {...props}
     />
   )
@@ -96,8 +103,8 @@ export function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-[13px] outline-hidden select-none',
-        'focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'relative flex h-9 w-full cursor-default items-center gap-2 rounded-sm pr-8 pl-2 text-sm outline-hidden select-none',
+        'focus:bg-selected data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2',
         className
       )}
@@ -120,7 +127,7 @@ export function SelectSeparator({
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn('pointer-events-none -mx-1 my-1 h-px bg-border', className)}
+      className={cn('pointer-events-none -mx-1 my-1 h-px bg-line', className)}
       {...props}
     />
   )

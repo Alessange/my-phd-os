@@ -1,4 +1,4 @@
-import { GraduationCap, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { PAGES, useNavigation } from '@renderer/app/navigation'
 import { useShell } from '@renderer/app/shell'
 import { KeyboardHint } from '@renderer/components/common/KeyboardHint'
@@ -9,6 +9,17 @@ import { formatShortcutLabel } from '@renderer/lib/shortcutLabel'
 import { cn } from '@renderer/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 
+/**
+ * The quiet list: five items on the paper ground, 216 px wide (64 collapsed), a hairline on the
+ * right and nothing else. No brand tile, no wordmark, no coloured icon.
+ *
+ * Contract (e2e): `nav[aria-label="Primary"]` holds exactly five buttons in page order, the label is
+ * the FIRST `<span>` of each button, the active one has `aria-current="page"`.
+ *
+ * macOS: the native traffic lights occupy x 16-68, y 18-30, so the top 48 px of the rail is an empty
+ * drag region. When collapsed the lights overhang the 64 px rail; the top strip starts its content
+ * further right (TopBar).
+ */
 export function Sidebar(): React.JSX.Element {
   const page = useNavigation((state) => state.page)
   const navigate = useNavigation((state) => state.navigate)
@@ -20,35 +31,13 @@ export function Sidebar(): React.JSX.Element {
     <aside
       data-collapsed={collapsed}
       className={cn(
-        'flex h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200',
-        collapsed ? 'w-14' : 'w-56'
+        'flex h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground',
+        collapsed ? 'w-16' : 'w-[216px]'
       )}
     >
-      {/*
-        Brand row doubles as the window drag region. On macOS the native traffic lights sit in this
-        row (trafficLightPosition x 16 / y 18 → they span x 16–68, y 18–30), so the brand is pushed
-        right of them when expanded and hidden when collapsed (the 56 px rail cannot fit both).
-      */}
-      <div
-        className={cn(
-          'app-drag flex h-12 shrink-0 items-center gap-2',
-          collapsed ? 'justify-center px-0' : isMac ? 'pl-[84px] pr-3' : 'px-3'
-        )}
-      >
-        {!(isMac && collapsed) && (
-          <span
-            aria-hidden="true"
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs"
-          >
-            <GraduationCap className="size-4" />
-          </span>
-        )}
-        {!collapsed && (
-          <span className="truncate text-[13px] font-semibold tracking-tight">My PhD OS</span>
-        )}
-      </div>
+      <div aria-hidden="true" className="app-drag h-12 shrink-0" />
 
-      <nav aria-label="Primary" className="flex-1 px-2 pt-1">
+      <nav aria-label="Primary" className={cn('flex-1 pt-4', collapsed ? 'px-0' : 'pr-3')}>
         <ul className="flex flex-col gap-0.5">
           {PAGES.map((entry) => {
             const active = entry.id === page
@@ -60,25 +49,24 @@ export function Sidebar(): React.JSX.Element {
                 aria-label={collapsed ? entry.label : undefined}
                 onClick={() => navigate(entry.id)}
                 className={cn(
-                  'group flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[13px] font-medium transition-colors outline-none',
-                  'hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring',
-                  active ? 'bg-card text-foreground shadow-xs' : 'text-sidebar-foreground/85',
-                  collapsed && 'justify-center px-0'
+                  // Inset focus ring: the item sits flush with the window edge, so an outside ring would be clipped on the left.
+                  'group relative flex h-9 w-full items-center gap-3 rounded-r-sm text-sm transition-colors duration-100 focus-visible:outline-offset-[-2px]',
+                  collapsed ? 'justify-center' : 'pr-3 pl-7',
+                  active
+                    ? 'bg-wash text-ink before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-ink'
+                    : 'text-ink-2 hover:bg-hover hover:text-ink'
                 )}
               >
                 <entry.icon
                   aria-hidden="true"
-                  className={cn(
-                    'size-4 shrink-0',
-                    active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                  )}
+                  className={cn('size-4 shrink-0', active ? 'text-ink' : 'text-ink-3')}
                 />
                 {!collapsed && (
                   <>
                     <span className="truncate">{entry.label}</span>
                     <KeyboardHint
                       shortcut={shortcut}
-                      className="ml-auto opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                      className="ml-auto opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100"
                     />
                   </>
                 )}
@@ -91,7 +79,7 @@ export function Sidebar(): React.JSX.Element {
                     <TooltipTrigger asChild>{button}</TooltipTrigger>
                     <TooltipContent side="right">
                       {entry.label}
-                      <span className="ml-2 opacity-70">
+                      <span className="ml-2 text-ink-3">
                         {formatShortcutLabel(shortcut, isMac)}
                       </span>
                     </TooltipContent>
@@ -105,28 +93,27 @@ export function Sidebar(): React.JSX.Element {
         </ul>
       </nav>
 
-      <div className={cn('flex flex-col gap-2 p-2', collapsed ? 'items-center' : 'items-stretch')}>
-        <ThemeToggle
-          compact={collapsed}
-          iconsOnly
-          className={collapsed ? undefined : 'w-full [&>button]:flex-1'}
-        />
+      <div
+        className={cn(
+          'flex shrink-0 gap-1 pb-4',
+          collapsed ? 'flex-col items-center' : 'flex-row items-center pl-5'
+        )}
+      >
+        <ThemeToggle variant="menu" />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size={collapsed ? 'icon' : 'sm'}
+              size="icon"
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-expanded={!collapsed}
               onClick={toggleSidebar}
-              className={cn(!collapsed && 'justify-start text-muted-foreground')}
             >
               {collapsed ? (
                 <PanelLeftOpen aria-hidden="true" />
               ) : (
                 <PanelLeftClose aria-hidden="true" />
               )}
-              {!collapsed && 'Collapse'}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">

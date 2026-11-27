@@ -1,4 +1,4 @@
-import { Check, ShieldAlert } from 'lucide-react'
+import { CircleAlert, ShieldAlert } from 'lucide-react'
 import { useState } from 'react'
 import {
   CCF_RANK_OPTIONS,
@@ -74,6 +74,7 @@ export function SubscriptionBuilder({
   const [label, setLabel] = useState('')
   const [customUrl, setCustomUrl] = useState('')
   const [trusted, setTrusted] = useState(false)
+  const [urlTouched, setUrlTouched] = useState(false)
   const [prevOpen, setPrevOpen] = useState(open)
   const [prevMode, setPrevMode] = useState(initialMode)
   if (open !== prevOpen || initialMode !== prevMode) {
@@ -86,6 +87,7 @@ export function SubscriptionBuilder({
       setLabel('')
       setCustomUrl('')
       setTrusted(false)
+      setUrlTouched(false)
     }
   }
 
@@ -124,6 +126,8 @@ export function SubscriptionBuilder({
       [key]: value === ANY ? undefined : (value as SubscriptionFilters[K])
     }))
 
+  const urlError = urlTouched && customUrl.length > 0 && !urlValid
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
@@ -135,7 +139,7 @@ export function SubscriptionBuilder({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
+        <div className="flex flex-col gap-6">
           <SegmentedControl
             aria-label="Subscription type"
             value={mode}
@@ -148,7 +152,7 @@ export function SubscriptionBuilder({
 
           {mode === 'official' ? (
             <>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <Label>Language</Label>
                 <SegmentedControl
                   aria-label="Feed language"
@@ -163,11 +167,15 @@ export function SubscriptionBuilder({
                   }))}
                 />
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="builder-ccf">CCF rank</Label>
+              <div className="flex flex-col border-t border-line">
+                <PropertyRow label="CCF rank" htmlFor="builder-ccf">
                   <Select value={filters.ccf ?? ANY} onValueChange={(v) => setFilter('ccf', v)}>
-                    <SelectTrigger id="builder-ccf" aria-label="CCF rank">
+                    <SelectTrigger
+                      id="builder-ccf"
+                      aria-label="CCF rank"
+                      variant="bare"
+                      className="max-w-full"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -179,11 +187,15 @@ export function SubscriptionBuilder({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="builder-core">CORE rank</Label>
+                </PropertyRow>
+                <PropertyRow label="CORE rank" htmlFor="builder-core">
                   <Select value={filters.core ?? ANY} onValueChange={(v) => setFilter('core', v)}>
-                    <SelectTrigger id="builder-core" aria-label="CORE rank">
+                    <SelectTrigger
+                      id="builder-core"
+                      aria-label="CORE rank"
+                      variant="bare"
+                      className="max-w-full"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -195,11 +207,15 @@ export function SubscriptionBuilder({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="builder-thcpl">TH-CPL rank</Label>
+                </PropertyRow>
+                <PropertyRow label="TH-CPL rank" htmlFor="builder-thcpl">
                   <Select value={filters.thcpl ?? ANY} onValueChange={(v) => setFilter('thcpl', v)}>
-                    <SelectTrigger id="builder-thcpl" aria-label="TH-CPL rank">
+                    <SelectTrigger
+                      id="builder-thcpl"
+                      aria-label="TH-CPL rank"
+                      variant="bare"
+                      className="max-w-full"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -211,14 +227,18 @@ export function SubscriptionBuilder({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="builder-subject">Subject</Label>
+                </PropertyRow>
+                <PropertyRow label="Subject" htmlFor="builder-subject">
                   <Select
                     value={filters.subject ?? ANY}
                     onValueChange={(v) => setFilter('subject', v)}
                   >
-                    <SelectTrigger id="builder-subject" aria-label="Subject">
+                    <SelectTrigger
+                      id="builder-subject"
+                      aria-label="Subject"
+                      variant="bare"
+                      className="max-w-full"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -230,30 +250,23 @@ export function SubscriptionBuilder({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </PropertyRow>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Generated URL</Label>
+              <div className="flex flex-col gap-0.5 text-meta text-ink-3">
+                <span>Generated URL</span>
                 <code
-                  className="block truncate rounded-md border bg-muted/60 px-3 py-2 text-xs"
+                  className="block truncate font-[inherit] text-ink-2"
                   data-testid="builder-url"
-                  title={officialUrl}
+                  title={`${officialUrl}\nFilters follow the official order CCF, CORE, TH-CPL, subject; A* is written Astar.`}
                 >
                   {officialUrl}
                 </code>
-                <p className="text-[11px] text-muted-foreground">
-                  File:{' '}
-                  <span className="font-mono">
-                    {buildSubscriptionFileName({ language, filters })}
-                  </span>{' '}
-                  · filters follow the official order CCF, CORE, TH-CPL, subject; A* is written
-                  Astar.
-                </p>
+                <span>File: {buildSubscriptionFileName({ language, filters })}</span>
               </div>
             </>
           ) : (
             <>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <Label htmlFor="builder-custom-url">Subscription URL</Label>
                 <Input
                   id="builder-custom-url"
@@ -263,29 +276,38 @@ export function SubscriptionBuilder({
                   value={customUrl}
                   onChange={(e) => {
                     setCustomUrl(e.target.value)
+                    setUrlTouched(false)
                     setTrusted(false)
                   }}
-                  aria-invalid={customUrl.length > 0 && !urlValid}
+                  onBlur={() => setUrlTouched(true)}
+                  aria-invalid={urlError ? true : undefined}
+                  aria-describedby={urlError ? 'builder-url-error' : undefined}
                 />
-                {customUrl.length > 0 && !urlValid && (
-                  <p className="text-xs text-destructive">Enter an https URL.</p>
+                {urlError && (
+                  <p
+                    id="builder-url-error"
+                    className="flex items-center gap-1.5 text-meta text-signal"
+                  >
+                    <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+                    Enter an https URL.
+                  </p>
                 )}
               </div>
               {urlValid && !approved && (
                 <div
-                  className="flex flex-col gap-2 rounded-md border border-status-at-risk/40 bg-status-at-risk/6 p-3 text-xs"
+                  className="flex flex-col gap-3 border-l-[1.5px] border-ink pl-4 text-meta text-ink-2"
                   role="alert"
                 >
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <ShieldAlert className="size-4 text-status-at-risk" aria-hidden="true" />
+                  <div className="flex items-center gap-1.5 text-body text-ink">
+                    <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
                     Not an official CCF Deadlines source
                   </div>
-                  <p className="text-muted-foreground">
+                  <p>
                     Official feeds come from {APPROVED_SUBSCRIPTION_HOSTS.join(', ')}. This URL will
                     be fetched from its own host and its .ics parsed like the official feed. Only
                     add sources you trust.
                   </p>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-body text-ink">
                     <Checkbox
                       checked={trusted}
                       onCheckedChange={(checked) => setTrusted(checked === true)}
@@ -298,7 +320,7 @@ export function SubscriptionBuilder({
             </>
           )}
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="builder-label">Label (optional)</Label>
             <Input
               id="builder-label"
@@ -310,15 +332,34 @@ export function SubscriptionBuilder({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={!canAdd}>
-            <Check aria-hidden="true" />
             Add subscription
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** A quiet property row: label left, bare select right, hairline between rows (DESIGN.md 8.7). */
+function PropertyRow({
+  label,
+  htmlFor,
+  children
+}: {
+  label: string
+  htmlFor: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="flex min-h-12 items-center justify-between gap-6 border-b border-line">
+      <Label htmlFor={htmlFor} variant="inline">
+        {label}
+      </Label>
+      <div className="flex min-w-0 justify-end">{children}</div>
+    </div>
   )
 }

@@ -1,4 +1,3 @@
-import { CalendarClock, Timer } from 'lucide-react'
 import { useCallback } from 'react'
 import { DEADLINES_TABS, type DeadlinesTab } from '@shared/types/settings'
 import { dispatchCommand } from '@renderer/app/commandBus'
@@ -8,6 +7,7 @@ import {
   notifyNothingToCreate,
   useRegisterQuickCreate
 } from '@renderer/app/quickCreate'
+import { Page } from '@renderer/components/common/Page'
 import { PageHeader } from '@renderer/components/common/PageHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { ConferenceDeadlinesTab } from '@renderer/features/conference-deadlines/components/ConferenceDeadlinesTab'
@@ -19,7 +19,7 @@ const isDeadlinesTab = (value: unknown): value is DeadlinesTab =>
   typeof value === 'string' && (DEADLINES_TABS as readonly string[]).includes(value)
 
 /**
- * Deadlines: summary slot + the two tabs. The active tab is persisted in `ui.deadlinesTab`; deep
+ * Deadlines: one `h1`, the two tabs on its baseline, the Personal lead sentence under it. The active tab is persisted in `ui.deadlinesTab`; deep
  * links pass `{ tab }`. Quick-create (`mod+N`, top bar, menu) is forwarded to the active tab's
  * feature through `DEADLINES_QUICK_CREATE`.
  */
@@ -42,20 +42,22 @@ export default function DeadlinesPage(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <PageHeader title="Deadlines" />
-      <DeadlineSummary />
-      <Tabs value={tab} onValueChange={onTabChange}>
-        <TabsList aria-label="Deadline type">
-          <TabsTrigger value="conference">
-            <CalendarClock aria-hidden="true" />
-            Conference Deadlines
-          </TabsTrigger>
-          <TabsTrigger value="personal">
-            <Timer aria-hidden="true" />
-            Personal Deadlines
-          </TabsTrigger>
-        </TabsList>
+    <Page>
+      <Tabs value={tab} onValueChange={onTabChange} className="gap-6">
+        <PageHeader
+          title="Deadlines"
+          actions={
+            <TabsList aria-label="Deadline type">
+              <TabsTrigger value="conference" aria-label="Conference Deadlines">
+                Conference
+              </TabsTrigger>
+              <TabsTrigger value="personal" aria-label="Personal Deadlines">
+                Personal
+              </TabsTrigger>
+            </TabsList>
+          }
+          subtitle={tab === 'personal' ? <DeadlineSummary /> : undefined}
+        />
         <TabsContent value="conference">
           <ConferenceDeadlinesTab />
         </TabsContent>
@@ -63,6 +65,6 @@ export default function DeadlinesPage(): React.JSX.Element {
           <PersonalDeadlinesTab />
         </TabsContent>
       </Tabs>
-    </div>
+    </Page>
   )
 }

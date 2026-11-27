@@ -170,7 +170,7 @@ describe('ConferenceDeadlinesTab', () => {
     windowApi.respond('conferences:listDeadlines', [])
     renderWithProviders(<ConferenceDeadlinesTab />)
     expect(await screen.findByText('No conference subscription yet.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Enter Subscription URL' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enter subscription URL' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Add conference' }))
     const dialog = await screen.findByRole('dialog')
@@ -188,7 +188,7 @@ describe('ConferenceDeadlinesTab', () => {
     )
   })
 
-  it('shows chosen conferences as bars with a big countdown, hides passed ones, never fakes TBD', async () => {
+  it('shows chosen conferences as rows with a countdown, hides passed ones, never fakes TBD', async () => {
     renderWithProviders(<ConferenceDeadlinesTab />)
     const neurips = await screen.findByRole('button', { name: 'NeurIPS 2027' })
     expect(screen.getByTestId('board-summary')).toHaveTextContent(
@@ -204,7 +204,8 @@ describe('ConferenceDeadlinesTab', () => {
 
     const icml = screen.getByRole('button', { name: 'ICML 2027' })
     expect(within(icml).getByText('TBD')).toBeInTheDocument()
-    expect(within(icml).getByRole('progressbar')).not.toHaveAttribute('aria-valuenow')
+    // No announced date: no countdown figure and no fabricated bar.
+    expect(within(icml).queryByRole('progressbar')).not.toBeInTheDocument()
 
     expect(screen.queryByRole('button', { name: 'ICSE 2027' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('switch', { name: 'Show passed' }))
@@ -264,7 +265,13 @@ describe('ConferenceDeadlinesTab', () => {
     expect(
       within(neurips).getByRole('img', { name: 'Updated from CCF Deadlines' })
     ).toBeInTheDocument()
-    await user.click(within(banner).getByRole('button', { name: 'Acknowledge all' }))
+    // A single update has one acknowledge link; `Acknowledge all` appears beside several.
+    expect(
+      within(banner).queryByRole('button', { name: 'Acknowledge all' })
+    ).not.toBeInTheDocument()
+    await user.click(
+      within(banner).getByRole('button', { name: 'Acknowledge update to NeurIPS 2027' })
+    )
     await waitFor(() =>
       expect(windowApi.invoke).toHaveBeenCalledWith('conferences:acknowledgeChanges', {
         ids: ['ch1']
@@ -283,12 +290,11 @@ describe('ConferenceDeadlinesTab', () => {
     expect(within(sheet).getByRole('heading', { name: 'SIGGRAPH 2027' })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Follow' })).toBeInTheDocument()
   })
-  it('gives every row its own colour and a bar that actually advances', async () => {
+  it('keeps a bar that actually advances and prints how far along it is', async () => {
     // Regressions guarded here: the bar once measured time elapsed since following, so a
-    // conference added today rendered a 0%-wide fill on a grey track and looked broken; and the
-    // colour came only from urgency, so everything past thirty days was the same blue. A later
-    // version scaled every bar against the furthest deadline, which left that conference pinned
-    // at 100% for ever and the rest moving too slowly to see.
+    // conference added today rendered a 0%-wide fill and looked broken. A later version scaled
+    // every bar against the furthest deadline, which left that conference pinned at 100% for ever
+    // and the rest moving too slowly to see. Rows are told apart by name and position, not hue.
     const justAdded = view({
       id: 'c5',
       title: 'CHI 2027',
@@ -305,15 +311,10 @@ describe('ConferenceDeadlinesTab', () => {
     const chi = screen.getByRole('button', { name: 'CHI 2027' })
     const icml = screen.getByRole('button', { name: 'ICML 2027' })
 
-    const colours = [neurips, chi, icml].map((row) => row.getAttribute('data-color'))
-    expect(new Set(colours).size).toBe(3)
-    for (const c of colours) expect(c).toMatch(/^conference-([1-9]|10)$/)
-
-    // Added moments ago: nothing has elapsed yet, but the track still carries its own colour
-    // rather than rendering as an empty grey box.
+    // Added moments ago: nothing has elapsed yet, and the row says so in words.
     const chiBar = within(chi).getByRole('progressbar')
     expect(Number(chiBar.getAttribute('aria-valuenow'))).toBe(0)
-    expect(chiBar.className).toContain('bg-(--chip)/15')
+    expect(within(chi).getByText('0% of the way there')).toBeInTheDocument()
 
     // Followed five days ago with thirty days to run: about a seventh of the way along, and
     // crucially neither pinned at nought nor at full.
@@ -325,7 +326,7 @@ describe('ConferenceDeadlinesTab', () => {
     expect(within(neurips).getByText(`${neuripsValue}% of the way there`)).toBeInTheDocument()
 
     // No announced date means nothing to measure, rather than a fabricated bar.
-    expect(within(icml).getByRole('progressbar')).not.toHaveAttribute('aria-valuenow')
+    expect(within(icml).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(within(icml).getByText('Waiting for a date')).toBeInTheDocument()
   })
 })

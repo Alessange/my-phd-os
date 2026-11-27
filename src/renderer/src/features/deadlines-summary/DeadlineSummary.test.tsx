@@ -30,7 +30,7 @@ describe('DeadlineSummary', () => {
     windowApi.respond('conferences:listFollowed', [])
   })
 
-  it('renders nothing on a fresh install instead of zero-valued cards', async () => {
+  it('renders nothing on a fresh install instead of a row of zeros', async () => {
     windowApi.respond('personalDeadlines:list', [])
     const { container } = renderWithProviders(<DeadlineSummary />)
     // Wait for both queries to settle, then assert the section never appeared.
@@ -38,7 +38,7 @@ describe('DeadlineSummary', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows personal counts, the nearest deadline and the conference figure separately', async () => {
+  it('reads as one sentence with the personal counts and the nearest deadline', async () => {
     windowApi.respond('personalDeadlines:list', [
       deadline({ id: 'd1', title: 'Paper draft' }),
       deadline({ id: 'd2', title: 'Grant report', status: 'completed', progress: 100 })
@@ -50,9 +50,11 @@ describe('DeadlineSummary', () => {
     expect(value('Active')).toBe('1')
     expect(value('At risk')).toBe('1')
     expect(value('Completed')).toBe('1')
-    expect(value('Followed conferences')).toBe('0')
+    expect(value('Due this week')).toBe('0')
+    expect(section.querySelectorAll('p')).toHaveLength(1)
+    expect(section).toHaveTextContent(
+      '1 active · 0 due this week · 1 at risk · 1 completed · Next:'
+    )
     expect(screen.getByRole('button', { name: /Paper draft/ })).toBeInTheDocument()
-    expect(screen.getAllByText('Personal').length).toBeGreaterThan(0)
-    expect(screen.getByText('Conferences')).toBeInTheDocument()
   })
 })

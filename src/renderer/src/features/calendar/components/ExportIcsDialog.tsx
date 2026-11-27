@@ -1,4 +1,3 @@
-import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { addDays, isAllDayDate, todayInZone } from '@shared/dates'
 import type { CalendarSource, IcsExportScope } from '@shared/types/calendar'
@@ -56,7 +55,7 @@ export function ExportIcsDialog({
         ? sourceId
           ? { type: 'source', sourceId }
           : undefined
-        : isAllDayDate(start) && isAllDayDate(end) && start < end
+        : isAllDayDate(start) && isAllDayDate(end) && start <= end
           ? { type: 'range', start, end: addDays(end, 1) }
           : undefined
 
@@ -88,7 +87,7 @@ export function ExportIcsDialog({
             preserved.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3 py-2">
+        <div className="flex flex-col gap-4">
           <SegmentedControl
             aria-label="Export scope"
             value={kind}
@@ -131,18 +130,17 @@ export function ExportIcsDialog({
                   type="date"
                   value={end}
                   onChange={(e) => setEnd(e.target.value)}
-                  aria-invalid={!(start < end)}
+                  aria-invalid={!(start <= end) ? true : undefined}
                 />
               </div>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={run} disabled={!scope || exportIcs.isPending}>
-            <Download aria-hidden="true" />
             Export…
           </Button>
         </DialogFooter>

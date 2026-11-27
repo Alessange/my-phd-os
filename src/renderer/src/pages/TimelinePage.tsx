@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, Route } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
 import {
@@ -9,11 +9,13 @@ import type { ConferenceDeadlineView } from '@shared/types/conference'
 import type { Milestone } from '@shared/types/milestone'
 import type { PersonalDeadline } from '@shared/types/personalDeadline'
 import type { TimelineView } from '@shared/types/settings'
-import { useNavigation } from '@renderer/app/navigation'
+import { CREATE_LABELS, useNavigation } from '@renderer/app/navigation'
 import { useRegisterQuickCreate } from '@renderer/app/quickCreate'
 import { EmptyState } from '@renderer/components/common/EmptyState'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
+import { Page } from '@renderer/components/common/Page'
+import { PageAction } from '@renderer/components/common/PageAction'
 import { PageHeader } from '@renderer/components/common/PageHeader'
 import { Button } from '@renderer/components/ui/button'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
@@ -32,7 +34,9 @@ import { TimelineWarnings } from '@renderer/features/timeline/components/Timelin
 import { computeTimelineWindow } from '@renderer/features/timeline/layout'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
+import { usePlatform } from '@renderer/hooks/usePlatform'
 import { useSettings } from '@renderer/hooks/useSettings'
+import { formatShortcutLabel } from '@renderer/lib/shortcutLabel'
 
 const VIEW_OPTIONS: readonly { value: TimelineView; label: string }[] = [
   { value: 'semester', label: 'Semester' },
@@ -54,6 +58,7 @@ const NO_CONFERENCES: ConferenceDeadlineView[] = []
 export default function TimelinePage(): React.JSX.Element {
   const { ui, updateUi, settings } = useSettings()
   const { formatDate } = useFormat()
+  const { isMac } = usePlatform()
   const nowIso = useNow({ precision: 'minute' })
   const params = useNavigation((state) => state.params)
   const navigate = useNavigation((state) => state.navigate)
@@ -121,8 +126,12 @@ export default function TimelinePage(): React.JSX.Element {
   }
 
   const warnings = useMemo(
-    () => detectTimelineWarnings(milestones, deadlines, nowIso, settings.weekStartsOn),
-    [milestones, deadlines, nowIso, settings.weekStartsOn]
+    () =>
+      detectTimelineWarnings(milestones, deadlines, nowIso, settings.weekStartsOn, {
+        instant: (iso) => formatDate(iso),
+        dateKey: (key) => formatDate(key)
+      }),
+    [milestones, deadlines, nowIso, settings.weekStartsOn, formatDate]
   )
   const dismissedKeys = useMemo(
     () => new Set((dismissedQuery.data ?? []).map((d) => d.key)),
@@ -153,6 +162,43 @@ export default function TimelinePage(): React.JSX.Element {
     )
   }
 
+  const rangeToolbar = window ? (
+    <>
+      <span className="tabular text-body text-ink">{rangeLabel}</span>
+      {view !== 'multiYear' && (
+        <span className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label="Previous range"
+            onClick={() => setOffset((o) => o - 1)}
+          >
+            <ChevronLeft aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label="Next range"
+            onClick={() => setOffset((o) => o + 1)}
+          >
+            <ChevronRight aria-hidden="true" />
+          </Button>
+          {offset !== 0 && (
+            <button
+              type="button"
+              className="link-quiet ml-2 text-meta"
+              onClick={() => setOffset(0)}
+            >
+              Today
+            </button>
+          )}
+        </span>
+      )}
+    </>
+  ) : null
+
   let body: React.ReactNode
   if (milestonesQuery.isPending) {
     body = <LoadingState label="Loading timeline…" />
@@ -166,14 +212,12 @@ export default function TimelinePage(): React.JSX.Element {
     )
   } else if (milestones.length === 0) {
     body = (
-      <div className="flex flex-1 items-center justify-center">
-        <EmptyState
-          icon={Route}
-          title={EMPTY_STATES.timeline.title}
-          description="Add a milestone with a start and target date to see where you are in the semester, the year, and the whole programme."
-          actions={[{ label: EMPTY_STATES.timeline.actions[0], onClick: openCreate, icon: Plus }]}
-        />
-      </div>
+      // The strip carries the one primary; the empty state's own action is a text link.
+      <EmptyState
+        title={EMPTY_STATES.timeline.title}
+        description="Add a milestone with a start and target date to see where you are in the semester, the year, and the whole programme."
+        actions={[{ label: EMPTY_STATES.timeline.actions[0], onClick: openCreate }]}
+      />
     )
   } else {
     body = (
@@ -202,11 +246,19 @@ export default function TimelinePage(): React.JSX.Element {
             onRetry={() => void dismissedQuery.refetch()}
           />
         )}
-        {!dismissedQuery.isPending && (
+        {dismissedQuery.isPending ? (
+          // Reserve the height of the checks line so the chart does not jump when it resolves.
+          <div aria-hidden="true" className="h-9" />
+        ) : (
           <TimelineWarnings
             warnings={openWarnings}
             dismissed={dismissedWarnings}
+            milestones={milestones}
             onOpen={openWarning}
+            onOpenMilestone={(id) => {
+              const target = milestones.find((m) => m.id === id)
+              if (target) openEdit(target)
+            }}
             onDismiss={(w) =>
               dismiss.mutate({
                 key: w.id,
@@ -227,6 +279,8 @@ export default function TimelinePage(): React.JSX.Element {
               nowIso={nowIso}
               view={view}
               window={window}
+              toolbar={rangeToolbar}
+              onShowMultiYear={() => changeView('multiYear')}
               onEditMilestone={openEdit}
               onOpenConference={(conference) =>
                 navigate('deadlines', { tab: 'conference', id: conference.id })
@@ -239,19 +293,20 @@ export default function TimelinePage(): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <Page>
+      <PageAction>
+        <Button
+          size="sm"
+          aria-label={`${CREATE_LABELS.milestone} (${formatShortcutLabel('mod+N', isMac)})`}
+          onClick={openCreate}
+        >
+          {CREATE_LABELS.milestone}
+        </Button>
+      </PageAction>
       <PageHeader
         title="Timeline"
-        subtitle="Your long-term PhD plan: milestones as time bars with work progress, against today."
         actions={
-          <Button size="sm" onClick={openCreate}>
-            <Plus aria-hidden="true" />
-            Add Milestone
-          </Button>
-        }
-      >
-        {milestones.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
+          milestones.length > 0 ? (
             <SegmentedControl
               aria-label="Timeline view"
               size="sm"
@@ -259,40 +314,11 @@ export default function TimelinePage(): React.JSX.Element {
               onValueChange={changeView}
               options={VIEW_OPTIONS}
             />
-            {window && view !== 'multiYear' && (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  aria-label="Previous range"
-                  onClick={() => setOffset((o) => o - 1)}
-                >
-                  <ChevronLeft aria-hidden="true" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOffset(0)}
-                  disabled={offset === 0}
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  aria-label="Next range"
-                  onClick={() => setOffset((o) => o + 1)}
-                >
-                  <ChevronRight aria-hidden="true" />
-                </Button>
-              </div>
-            )}
-            {window && <span className="tabular text-xs text-muted-foreground">{rangeLabel}</span>}
-          </div>
-        )}
-      </PageHeader>
+          ) : undefined
+        }
+      />
       {body}
       <MilestoneForm open={formOpen} onOpenChange={onFormOpenChange} milestone={editing} />
-    </div>
+    </Page>
   )
 }

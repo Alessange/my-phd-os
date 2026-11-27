@@ -1,6 +1,5 @@
 import { CircleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button } from '@renderer/components/ui/button'
 import { describeError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 
@@ -17,7 +16,10 @@ export interface ErrorStateProps {
   className?: string
 }
 
-/** Explains what failed and offers a retry or safe next action; nothing is ever swallowed silently. */
+/**
+ * One sentence of what failed, a `Retry` text link, persistent and inline: no box, no tinted fill,
+ * no icon tile, never "Oops". A small signal glyph is the only colour. Nothing is swallowed.
+ */
 export function ErrorState({
   error,
   title,
@@ -34,22 +36,16 @@ export function ErrorState({
 
   if (variant === 'compact') {
     return (
-      <div
-        role="alert"
-        className={cn(
-          'flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/6 px-3 py-2 text-xs',
-          className
-        )}
-      >
-        <CircleAlert className="size-3.5 shrink-0 text-destructive" aria-hidden="true" />
-        <span className="min-w-0 truncate">
-          <span className="font-medium">{heading}</span>
-          {detail && <span className="text-muted-foreground"> — {detail}</span>}
+      <div role="alert" className={cn('flex items-baseline gap-2 py-1 text-sm', className)}>
+        <CircleAlert className="size-3.5 shrink-0 translate-y-0.5 text-signal" aria-hidden="true" />
+        <span className="min-w-0">
+          <span className="text-ink">{heading}</span>
+          {detail && <span className="text-ink-3"> {detail}</span>}
         </span>
         {onRetry && (
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={onRetry}>
+          <button type="button" className="link ml-auto shrink-0" onClick={onRetry}>
             {retryLabel}
-          </Button>
+          </button>
         )}
         {children}
       </div>
@@ -59,21 +55,22 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className={cn(
-        'mx-auto flex w-full max-w-md flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/6 px-6 py-10 text-center',
-        className
-      )}
+      className={cn('flex w-full max-w-xl flex-col items-start gap-3 py-12', className)}
     >
-      <div className="flex size-11 items-center justify-center rounded-lg bg-destructive/12 text-destructive">
-        <CircleAlert className="size-5" aria-hidden="true" />
-      </div>
-      <div className="flex flex-col gap-1">
-        <h2 className="text-base font-semibold">{heading}</h2>
-        {detail && <p className="text-[13px] text-muted-foreground break-words">{detail}</p>}
+      <div className="flex flex-col gap-2">
+        <h2 className="flex items-center gap-2 text-title text-ink">
+          <CircleAlert className="size-5 shrink-0 text-signal" aria-hidden="true" />
+          {heading}
+        </h2>
+        {detail && <p className="text-sm break-words text-ink-2">{detail}</p>}
       </div>
       {(onRetry || children) && (
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-          {onRetry && <Button onClick={onRetry}>{retryLabel}</Button>}
+        <div className="flex flex-wrap items-center gap-5">
+          {onRetry && (
+            <button type="button" className="link" onClick={onRetry}>
+              {retryLabel}
+            </button>
+          )}
           {children}
         </div>
       )}

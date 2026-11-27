@@ -1,6 +1,7 @@
 import { CalendarDays, CalendarPlus, Columns3, Download, List, Square } from 'lucide-react'
 import type { Command } from '@renderer/app/commands'
-import { dispatchCommand } from '@renderer/app/commandBus'
+import { CREATE_LABELS } from '@renderer/app/navigation'
+import { dispatchCommandWhenMounted } from '@renderer/app/commandBus'
 import type { CalendarViewId } from '@shared/types/calendar'
 
 const VIEW_COMMANDS: {
@@ -19,13 +20,13 @@ const VIEW_COMMANDS: {
 export const calendarCommands: Command[] = [
   {
     id: 'calendar:create-event',
-    title: 'Add Event',
+    title: CREATE_LABELS.event,
     group: 'Create',
     keywords: ['new', 'add', 'event', 'calendar', 'meeting'],
     icon: CalendarPlus,
     run: (ctx) => {
       ctx.navigate('calendar')
-      dispatchCommand('calendar:create')
+      dispatchCommandWhenMounted('calendar:create')
     }
   },
   {
@@ -36,7 +37,7 @@ export const calendarCommands: Command[] = [
     icon: Download,
     run: (ctx) => {
       ctx.navigate('calendar')
-      dispatchCommand('calendar:export')
+      dispatchCommandWhenMounted('calendar:export')
     }
   },
   ...VIEW_COMMANDS.map(({ view, title, icon, keywords }): Command => ({
@@ -47,7 +48,7 @@ export const calendarCommands: Command[] = [
     icon,
     run: (ctx) => {
       ctx.navigate('calendar')
-      dispatchCommand('calendar:view', { view })
+      dispatchCommandWhenMounted('calendar:view', { view })
     }
   }))
 ]

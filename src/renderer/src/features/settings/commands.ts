@@ -1,8 +1,8 @@
 import { Download, Upload } from 'lucide-react'
 import type { Command } from '@renderer/app/commands'
-import { dispatchCommand } from '@renderer/app/commandBus'
+import { dispatchCommandWhenMounted } from '@renderer/app/commandBus'
 
-/** Backup commands jump to Settings › Data and start the flow there (the section subscribes on the bus). */
+/** Backup commands jump to Settings › Data and start the flow there (the section subscribes on the bus; a command sent from another page waits for the section to mount). */
 export const settingsCommands: Command[] = [
   {
     id: 'settings:export-backup',
@@ -12,7 +12,7 @@ export const settingsCommands: Command[] = [
     icon: Download,
     run: (ctx) => {
       ctx.navigate('settings', { section: 'data' })
-      dispatchCommand('settings:export-backup')
+      dispatchCommandWhenMounted('settings:export-backup')
     }
   },
   {
@@ -23,7 +23,7 @@ export const settingsCommands: Command[] = [
     icon: Upload,
     run: (ctx) => {
       ctx.navigate('settings', { section: 'data' })
-      dispatchCommand('settings:import-backup')
+      dispatchCommandWhenMounted('settings:import-backup')
     }
   }
 ]

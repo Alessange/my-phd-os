@@ -32,26 +32,34 @@ const DATE_FORMAT_LABELS: Record<DateFormatId, string> = {
   mdy: 'Month first (Sep 18, 2026)'
 }
 
+/**
+ * One setting: label (15 px ink) and an optional help line (13 px ink-3) on the left, the control
+ * in a fixed 336 px column on the right, a hairline between rows. Stacks under 640 px.
+ */
 export function SettingRow({
   label,
   description,
   htmlFor,
+  detail,
   children
 }: {
   label: string
   description?: ReactNode
   htmlFor?: string
+  /** Full-width text under the label and control (a path, a summary) that would be cramped in the label column. */
+  detail?: ReactNode
   children: ReactNode
 }): React.JSX.Element {
   return (
-    <div className="grid gap-2 py-3 not-last:border-b sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6">
+    <div className="grid gap-2 py-3 not-last:border-b not-last:border-line sm:min-h-[60px] sm:grid-cols-[minmax(0,1fr)_336px] sm:items-center sm:gap-x-10">
       <div className="min-w-0">
-        <Label htmlFor={htmlFor} className="text-[13px]">
+        <Label htmlFor={htmlFor} variant="inline">
           {label}
         </Label>
-        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+        {description && <div className="text-meta text-ink-3">{description}</div>}
       </div>
-      <div className="flex justify-start sm:justify-end">{children}</div>
+      <div className="flex min-w-0 flex-wrap items-center justify-start gap-x-5">{children}</div>
+      {detail && <div className="min-w-0 text-meta text-ink-3 sm:col-span-2">{detail}</div>}
     </div>
   )
 }
@@ -71,18 +79,13 @@ export function GeneralSection(): React.JSX.Element {
       <SettingRow
         label="Application timezone"
         htmlFor={ids.timezone}
-        description={
-          <>
-            Times are displayed in this zone. Now: {preview.formatClock(now)}{' '}
-            {preview.formatZoneLabel(now)}
-          </>
-        }
+        description="Times are displayed in this zone."
       >
         <Select
           value={settings.timezone}
           onValueChange={(timezone) => void updateSettings({ timezone })}
         >
-          <SelectTrigger id={ids.timezone} className="w-72" aria-label="Application timezone">
+          <SelectTrigger id={ids.timezone} className="w-full" aria-label="Application timezone">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -117,7 +120,7 @@ export function GeneralSection(): React.JSX.Element {
             void updateSettings({ dateFormat: dateFormat as DateFormatId })
           }
         >
-          <SelectTrigger id={ids.dateFormat} className="w-60" aria-label="Date format">
+          <SelectTrigger id={ids.dateFormat} className="w-full" aria-label="Date format">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -142,7 +145,7 @@ export function GeneralSection(): React.JSX.Element {
         />
       </SettingRow>
 
-      <SettingRow label="Clock" description={<>Now: {preview.formatTime(now)}</>}>
+      <SettingRow label="Clock">
         <SegmentedControl
           aria-label="Clock"
           value={settings.clock}
@@ -154,7 +157,7 @@ export function GeneralSection(): React.JSX.Element {
         />
       </SettingRow>
 
-      <SettingRow label="Theme" description="System follows your operating system's appearance.">
+      <SettingRow label="Theme" description="System follows your operating system’s appearance.">
         <ThemeToggle />
       </SettingRow>
 
@@ -169,7 +172,11 @@ export function GeneralSection(): React.JSX.Element {
             void updateSettings({ defaultCalendarView: view as CalendarViewId })
           }
         >
-          <SelectTrigger id={ids.calendarView} className="w-40" aria-label="Default calendar view">
+          <SelectTrigger
+            id={ids.calendarView}
+            className="w-full"
+            aria-label="Default calendar view"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

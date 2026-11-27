@@ -18,6 +18,13 @@ files:
 # node:sqlite is a Node built-in shipped inside Electron: nothing native to unpack or rebuild.
 asarUnpack:
   - 'resources/**'
+# The font licence texts (OFL 1.1 and the author's notice) travel with the app, outside the asar:
+# Vite only emits the .otf files, and the OFL asks for the licence to accompany the font software.
+extraResources:
+  - from: src/renderer/src/assets/fonts
+    to: licenses/fonts
+    filter:
+      - '*.txt'
 npmRebuild: false
 mac:
   category: public.app-category.productivity
