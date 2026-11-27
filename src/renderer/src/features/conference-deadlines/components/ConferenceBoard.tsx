@@ -1,6 +1,11 @@
 import { CalendarCheck, CircleAlert } from 'lucide-react'
-import { useId, type ReactNode } from 'react'
-import { conferenceSubline, deadlineProgress, urgencyLevel } from '@shared/conferences/views'
+import { useId, useState, type ReactNode } from 'react'
+import {
+  conferenceDisplayTitle,
+  conferenceSubline,
+  deadlineProgress,
+  urgencyLevel
+} from '@shared/conferences/views'
 import { tryResolveZone } from '@shared/dates/zones'
 import type { ConferenceDeadlineView } from '@shared/types/conference'
 import { StatusMark } from '@renderer/components/ui/status-mark'
@@ -13,10 +18,9 @@ import {
 } from '@renderer/features/timeline/layout'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { cn } from '@renderer/lib/utils'
+import { placeAxisLabels } from './axisLabels'
+import { measureAxisLabel, useElementWidth, useFontsLoaded } from './axisMeasure'
 import { DeadlineCountdown } from './DeadlineCountdown'
-
-/** Share of the axis one conference name needs; names closer than this move to the other side. */
-const LABEL_GAP = 0.09
 
 export interface ConferenceBoardProps {
   items: ConferenceDeadlineView[]
@@ -97,6 +101,7 @@ function ConferenceRow({
   const zoneLabel = item.originalTimezoneLabel ?? item.originalTimezone
   const zone = zoneLabel ? tryResolveZone(zoneLabel) : undefined
   const subline = conferenceSubline(item)
+  const displayTitle = conferenceDisplayTitle(item.title, subline)
   const localText = item.deadlineAt ? format.formatDateTimeWithZone(item.deadlineAt) : undefined
   const originalText =
     item.deadlineAt && zone ? format.formatDateTimeWithZone(item.deadlineAt, zone) : undefined
@@ -122,13 +127,14 @@ function ConferenceRow({
           // starts on the same edge. The countdown column is as wide as the 64 px hero needs and
           // right-aligns the smaller row figures.
           'grid-cols-[minmax(0,1fr)_auto] min-[1100px]:grid-cols-[minmax(0,1fr)_260px_280px] min-[1100px]:items-center',
-          !lead && 'py-1'
+          // Air above and below every row: the 2 px time line on the lower edge never touches text.
+          lead ? 'pt-5 pb-7' : 'py-3.5'
         )}
       >
         <span
           className={cn(
             'row-start-1 flex min-w-0 flex-col min-[1100px]:col-span-1 min-[1100px]:col-start-1',
-            lead ? 'col-span-2 gap-1' : 'col-span-1 gap-0'
+            lead ? 'col-span-2 gap-1.5' : 'col-span-1 gap-1'
           )}
         >
           <span className="flex min-w-0 items-baseline gap-3">
@@ -140,7 +146,7 @@ function ConferenceRow({
               )}
               title={item.title}
             >
-              {item.title}
+              {displayTitle}
             </span>
             {item.followed?.calendarEventId && (
               <CalendarCheck
@@ -251,8 +257,9 @@ function ConferenceRow({
 
 /**
  * The months axis: a 1 px line with one 9 px dot per dated conference (hollow once passed) and its
- * name, alternating above and below the line so names never collide, month labels underneath. The
- * dots are not tab stops (the rows are), so the figure adds no keyboard noise.
+ * name on one of two lanes above and below the line, month labels underneath. Names are packed by
+ * their measured width (`placeAxisLabels`): long names are shortened or left to the tooltip instead of
+ * overlapping. The dots are not tab stops (the rows are), so the figure adds no keyboard noise.
  */
 function Axis({
   items,
@@ -260,6 +267,9 @@ function Axis({
   onOpen
 }: Pick<ConferenceBoardProps, 'items' | 'nowIso' | 'onOpen'>): React.JSX.Element | null {
   const format = useFormat()
+  const [figure, setFigure] = useState<HTMLDivElement | null>(null)
+  const axisWidth = useElementWidth(figure)
+  const fontsVersion = useFontsLoaded()
   const dated = items.filter((i) => i.deadlineAt && i.status !== 'tbd')
   if (dated.length === 0) return null
   const window = extentWindow(
@@ -280,25 +290,30 @@ function Axis({
   const pct = (ms: number): string =>
     `${((ms - window.startMs) / (window.endMs - window.startMs)) * 100}%`
 
-  // Names alternate above (side 0) and below (side 1) the line; a name goes to the first side with room.
-  const lastOnSide = [-1, -1]
-  const placed = dated
-    .flatMap((item) => {
-      const fraction = pointInWindow(item.deadlineAt as string, window)
-      return fraction === null ? [] : [{ item, fraction }]
-    })
-    .sort((a, b) => a.fraction - b.fraction)
-    .map(({ item, fraction }) => {
-      const free = [0, 1].find((side) => fraction - (lastOnSide[side] ?? -1) >= LABEL_GAP)
-      const side = free ?? ((lastOnSide[0] ?? -1) <= (lastOnSide[1] ?? -1) ? 0 : 1)
-      lastOnSide[side] = fraction
-      return { item, fraction, side }
-    })
+  const positioned = dated.flatMap((item) => {
+    const fraction = pointInWindow(item.deadlineAt as string, window)
+    return fraction === null ? [] : [{ item, fraction }]
+  })
+  // `fontsVersion` re-measures the names once Linux Biolinum has loaded.
+  void fontsVersion
+  const layout = placeAxisLabels(
+    positioned.map(({ item, fraction }) => ({
+      id: item.id,
+      x: fraction * axisWidth,
+      width: measureAxisLabel(item.conferenceName ?? item.title)
+    })),
+    axisWidth
+  )
+  const placed = positioned.map((entry, index) => ({
+    ...entry,
+    ...(layout[index] as (typeof layout)[number])
+  }))
 
   return (
     <div
       role="figure"
       aria-label="Deadlines over the coming months"
+      ref={setFigure}
       className="relative h-[68px] select-none"
     >
       <span aria-hidden="true" className="absolute inset-x-0 top-[28px] h-px bg-line-strong" />
@@ -328,9 +343,9 @@ function Axis({
           style={{ left: `${nowFrac * 100}%` }}
         />
       )}
-      {placed.map(({ item, fraction, side }) => {
+      {placed.map(({ item, fraction, lane, anchor, maxWidth, hidden }) => {
         const passed = item.status === 'passed'
-        const rightEdge = fraction > 0.88
+        const rightEdge = anchor === 'end'
         return (
           <span key={item.id}>
             <span
@@ -349,14 +364,26 @@ function Axis({
               aria-label={`${item.title} on the timeline`}
               data-conference-id={item.id}
               className={cn(
-                'text-meta absolute whitespace-nowrap',
+                'text-meta whitespace-nowrap',
                 passed ? 'text-ink-3' : 'text-ink-2',
-                side === 0 ? 'top-[4px]' : 'top-[33px]',
-                rightEdge ? '-translate-x-full pr-0.5' : 'pl-0.5'
+                // No room for a name: the dot stays, the name is still spoken and in the tooltip.
+                hidden
+                  ? 'sr-only'
+                  : cn(
+                      'absolute',
+                      lane === 0 ? 'top-[4px]' : 'top-[33px]',
+                      rightEdge ? '-translate-x-full pr-0.5' : 'pl-0.5',
+                      maxWidth !== null && 'overflow-hidden text-ellipsis'
+                    )
               )}
-              style={{
-                left: `calc(${fraction * 100}% ${rightEdge ? '+ 4px' : '- 4px'})`
-              }}
+              style={
+                hidden
+                  ? undefined
+                  : {
+                      left: `calc(${fraction * 100}% ${rightEdge ? '+ 4px' : '- 4px'})`,
+                      maxWidth: maxWidth ?? undefined
+                    }
+              }
             >
               {item.conferenceName ?? item.title}
             </button>

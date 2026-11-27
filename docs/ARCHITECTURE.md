@@ -357,7 +357,7 @@ export const calendarChannels = {
   the window, paints `backgroundColor` from it and passes `?theme=light|dark|system` on the initial
   URL; `main.tsx` applies it before the first paint (`bootThemeSetting`) so there is no flash. Tailwind 4 dark variant:
   `@custom-variant dark (&:where(.dark, .dark *))`.
-- Layout (Decision 69, supersedes the earlier top bar): a 216 px sidebar (64 px collapsed) and a
+- Layout (Decision 69, supersedes the earlier top bar): a 216 px sidebar (76 px collapsed) and a
   48 px top strip on one paper ground, separated only by a hairline. The strip holds a
   minute-precision dateline (`Thursday, Nov 26, 2026 · 18:48 PST`; nothing in the chrome ticks, and
   seconds exist only inside countdowns under 24 h), a ghost `Search ⌘K` button and the page's one
@@ -373,9 +373,9 @@ export const calendarChannels = {
   supported width ~960 px; the Calendar right panel collapses under ~1180 px.
 - macOS title bar: the window uses `titleBarStyle: 'hiddenInset'` with `trafficLightPosition
 { x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px. The top 48 px of the
-  sidebar is an empty `-webkit-app-region: drag` region (no brand). Collapsed (64 px rail) the
-  buttons overhang the rail, so the strip's content starts at x >= 128. Nothing interactive may be
-  placed in x < 80, y < 48 on macOS.
+  sidebar is an empty `-webkit-app-region: drag` region (no brand). The collapsed rail is 76 px so
+  the buttons (x to 68) sit inside it with a margin instead of overlapping its hairline. Nothing
+  interactive may be placed in x < 80, y < 48 on macOS.
 - Accessibility: Radix primitives for focus management; every icon-only button has `aria-label`;
   `prefers-reduced-motion` disables non-essential animation; status badges include text.
 

@@ -10,15 +10,15 @@ import { cn } from '@renderer/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 
 /**
- * The quiet list: five items on the paper ground, 216 px wide (64 collapsed), a hairline on the
+ * The quiet list: five items on the paper ground, 216 px wide (76 collapsed), a hairline on the
  * right and nothing else. No brand tile, no wordmark, no coloured icon.
  *
  * Contract (e2e): `nav[aria-label="Primary"]` holds exactly five buttons in page order, the label is
  * the FIRST `<span>` of each button, the active one has `aria-current="page"`.
  *
  * macOS: the native traffic lights occupy x 16-68, y 18-30, so the top 48 px of the rail is an empty
- * drag region. When collapsed the lights overhang the 64 px rail; the top strip starts its content
- * further right (TopBar).
+ * drag region. The collapsed rail is 76 px, wider than the lights (68 px) plus a margin, so they never
+ * touch its hairline.
  */
 export function Sidebar(): React.JSX.Element {
   const page = useNavigation((state) => state.page)
@@ -32,7 +32,7 @@ export function Sidebar(): React.JSX.Element {
       data-collapsed={collapsed}
       className={cn(
         'flex h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground',
-        collapsed ? 'w-16' : 'w-[216px]'
+        collapsed ? 'w-[76px]' : 'w-[216px]'
       )}
     >
       <div aria-hidden="true" className="app-drag h-12 shrink-0" />

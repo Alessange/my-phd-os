@@ -2,7 +2,6 @@ import { Search } from 'lucide-react'
 import { useCommandPalette } from '@renderer/app/commands'
 import { getPage, resolveCreateAction, useNavigation } from '@renderer/app/navigation'
 import { triggerQuickCreate } from '@renderer/app/quickCreate'
-import { useShell } from '@renderer/app/shell'
 import { usePageActionHost } from '@renderer/components/common/pageActionContext'
 import { KeyboardHint } from '@renderer/components/common/KeyboardHint'
 import { Button } from '@renderer/components/ui/button'
@@ -42,7 +41,6 @@ export function TopBar(): React.JSX.Element {
   const page = getPage(pageId)
   const { ui } = useSettings()
   const openPalette = useCommandPalette((state) => state.setOpen)
-  const collapsed = useShell((state) => state.sidebarCollapsed)
   const { isMac } = usePlatform()
   const host = usePageActionHost()
 
@@ -57,8 +55,6 @@ export function TopBar(): React.JSX.Element {
           'flex h-full items-center gap-4',
           pageId === 'calendar' ? 'w-full pr-6 pl-10 min-[1180px]:pr-8' : 'page-column'
         )}
-        // Collapsed on macOS the traffic lights (x <= 68) overhang the 64 px rail: start content at x >= 128.
-        style={isMac && collapsed ? { paddingLeft: 64 } : undefined}
       >
         <span className="sr-only">{page.label}</span>
         <Dateline />

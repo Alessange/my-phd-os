@@ -323,6 +323,19 @@ export const conferenceSubline = (
     .filter((part): part is string => Boolean(part))
     .join(' · ')
 
+/**
+ * The title as a list row shows it. Feeds often append the round in brackets to the title
+ * ("RSS 2027 Deadline [Stage 1: initial 6-page extended abstract submission]") and the subline
+ * already repeats it; when it does, the row shows the short title so the same words are not printed
+ * twice and long titles do not wrap. The full title stays in the tooltip and the accessible name.
+ */
+export const conferenceDisplayTitle = (title: string, subline: string): string => {
+  const match = /^(.*?)\s*\[([^\]]+)\]\s*$/.exec(title)
+  const short = match?.[1]?.trim()
+  const detail = match?.[2]
+  return short && detail && subline.includes(detail) ? short : title
+}
+
 // ---------------------------------------------------------------------------
 // Row colour and bar length (the board reads as one row per conference)
 
