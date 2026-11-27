@@ -1,183 +1,275 @@
-import { CalendarCheck } from 'lucide-react'
-import { useMemo } from 'react'
+import { CalendarCheck, CircleAlert } from 'lucide-react'
+import { useId, useState, type ReactNode } from 'react'
 import {
-  assignConferenceColors,
+  conferenceDisplayTitle,
   conferenceSubline,
   deadlineProgress,
   urgencyLevel
 } from '@shared/conferences/views'
 import { tryResolveZone } from '@shared/dates/zones'
 import type { ConferenceDeadlineView } from '@shared/types/conference'
+import { StatusMark } from '@renderer/components/ui/status-mark'
+import { Row } from '@renderer/components/ui/row'
 import {
   axisTicks,
   extentWindow,
   nowFractionInWindow,
-  packPointLanes,
   pointInWindow
 } from '@renderer/features/timeline/layout'
 import { useFormat } from '@renderer/hooks/useFormat'
-import { chipStyle, cn } from '@renderer/lib/utils'
+import { cn } from '@renderer/lib/utils'
+import { placeAxisLabels } from './axisLabels'
+import { measureAxisLabel, useElementWidth, useFontsLoaded } from './axisMeasure'
 import { DeadlineCountdown } from './DeadlineCountdown'
-
-const OVERVIEW_LANE = 22
 
 export interface ConferenceBoardProps {
   items: ConferenceDeadlineView[]
   nowIso: string
-  /** Ids with unacknowledged upstream changes (small amber dot). */
+  /** Ids with unacknowledged upstream changes (a quiet `Updated` word on the row). */
   updatedIds: ReadonlySet<string>
   highlightId?: string
   onOpen: (item: ConferenceDeadlineView) => void
+  /** Rendered between the axis strip and the rows (the `Following 7` heading). */
+  header?: ReactNode
 }
 
 /**
- * "My conferences": one row per chosen conference, each in its own colour so rows are told apart
- * at a glance. The bar fills from the day the conference was added to its deadline, so it starts
- * empty, creeps forward every day and is full when the deadline arrives; the exact time left is
- * the countdown beside it. A months axis above places the same deadlines on a real timeline.
+ * "Following": the conferences you chose as hairline rows under one ink rule. The first upcoming,
+ * dated one leads with a 64 px countdown; every other row is a title, its ranks, the local date and
+ * a 28 px `9 d 09 h`. The original-timezone line is in the DOM (and spoken) on every row and shown on
+ * hover and focus. A 2 px line on the row's lower edge is the time gone since you added it. The
+ * months axis above places the same deadlines on one real timeline.
  */
 export function ConferenceBoard({
   items,
   nowIso,
   updatedIds,
   highlightId,
-  onOpen
+  onOpen,
+  header
 }: ConferenceBoardProps): React.JSX.Element {
-  const format = useFormat()
-  const colors = useMemo(() => assignConferenceColors(items), [items])
-
+  const lead = items.find((i) => i.status === 'upcoming' && i.deadlineAt)
   return (
-    <div className="flex flex-col gap-3">
-      <Overview items={items} nowIso={nowIso} colors={colors} onOpen={onOpen} />
-      <ul className="flex flex-col gap-2" aria-label="My conferences">
-        {items.map((item) => {
-          const level = urgencyLevel(item, nowIso)
-          const progress = deadlineProgress(item, nowIso)
-          const percent = progress === undefined ? undefined : Math.round(progress * 100)
-          const token = colors.get(item.id) ?? 'conference-1'
-          const zoneLabel = item.originalTimezoneLabel ?? item.originalTimezone
-          const zone = zoneLabel ? tryResolveZone(zoneLabel) : undefined
-          const subline = conferenceSubline(item)
-          const when = item.deadlineAt
-            ? format.formatDateTimeWithZone(item.deadlineAt, zone)
-            : 'Deadline not announced'
-          const local =
-            item.deadlineAt && zone && zone.ianaName !== format.zone.ianaName
-              ? format.formatDateTimeWithZone(item.deadlineAt)
-              : undefined
-          return (
+    <div className="flex flex-col gap-4">
+      <Axis items={items} nowIso={nowIso} onOpen={onOpen} />
+      <div className="flex flex-col gap-3">
+        {header}
+        <ul
+          className="flex flex-col divide-y divide-line border-t border-ink"
+          aria-label="My conferences"
+        >
+          {items.map((item) => (
             <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => onOpen(item)}
-                aria-label={item.title}
-                data-conference-id={item.id}
-                data-urgency={level}
-                data-color={token}
-                data-highlighted={item.id === highlightId || undefined}
-                style={chipStyle(token)}
-                className={cn(
-                  'grid w-full grid-cols-[minmax(8rem,13rem)_minmax(0,1fr)_5.5rem] items-center gap-4 rounded-lg border border-l-4 border-l-(--chip) bg-card px-4 py-3 text-left shadow-xs transition-colors outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring',
-                  item.id === highlightId && 'ring-2 ring-ring',
-                  level === 'passed' && 'opacity-70'
-                )}
-              >
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      aria-hidden="true"
-                      className="size-2.5 shrink-0 rounded-full bg-(--chip)"
-                    />
-                    <span className="truncate text-sm font-semibold">{item.title}</span>
-                    {item.followed?.calendarEventId && (
-                      <CalendarCheck
-                        className="size-3.5 shrink-0 text-muted-foreground"
-                        aria-label="On your calendar"
-                      />
-                    )}
-                    {updatedIds.has(item.id) && (
-                      <span
-                        className="size-2 shrink-0 rounded-full bg-status-at-risk"
-                        role="img"
-                        aria-label="Updated from CCF Deadlines"
-                        title="Updated from CCF Deadlines"
-                      />
-                    )}
-                  </span>
-                  {subline && (
-                    <span className="truncate pl-4 text-[11px] text-muted-foreground">
-                      {subline}
-                    </span>
-                  )}
-                </span>
-
-                <span className="flex min-w-0 flex-col gap-1">
-                  <span
-                    role="progressbar"
-                    aria-label="Time gone since you added this conference"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={percent}
-                    className={cn(
-                      // The track carries the conference colour at low strength, so the row reads
-                      // as its own colour even on the day it is added, when the fill is still zero.
-                      'relative block h-3 overflow-hidden rounded-full bg-(--chip)/15',
-                      percent === undefined &&
-                        'border border-dashed border-status-tbd/60 bg-transparent',
-                      level === 'urgent' && 'ring-1 ring-status-urgent/60'
-                    )}
-                  >
-                    {percent !== undefined && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-y-0 left-0 rounded-full bg-(--chip) transition-[width] duration-500"
-                        style={{ width: `${percent}%` }}
-                      />
-                    )}
-                    {percent !== undefined && percent > 0 && percent < 100 && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-y-0 w-0.5 bg-foreground/70"
-                        style={{ left: `calc(${percent}% - 1px)` }}
-                      />
-                    )}
-                  </span>
-                  <span className="tabular flex justify-between gap-2 text-[10px] text-muted-foreground">
-                    <span className="shrink-0">
-                      {percent === undefined
-                        ? 'Waiting for a date'
-                        : `${percent}% of the way there`}
-                    </span>
-                    <span className="truncate text-right">
-                      {when}
-                      {local && <span className="ml-1.5 opacity-80">· {local}</span>}
-                    </span>
-                  </span>
-                </span>
-
-                <DeadlineCountdown targetIso={item.deadlineAt} status={item.status} />
-              </button>
+              <ConferenceRow
+                item={item}
+                nowIso={nowIso}
+                lead={item.id === lead?.id}
+                updated={updatedIds.has(item.id)}
+                highlighted={item.id === highlightId}
+                onOpen={onOpen}
+              />
             </li>
-          )
-        })}
-      </ul>
-      <p className="px-1 text-[11px] text-muted-foreground">
-        Each conference keeps its own colour. The bar fills from the day you added it to its
-        deadline, so it is empty when you start and full when the deadline arrives.
-      </p>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }
 
-function Overview({
+interface ConferenceRowProps {
+  item: ConferenceDeadlineView
+  nowIso: string
+  lead: boolean
+  updated: boolean
+  highlighted: boolean
+  onOpen: (item: ConferenceDeadlineView) => void
+}
+
+function ConferenceRow({
+  item,
+  nowIso,
+  lead,
+  updated,
+  highlighted,
+  onOpen
+}: ConferenceRowProps): React.JSX.Element {
+  const format = useFormat()
+  const id = useId()
+  const level = urgencyLevel(item, nowIso)
+  const progress = deadlineProgress(item, nowIso)
+  const percent = progress === undefined ? undefined : Math.round(progress * 100)
+  const zoneLabel = item.originalTimezoneLabel ?? item.originalTimezone
+  const zone = zoneLabel ? tryResolveZone(zoneLabel) : undefined
+  const subline = conferenceSubline(item)
+  const displayTitle = conferenceDisplayTitle(item.title, subline)
+  const localText = item.deadlineAt ? format.formatDateTimeWithZone(item.deadlineAt) : undefined
+  const originalText =
+    item.deadlineAt && zone ? format.formatDateTimeWithZone(item.deadlineAt, zone) : undefined
+  // The original line only exists when it differs from what the local line already says.
+  const original = originalText && originalText !== localText ? originalText : undefined
+  const urgent = level === 'urgent'
+  const passed = level === 'passed'
+  const showBar = percent !== undefined && !passed
+
+  return (
+    <Row asChild density={lead ? 'lead' : 'two-line'} selected={highlighted}>
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
+        aria-label={item.title}
+        aria-describedby={`${id}-when ${id}-left`}
+        data-conference-id={item.id}
+        data-urgency={level}
+        data-highlighted={highlighted || undefined}
+        className={cn(
+          'grid items-start gap-x-8 gap-y-1 outline-offset-[-2px]',
+          // Lead and rows share one template (DESIGN.md: title / date / countdown), so every date
+          // starts on the same edge. The countdown column is as wide as the 64 px hero needs and
+          // right-aligns the smaller row figures.
+          'grid-cols-[minmax(0,1fr)_auto] min-[1100px]:grid-cols-[minmax(0,1fr)_260px_280px] min-[1100px]:items-center',
+          // Air above and below every row: the 2 px time line on the lower edge never touches text.
+          lead ? 'pt-5 pb-7' : 'py-3.5'
+        )}
+      >
+        <span
+          className={cn(
+            'row-start-1 flex min-w-0 flex-col min-[1100px]:col-span-1 min-[1100px]:col-start-1',
+            lead ? 'col-span-2 gap-1.5' : 'col-span-1 gap-1'
+          )}
+        >
+          <span className="flex min-w-0 items-baseline gap-3">
+            <span
+              className={cn(
+                'line-clamp-2 min-w-0',
+                lead ? 'text-title text-ink' : 'text-lead',
+                !lead && (passed ? 'text-ink-3' : 'text-ink')
+              )}
+              title={item.title}
+            >
+              {displayTitle}
+            </span>
+            {item.followed?.calendarEventId && (
+              <CalendarCheck
+                className="size-3.5 shrink-0 translate-y-0.5 text-ink-3"
+                aria-label="On your calendar"
+              />
+            )}
+            {updated && (
+              <span
+                role="img"
+                aria-label="Updated from CCF Deadlines"
+                title="Updated from CCF Deadlines"
+                className="text-meta shrink-0 text-ink-3"
+              >
+                Updated
+              </span>
+            )}
+          </span>
+          {subline && (
+            <span className={cn('truncate text-ink-3', lead ? 'text-body' : 'text-meta')}>
+              {subline}
+            </span>
+          )}
+          {percent !== undefined && !passed && (
+            <span className={cn(lead ? 'text-meta text-ink-3' : 'sr-only')}>
+              {percent}% of the way there
+            </span>
+          )}
+        </span>
+
+        <span
+          id={`${id}-when`}
+          className={cn(
+            'col-start-1 row-start-2 flex min-w-0 flex-col min-[1100px]:col-start-2 min-[1100px]:row-start-1',
+            lead ? 'mt-3 gap-1 min-[1100px]:mt-0' : 'gap-0.5'
+          )}
+        >
+          {!localText ? (
+            <span className="text-body text-ink-3 italic">Waiting for a date</span>
+          ) : lead && original ? (
+            <span className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1">
+              <span className="text-meta text-ink-3">Local</span>
+              <span className="text-body tabular text-ink-2">{localText}</span>
+              <span className="text-meta text-ink-3">Original</span>
+              <span className="text-body tabular text-ink-2" data-zoned="original">
+                {original}
+              </span>
+            </span>
+          ) : (
+            <>
+              <span className="text-body tabular text-ink-2" data-zoned="local">
+                {localText}
+              </span>
+              {original && (
+                <span
+                  className="text-meta tabular text-ink-3 opacity-0 transition-opacity duration-100 group-focus-within/row:opacity-100 group-hover/row:opacity-100"
+                  data-zoned="original"
+                >
+                  Original {original}
+                </span>
+              )}
+            </>
+          )}
+        </span>
+
+        <span
+          id={`${id}-left`}
+          className={cn(
+            'col-start-2 flex flex-col items-end gap-2 text-right min-[1100px]:col-start-3 min-[1100px]:row-span-1 min-[1100px]:row-start-1',
+            lead ? 'row-start-2 mt-3 min-[1100px]:mt-0' : 'row-span-2 row-start-1'
+          )}
+        >
+          <DeadlineCountdown
+            targetIso={item.deadlineAt}
+            status={item.status}
+            size={lead ? 'hero' : 'row'}
+          />
+          {urgent && (
+            <StatusMark
+              label="Urgent"
+              colorToken="status-urgent"
+              size="md"
+              glyph={<CircleAlert aria-hidden="true" />}
+            />
+          )}
+        </span>
+
+        {showBar && (
+          <span
+            role="progressbar"
+            aria-label="Time gone since you added this conference"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+            className="pointer-events-none absolute inset-x-0 bottom-0 block h-0.5"
+          >
+            <span
+              aria-hidden="true"
+              className="block h-full bg-progress-time transition-[width] duration-150"
+              style={{ width: `${percent}%` }}
+            />
+          </span>
+        )}
+      </button>
+    </Row>
+  )
+}
+
+/**
+ * The months axis: a 1 px line with one 9 px dot per dated conference (hollow once passed) and its
+ * name on one of two lanes above and below the line, month labels underneath. Names are packed by
+ * their measured width (`placeAxisLabels`): long names are shortened or left to the tooltip instead of
+ * overlapping. The dots are not tab stops (the rows are), so the figure adds no keyboard noise.
+ */
+function Axis({
   items,
   nowIso,
-  colors,
   onOpen
-}: Pick<ConferenceBoardProps, 'items' | 'nowIso' | 'onOpen'> & {
-  colors: Map<string, string>
-}): React.JSX.Element | null {
+}: Pick<ConferenceBoardProps, 'items' | 'nowIso' | 'onOpen'>): React.JSX.Element | null {
   const format = useFormat()
+  const [figure, setFigure] = useState<HTMLDivElement | null>(null)
+  const axisWidth = useElementWidth(figure)
+  const fontsVersion = useFontsLoaded()
   const dated = items.filter((i) => i.deadlineAt && i.status !== 'tbd')
   if (dated.length === 0) return null
   const window = extentWindow(
@@ -191,85 +283,113 @@ function Overview({
     nowIso,
     { minDays: 120, padDays: 7 }
   )
-  const ticks = axisTicks(window, 'semester', format.zone, format.settings.weekStartsOn)
+  const ticks = axisTicks(window, 'year', format.zone, format.settings.weekStartsOn).filter(
+    (t) => t.major
+  )
   const nowFrac = nowFractionInWindow(nowIso, window)
-  const points = dated.flatMap((item) => {
+  const pct = (ms: number): string =>
+    `${((ms - window.startMs) / (window.endMs - window.startMs)) * 100}%`
+
+  const positioned = dated.flatMap((item) => {
     const fraction = pointInWindow(item.deadlineAt as string, window)
     return fraction === null ? [] : [{ item, fraction }]
   })
-  const lanes = packPointLanes(
-    points.map((p) => ({ id: p.item.id, fraction: p.fraction })),
-    0.16
+  // `fontsVersion` re-measures the names once Linux Biolinum has loaded.
+  void fontsVersion
+  const layout = placeAxisLabels(
+    positioned.map(({ item, fraction }) => ({
+      id: item.id,
+      x: fraction * axisWidth,
+      width: measureAxisLabel(item.conferenceName ?? item.title)
+    })),
+    axisWidth
   )
-  const pct = (ms: number): string =>
-    `${((ms - window.startMs) / (window.endMs - window.startMs)) * 100}%`
+  const placed = positioned.map((entry, index) => ({
+    ...entry,
+    ...(layout[index] as (typeof layout)[number])
+  }))
 
   return (
     <div
       role="figure"
       aria-label="Deadlines over the coming months"
-      className="overflow-hidden rounded-lg border bg-card shadow-xs"
+      ref={setFigure}
+      className="relative h-[68px] select-none"
     >
-      <div className="relative h-6 border-b border-border">
-        {ticks
-          .filter((t) => t.major)
-          .map((t) => (
-            <span
-              key={t.ms}
-              className="absolute top-1 -translate-x-1/2 text-[10px] whitespace-nowrap text-muted-foreground"
-              style={{ left: pct(t.ms) }}
-            >
-              {t.label}
-            </span>
-          ))}
-      </div>
-      <div className="relative" style={{ height: lanes.count * OVERVIEW_LANE + 10 }}>
-        {ticks.map((t) => (
+      <span aria-hidden="true" className="absolute inset-x-0 top-[28px] h-px bg-line-strong" />
+      {ticks.map((t, index) => (
+        <span key={t.ms}>
           <span
-            key={`${t.major ? 'M' : 'm'}${t.ms}`}
             aria-hidden="true"
-            className={cn('absolute inset-y-0 w-px', t.major ? 'bg-border' : 'bg-border/40')}
+            className="absolute top-[28px] h-[5px] w-px bg-edge"
             style={{ left: pct(t.ms) }}
           />
-        ))}
-        {nowFrac !== null && (
           <span
-            aria-hidden="true"
-            className="absolute inset-y-0 z-10 w-px bg-primary"
-            style={{ left: `${nowFrac * 100}%` }}
-          />
-        )}
-        {points.map(({ item, fraction }) => {
-          const lane = lanes.laneOf.get(item.id) ?? 0
-          const passed = item.status === 'passed'
-          return (
+            className={cn(
+              'text-meta absolute top-[52px] whitespace-nowrap text-ink-3',
+              // Narrow windows show every second month so labels never touch.
+              index % 2 === 1 && 'max-[1099px]:hidden'
+            )}
+            style={{ left: pct(t.ms) }}
+          >
+            {index === 0 || t.label.startsWith('Jan') ? t.label : t.label.split(' ')[0]}
+          </span>
+        </span>
+      ))}
+      {nowFrac !== null && nowFrac > 0.04 && (
+        <span
+          aria-hidden="true"
+          className="absolute top-[22px] h-[13px] w-px bg-ink"
+          style={{ left: `${nowFrac * 100}%` }}
+        />
+      )}
+      {placed.map(({ item, fraction, lane, anchor, maxWidth, hidden }) => {
+        const passed = item.status === 'passed'
+        const rightEdge = anchor === 'end'
+        return (
+          <span key={item.id}>
+            <span
+              aria-hidden="true"
+              className={cn(
+                'absolute top-[28px] size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full',
+                passed ? 'border border-ink-3 bg-background' : 'bg-ink'
+              )}
+              style={{ left: `${fraction * 100}%` }}
+            />
             <button
-              key={item.id}
               type="button"
+              tabIndex={-1}
               onClick={() => onOpen(item)}
               title={`${item.title} · ${format.formatDateTime(item.deadlineAt as string)}`}
               aria-label={`${item.title} on the timeline`}
-              style={{
-                left: `${Math.min(Math.max(fraction, 0.04), 0.96) * 100}%`,
-                top: lane * OVERVIEW_LANE + 5,
-                height: OVERVIEW_LANE - 4,
-                ...chipStyle(colors.get(item.id) ?? 'conference-1')
-              }}
-              className={cn(
-                'absolute z-[2] flex max-w-40 -translate-x-1/2 items-center gap-1 rounded-sm px-1 text-[10px] leading-tight whitespace-nowrap outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
-                passed && 'opacity-60'
-              )}
               data-conference-id={item.id}
+              className={cn(
+                'text-meta whitespace-nowrap',
+                passed ? 'text-ink-3' : 'text-ink-2',
+                // No room for a name: the dot stays, the name is still spoken and in the tooltip.
+                hidden
+                  ? 'sr-only'
+                  : cn(
+                      'absolute',
+                      lane === 0 ? 'top-[4px]' : 'top-[33px]',
+                      rightEdge ? '-translate-x-full pr-0.5' : 'pl-0.5',
+                      maxWidth !== null && 'overflow-hidden text-ellipsis'
+                    )
+              )}
+              style={
+                hidden
+                  ? undefined
+                  : {
+                      left: `calc(${fraction * 100}% ${rightEdge ? '+ 4px' : '- 4px'})`,
+                      maxWidth: maxWidth ?? undefined
+                    }
+              }
             >
-              <span
-                aria-hidden="true"
-                className="size-2.5 shrink-0 rounded-full bg-(--chip) ring-2 ring-card"
-              />
-              <span className="truncate">{item.conferenceName ?? item.title}</span>
+              {item.conferenceName ?? item.title}
             </button>
-          )
-        })}
-      </div>
+          </span>
+        )
+      })}
     </div>
   )
 }

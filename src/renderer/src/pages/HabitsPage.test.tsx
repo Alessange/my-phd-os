@@ -63,19 +63,25 @@ describe('HabitsPage', () => {
     expect(screen.queryByText('Reading')).not.toBeInTheDocument()
   })
 
-  it('renders habit cards and the Today section', async () => {
+  it('renders one row per habit and the day tally', async () => {
     renderWithProviders(<HabitsPage />)
     expect(await screen.findByText('Reading')).toBeInTheDocument()
     expect(screen.getByText('Exercise')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Today' })).toBeInTheDocument()
+    expect(screen.getByText('0 of 2 done today.')).toBeInTheDocument()
     // streak zero with no completions
     expect(screen.getAllByText('0').length).toBeGreaterThan(0)
+  })
+
+  it('keeps habit names directly under the page h1 as level-2 headings', async () => {
+    renderWithProviders(<HabitsPage />)
+    expect(await screen.findByRole('heading', { level: 2, name: 'Reading' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
   })
 
   it('creates a habit through the form', async () => {
     renderWithProviders(<HabitsPage />)
     await screen.findByText('Reading')
-    await user.click(screen.getByRole('button', { name: 'Create Habit' }))
+    await user.click(screen.getByRole('button', { name: 'Create habit' }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Name'), 'Deep Work')
     await user.click(within(dialog).getByRole('button', { name: /create habit/i }))
@@ -84,6 +90,38 @@ describe('HabitsPage', () => {
         'habits:create',
         expect.objectContaining({ name: 'Deep Work', frequency: { type: 'daily' } })
       )
+    )
+  })
+
+  it('does not mark a pristine Name invalid and submits with Enter', async () => {
+    renderWithProviders(<HabitsPage />)
+    await screen.findByText('Reading')
+    await user.click(screen.getByRole('button', { name: 'Create habit' }))
+    const dialog = await screen.findByRole('dialog')
+    const name = within(dialog).getByLabelText('Name')
+    expect(name).not.toHaveAttribute('aria-invalid')
+    await user.type(name, 'Stretch{Enter}')
+    await waitFor(() =>
+      expect(windowApi.invoke).toHaveBeenCalledWith(
+        'habits:create',
+        expect.objectContaining({ name: 'Stretch' })
+      )
+    )
+  })
+
+  it('keeps the stored icon and colour when editing', async () => {
+    windowApi.respond('habits:update', HABITS[0])
+    renderWithProviders(<HabitsPage />)
+    await screen.findByText('Reading')
+    await user.click(screen.getByRole('button', { name: 'Actions for Reading' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() =>
+      expect(windowApi.invoke).toHaveBeenCalledWith('habits:update', {
+        id: 'h1',
+        patch: expect.objectContaining({ color: '#3b82f6', icon: 'BookOpen' })
+      })
     )
   })
 

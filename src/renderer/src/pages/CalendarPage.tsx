@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Download, Import, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useMemo, useState, type DragEvent } from 'react'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
 import {
@@ -18,11 +18,13 @@ import {
   type IcsFileInput
 } from '@shared/types/calendar'
 import { useCommandListener } from '@renderer/app/commandBus'
-import { useNavigation } from '@renderer/app/navigation'
+import { CREATE_LABELS, useNavigation } from '@renderer/app/navigation'
 import { useRegisterQuickCreate } from '@renderer/app/quickCreate'
 import { EmptyState } from '@renderer/components/common/EmptyState'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
+import { PageAction } from '@renderer/components/common/PageAction'
+import { PageHeader } from '@renderer/components/common/PageHeader'
 import { Button } from '@renderer/components/ui/button'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
 import {
@@ -40,18 +42,18 @@ import { EventForm, type EventFormInitial } from '@renderer/features/calendar/co
 import { ExportIcsDialog } from '@renderer/features/calendar/components/ExportIcsDialog'
 import { FiltersPopover } from '@renderer/features/calendar/components/FiltersPopover'
 import { IcsImportDialog } from '@renderer/features/calendar/components/IcsImportDialog'
+import { NearestDeadlines } from '@renderer/features/calendar/components/NearestDeadlines'
 import { TodayPanel } from '@renderer/features/calendar/components/TodayPanel'
 import { dragHasFiles, readDroppedIcsFiles } from '@renderer/features/calendar/lib/dropFiles'
 import { applyOccurrenceFilters, toFcEvents } from '@renderer/features/calendar/lib/fcEvents'
 import { shiftDate } from '@renderer/features/calendar/lib/navigation'
+import { useTodayHabitsProgress } from '@renderer/features/calendar/lib/useHabitsProgress'
 import {
   expandOccurrences,
   occurrenceStartInstant,
   type Occurrence
 } from '@renderer/features/calendar/lib/occurrences'
-import { FollowedConferenceCompact } from '@renderer/features/conference-deadlines/components/FollowedConferenceCompact'
 import { TodayHabitsCompact } from '@renderer/features/habits/components/TodayHabitsCompact'
-import { PersonalDeadlineCompact } from '@renderer/features/personal-deadlines/components/PersonalDeadlineCompact'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import { useSettings } from '@renderer/hooks/useSettings'
@@ -77,20 +79,22 @@ interface DetailsTarget {
   eventId?: string
 }
 
+/** A right-panel section: an 18 px ink-2 heading (with an optional count) over its content. */
 function PanelSection({
   title,
+  count,
   children
 }: {
   title: string
+  count?: string
   children: React.ReactNode
 }): React.JSX.Element {
+  const id = `panel-${title.toLowerCase().replace(/[^a-z]+/g, '-')}`
   return (
-    <section aria-labelledby={`panel-${title}`} className="flex flex-col gap-2">
-      <h2
-        id={`panel-${title}`}
-        className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-      >
+    <section aria-labelledby={id} className="flex flex-col gap-2">
+      <h2 id={id} className="flex items-baseline justify-between text-lead text-ink-2">
         {title}
+        {count && <span className="tabular text-xs text-ink-3">{count}</span>}
       </h2>
       {children}
     </section>
@@ -98,18 +102,18 @@ function PanelSection({
 }
 
 /**
- * Calendar (spec §9): toolbar with today's date, live clock, active zone and the next event; the
- * FullCalendar board (month / week / day / agenda, create by selecting, drag and resize, current-time
- * indicator, category and source filters); the Today & Upcoming panel; `.ics` import (native picker
- * or drop anywhere on the page) and export. Deep links: `{ date }` moves the board, `{ eventId }` opens
- * the event.
+ * Calendar (spec §9): the range title as the page headline with its toolbar (previous / next, Today,
+ * the view switch, the Calendars menu); the FullCalendar board (month / week / day / agenda, create
+ * by selecting, drag and resize, current-time line); the Today & Upcoming panel; `.ics` import
+ * (menu, `Cmd+I`, or drop anywhere on the page) and export. The date, clock and zone live in the
+ * shell's top strip; "Next: ..." is an sr-only line here, shown as the annotated Today row. Deep
+ * links: `{ date }` moves the board, `{ eventId }` opens the event.
  */
 export default function CalendarPage(): React.JSX.Element {
   const { settings, updateUi } = useSettings()
   const format = useFormat()
   const zone = format.zone
   const nowMinute = useNow({ precision: 'minute' })
-  const nowSecond = useNow({ precision: 'second' })
   const todayKey = todayInZone(zone, nowMinute)
   const params = useNavigation((state) => state.params)
 
@@ -148,10 +152,6 @@ export default function CalendarPage(): React.JSX.Element {
         : [],
     [range, rangeEvents.data, zone, categories]
   )
-  const fcEvents = useMemo(
-    () => toFcEvents(boardOccurrences, sourceList),
-    [boardOccurrences, sourceList]
-  )
 
   const panelRange = useMemo(
     () => ({
@@ -169,8 +169,20 @@ export default function CalendarPage(): React.JSX.Element {
     (o) => compareInstants(occurrenceStartInstant(o, zone), todayEnd) < 0
   )
   const nextOccurrence = panelOccurrences.find(
-    (o) => compareInstants(occurrenceStartInstant(o, zone), nowMinute) > 0
+    (o) =>
+      o.event.status !== 'cancelled' &&
+      compareInstants(occurrenceStartInstant(o, zone), nowMinute) > 0
   )
+  const nextKey = nextOccurrence?.key
+  const fcEvents = toFcEvents(boardOccurrences, { nextKey })
+  // The time grid opens at 08:00, or at the earliest event's hour so that none starts out clipped.
+  let firstHour = 8
+  for (const o of boardOccurrences) {
+    if (o.allDay) continue
+    firstHour = Math.min(firstHour, parseInstant(o.startAt).setZone(zone.luxonZone).hour)
+  }
+  const scrollTime = `${String(firstHour).padStart(2, '0')}:00:00`
+  const habitsProgress = useTodayHabitsProgress()
 
   const findOccurrence = (target: DetailsTarget | undefined): Occurrence | undefined => {
     if (!target) return undefined
@@ -302,31 +314,20 @@ export default function CalendarPage(): React.JSX.Element {
     )
   } else if (isEmpty) {
     body = (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-start">
         <EmptyState
-          icon={CalendarDays}
           title={EMPTY_STATES.calendar.title}
           description="Import an existing .ics calendar or create your first event. Week view opens by default; change it in Settings."
           actions={[
-            {
-              label: EMPTY_STATES.calendar.actions[0],
-              onClick: openImport,
-              variant: 'outline',
-              icon: Import
-            },
-            {
-              label: EMPTY_STATES.calendar.actions[1],
-              onClick: openCreate,
-              variant: 'default',
-              icon: Plus
-            }
+            { label: EMPTY_STATES.calendar.actions[0], onClick: openImport },
+            { label: EMPTY_STATES.calendar.actions[1], onClick: openCreate }
           ]}
         />
       </div>
     )
   } else {
     body = (
-      <div className="min-h-0 flex-1 px-4 pb-4">
+      <div className="min-h-0 flex-1 pb-4">
         {rangeEvents.isError && (
           <ErrorState
             variant="compact"
@@ -343,6 +344,7 @@ export default function CalendarPage(): React.JSX.Element {
           weekStartsOn={settings.weekStartsOn}
           clock={settings.clock}
           events={fcEvents}
+          scrollTime={scrollTime}
           onDatesSet={onDatesSet}
           onSelectSlot={onSelectSlot}
           onEventClick={onEventClick}
@@ -354,86 +356,72 @@ export default function CalendarPage(): React.JSX.Element {
 
   return (
     <div
-      className={cn('relative flex h-full min-h-0', dragging && 'ring-2 ring-primary ring-inset')}
+      className={cn('relative flex h-full min-h-0', dragging && 'ring-1 ring-ink ring-inset')}
       onDragOver={onDragOver}
       onDragLeave={() => setDragging(false)}
       onDrop={(e) => void onDrop(e)}
     >
       {dragging && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/70 text-sm font-medium">
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/80 text-lead text-ink">
           Drop .ics files to import
         </div>
       )}
-      <section className="flex min-w-0 flex-1 flex-col" aria-labelledby="calendar-heading">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-          <div className="min-w-0">
-            <h1 id="calendar-heading" className="text-[15px] font-semibold">
-              Calendar
-            </h1>
-            <p
-              className="tabular truncate text-xs text-muted-foreground"
-              data-testid="calendar-now"
-            >
-              {format.formatWeekday(todayKey)} · {format.formatDate(todayKey)} ·{' '}
-              {format.formatClock(nowSecond)} {format.formatZoneLabel(nowSecond)}
-              {nextOccurrence
-                ? ` · Next: ${nextOccurrence.event.title} ${format.formatRelative(occurrenceStartInstant(nextOccurrence, zone), nowMinute)}`
-                : ` · ${EMPTY_STATES.nextEvent.title}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <FiltersPopover
-              sources={sourceList}
-              categories={categories}
-              onCategoriesChange={setCategories}
-            />
-            <Button variant="outline" size="sm" onClick={openExport}>
-              <Download aria-hidden="true" />
-              Export
-            </Button>
-            <Button variant="outline" size="sm" onClick={openImport}>
-              <Import aria-hidden="true" />
-              Import .ics
-            </Button>
-            <Button size="sm" onClick={openCreate}>
-              <Plus aria-hidden="true" />
-              Add Event
-            </Button>
-          </div>
-        </div>
+      <PageAction>
+        <Button size="sm" onClick={openCreate}>
+          {CREATE_LABELS.event}
+        </Button>
+      </PageAction>
+      <section className="flex min-w-0 flex-1 flex-col pt-[18px] pr-6 pl-10" aria-label="Calendar">
+        <PageHeader title="Calendar" hideTitle className="gap-0 [&>div]:min-h-0" />
+        <p className="sr-only" data-testid="calendar-now">
+          {nextOccurrence
+            ? `Next: ${nextOccurrence.event.title} ${format.formatRelative(occurrenceStartInstant(nextOccurrence, zone), nowMinute)}`
+            : EMPTY_STATES.nextEvent.title}
+        </p>
         {!isEmpty && (
-          <div className="flex flex-wrap items-center gap-2 px-4 py-2">
-            <SegmentedControl
-              aria-label="Calendar view"
-              size="sm"
-              value={view}
-              onValueChange={setView}
-              options={VIEW_OPTIONS}
-            />
-            <div className="flex items-center gap-1">
+          <div className="mb-2.5 flex min-h-11 flex-wrap items-center justify-between gap-x-6 gap-y-1">
+            <h2
+              className="min-h-11 text-display whitespace-nowrap text-ink"
+              data-testid="calendar-title"
+            >
+              {title}
+            </h2>
+            <div className="app-no-drag flex items-center gap-1">
               <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="icon"
                 aria-label="Previous"
                 onClick={() => setDate(shiftDate(date, view, -1))}
               >
                 <ChevronLeft aria-hidden="true" />
               </Button>
-              <Button variant="outline" size="sm" onClick={goToday} disabled={date === todayKey}>
+              <Button variant="ghost" size="sm" className="text-ink" onClick={goToday}>
                 Today
               </Button>
               <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="icon"
                 aria-label="Next"
                 onClick={() => setDate(shiftDate(date, view, 1))}
               >
                 <ChevronRight aria-hidden="true" />
               </Button>
+              <SegmentedControl
+                aria-label="Calendar view"
+                size="sm"
+                className="mr-2 ml-5"
+                value={view}
+                onValueChange={setView}
+                options={VIEW_OPTIONS}
+              />
+              <FiltersPopover
+                sources={sourceList}
+                categories={categories}
+                onCategoriesChange={setCategories}
+                onImport={openImport}
+                onExport={openExport}
+              />
             </div>
-            <span className="text-sm font-medium" data-testid="calendar-title">
-              {title}
-            </span>
           </div>
         )}
         {body}
@@ -441,7 +429,7 @@ export default function CalendarPage(): React.JSX.Element {
 
       <aside
         aria-label="Today and upcoming"
-        className="hidden w-80 shrink-0 flex-col gap-5 overflow-y-auto border-l bg-sidebar/40 p-4 min-[1180px]:flex"
+        className="hidden w-72 shrink-0 flex-col gap-7 overflow-y-auto border-l border-line pt-6 pr-8 pb-8 pl-7 min-[1180px]:flex"
       >
         <PanelSection title="Today">
           <TodayPanel
@@ -452,10 +440,12 @@ export default function CalendarPage(): React.JSX.Element {
           />
         </PanelSection>
         <PanelSection title="Nearest deadline">
-          <PersonalDeadlineCompact />
-          <FollowedConferenceCompact />
+          <NearestDeadlines />
         </PanelSection>
-        <PanelSection title="Today’s habits">
+        <PanelSection
+          title="Today’s habits"
+          count={habitsProgress ? `${habitsProgress.done} of ${habitsProgress.total}` : undefined}
+        >
           <TodayHabitsCompact />
         </PanelSection>
       </aside>

@@ -1,6 +1,5 @@
 import type { EventInput } from '@fullcalendar/core'
-import { getCategory } from '@shared/constants/categories'
-import type { CalendarEventCategory, CalendarSource } from '@shared/types/calendar'
+import type { CalendarEventCategory } from '@shared/types/calendar'
 import type { Occurrence } from './occurrences'
 
 /** What a FullCalendar event carries back to us in `extendedProps`. */
@@ -37,32 +36,23 @@ export const applyOccurrenceFilters = (
     return true
   })
 
-/**
- * Source colour when the event belongs to a source, else the category token.
- *
- * The raw `--<token>` property, never the `--color-<token>` theme name: `@theme inline` resolves
- * theme names at build time and Tailwind drops any it cannot see used by a utility class, so a
- * palette colour looked up at runtime by name resolves to nothing and FullCalendar paints an
- * uncoloured box.
- */
-export const occurrenceColor = (
-  occurrence: Pick<Occurrence, 'event'>,
-  sources: ReadonlyMap<string, CalendarSource>
-): string => {
-  const source = occurrence.event.sourceCalendarId
-    ? sources.get(occurrence.event.sourceCalendarId)
-    : undefined
-  return source?.color ?? `var(--${getCategory(occurrence.event.category).colorToken})`
+/** Options for `toFcEvents`. */
+export interface FcEventOptions {
+  /** Occurrence key of the next event; it alone gets the Bold title (`fc-event-next`). */
+  nextKey?: string
 }
 
-/** Maps expanded occurrences to FullCalendar inputs; series occurrences and managed events are not draggable. */
+/**
+ * Maps expanded occurrences to FullCalendar inputs; series occurrences and managed events are not
+ * draggable. Events carry no colour at all: they are neutral ink-wash marks (`calendar.css`),
+ * told apart by title, time, position and state (`fc-event-cancelled|managed|recurring|next`).
+ * The stored source colour is shown only as a dot in the Calendars menu.
+ */
 export const toFcEvents = (
   occurrences: readonly Occurrence[],
-  sources: readonly CalendarSource[]
-): EventInput[] => {
-  const byId = new Map(sources.map((s) => [s.id, s]))
-  return occurrences.map((o) => {
-    const color = occurrenceColor(o, byId)
+  options: FcEventOptions = {}
+): EventInput[] =>
+  occurrences.map((o) => {
     const cancelled = o.event.status === 'cancelled'
     const props: FcExtendedProps = {
       occurrenceKey: o.key,
@@ -78,15 +68,12 @@ export const toFcEvents = (
       end: o.endAt,
       allDay: o.allDay,
       editable: !o.recurring && !o.event.sourceManaged,
-      backgroundColor: color,
-      borderColor: color,
-      textColor: '#ffffff',
       classNames: [
         cancelled ? 'fc-event-cancelled' : '',
         o.event.sourceManaged ? 'fc-event-managed' : '',
-        o.recurring ? 'fc-event-recurring' : ''
+        o.recurring ? 'fc-event-recurring' : '',
+        options.nextKey === o.key ? 'fc-event-next' : ''
       ].filter(Boolean),
       extendedProps: props
     }
   })
-}

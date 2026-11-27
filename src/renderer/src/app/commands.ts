@@ -18,7 +18,7 @@ import { habitCommands } from '@renderer/features/habits/commands'
 import { personalDeadlineCommands } from '@renderer/features/personal-deadlines/commands'
 import { settingsCommands } from '@renderer/features/settings/commands'
 import { timelineCommands } from '@renderer/features/timeline/commands'
-import { dispatchCommand } from './commandBus'
+import { dispatchCommand, dispatchCommandWhenMounted } from './commandBus'
 import { PAGES, useNavigation, type NavigationParams } from './navigation'
 import { triggerQuickCreate } from './quickCreate'
 import { useShell } from './shell'
@@ -99,7 +99,8 @@ export const shellCommands: Command[] = [
     icon: Import,
     run: (ctx) => {
       ctx.navigate('calendar')
-      dispatchCommand('import-ics')
+      // The calendar page is not mounted yet when this runs from another page; queue it for its listener.
+      dispatchCommandWhenMounted('import-ics')
     }
   },
   {

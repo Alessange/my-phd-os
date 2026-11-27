@@ -76,12 +76,12 @@ const elapsedPhrase = (remaining: RemainingTime, compact: boolean): string => {
   const { days, hours, minutes } = remaining
   const [n, unit]: [number, CountdownSegment['unit']] =
     days > 0 ? [days, 'day'] : hours > 0 ? [hours, 'hour'] : [Math.max(minutes, 1), 'minute']
-  return compact ? `${n}${COMPACT_UNIT[unit]}` : `${n} ${plural(n, unit)}`
+  return compact ? `${n} ${COMPACT_UNIT[unit]}` : `${n} ${plural(n, unit)}`
 }
 
 /**
  * `long`:    `32 days 08 hours 14 minutes` · under 24 h `08 hours 14 minutes 09 seconds` · `Passed 2 days ago`
- * `compact`: `32d 08h` · under 24 h `08h 14m` · under 1 h `14m 09s` · `Passed 2d ago`
+ * `compact`: `32 d 08 h` · under 24 h `08 h 14 m` · under 1 h `14 m 09 s` · `Passed 2 d ago`
  * `stacked`: same segments as `long`, one per line (`32 days\n08 hours\n14 minutes`).
  */
 export const formatCountdown = (
@@ -97,7 +97,7 @@ export const formatCountdown = (
   if (style === 'compact') {
     const shown =
       remaining.days > 0 || remaining.hours > 0 ? segments.slice(0, 2) : segments.slice(1, 3)
-    return shown.map((s) => `${s.value}${COMPACT_UNIT[s.unit]}`).join(' ')
+    return shown.map((s) => `${s.value} ${COMPACT_UNIT[s.unit]}`).join(' ')
   }
   const parts = segments.map((s) => `${s.value} ${s.label}`)
   return parts.join(style === 'stacked' ? '\n' : ' ')

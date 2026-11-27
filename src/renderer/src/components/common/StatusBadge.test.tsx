@@ -37,4 +37,19 @@ describe('StatusBadge', () => {
     render(<StatusBadge status="something_new" />)
     expect(screen.getByText('something_new')).toBeInTheDocument()
   })
+
+  it('shows a glyph only for attention statuses when attentionGlyphOnly is set', () => {
+    const calm = render(<StatusBadge status="on_track" attentionGlyphOnly />)
+    expect(calm.container.querySelector('svg')).toBeNull()
+    expect(screen.getByText('On Track')).toBeInTheDocument()
+    calm.unmount()
+    const urgent = render(<StatusBadge status="urgent" attentionGlyphOnly />)
+    expect(urgent.container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('draws no pill: the mark carries no border or fill classes', () => {
+    const { container } = render(<StatusBadge status="at_risk" />)
+    const mark = container.querySelector('[data-status]') as HTMLElement
+    expect(mark.className).not.toMatch(/\b(border|bg-)/)
+  })
 })

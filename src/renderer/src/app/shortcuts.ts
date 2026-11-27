@@ -3,7 +3,7 @@ import { SHORTCUTS, type AppCommandId, type Shortcut } from '@shared/constants/s
 import { onEvent } from '@renderer/lib/api'
 import { isEditableTarget } from '@renderer/lib/utils'
 import { getPlatform } from '@renderer/hooks/usePlatform'
-import { dispatchCommand } from './commandBus'
+import { dispatchCommand, dispatchCommandWhenMounted } from './commandBus'
 import { useCommandPalette } from './commands'
 import { isPageId, useNavigation } from './navigation'
 import { triggerQuickCreate } from './quickCreate'
@@ -21,7 +21,7 @@ export const runAppCommand = (command: AppCommandId, args: Record<string, string
       return
     case 'importIcs':
       navigate('calendar')
-      dispatchCommand('import-ics')
+      dispatchCommandWhenMounted('import-ics')
       return
     case 'openSettings':
       navigate('settings', args.section ? { section: args.section } : {})
@@ -31,7 +31,7 @@ export const runAppCommand = (command: AppCommandId, args: Record<string, string
       return
     case 'calendarToday':
       if (page !== 'calendar') navigate('calendar')
-      dispatchCommand('calendar-today')
+      dispatchCommandWhenMounted('calendar-today')
       return
     case 'closeOverlay':
       if (palette.open) palette.setOpen(false)

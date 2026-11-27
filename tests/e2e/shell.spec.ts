@@ -93,11 +93,11 @@ test('every page shows its exact empty-state text on a fresh install', async () 
 
   await clickSidebar(page, 'Timeline')
   await expect(page.getByText('Your timeline starts here.', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add Milestone' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add milestone' }).first()).toBeVisible()
 
   await clickSidebar(page, 'Habits')
   await expect(page.getByText('No habits yet.', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Create Habit' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create habit' }).first()).toBeVisible()
 
   await clickSidebar(page, 'Settings')
   await expect(page.getByRole('heading', { name: 'General' })).toBeVisible()
@@ -136,7 +136,7 @@ test('command palette opens with Mod+K, navigates, and closes with Escape', asyn
 
   await page
     .getByRole('banner')
-    .getByRole('button', { name: /Open command palette/ })
+    .getByRole('button', { name: /^Search/ })
     .click()
   await expect(dialog).toBeVisible()
   await input.fill('Settings: About')

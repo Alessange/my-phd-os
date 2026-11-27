@@ -84,7 +84,7 @@ describe('PersonalDeadlinesTab', () => {
     expect(
       screen.getByText('Countdowns and progress tracking appear after you add a deadline.')
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add Personal Deadline' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add personal deadline' })).toBeInTheDocument()
   })
 
   it('shows active deadlines as bars by default and as cards on request, hiding completed ones', async () => {
@@ -114,7 +114,7 @@ describe('PersonalDeadlinesTab', () => {
   it('creates a deadline with canonical instants and the app timezone', async () => {
     windowApi.respond('personalDeadlines:list', [])
     renderWithProviders(<PersonalDeadlinesTab />)
-    await user.click(await screen.findByRole('button', { name: 'Add Personal Deadline' }))
+    await user.click(await screen.findByRole('button', { name: 'Add personal deadline' }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Title'), 'Quals')
     await user.click(within(dialog).getByRole('button', { name: 'Create deadline' }))
@@ -133,6 +133,27 @@ describe('PersonalDeadlinesTab', () => {
         })
       )
     )
+  })
+
+  it('opens the form without a red Title and flags it only after the field was left', async () => {
+    windowApi.respond('personalDeadlines:list', [])
+    renderWithProviders(<PersonalDeadlinesTab />)
+    await user.click(await screen.findByRole('button', { name: 'Add personal deadline' }))
+    const dialog = await screen.findByRole('dialog')
+    const title = within(dialog).getByLabelText('Title')
+    expect(title).not.toHaveAttribute('aria-invalid')
+    await user.click(title)
+    await user.tab()
+    expect(title).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dialog).getByText('Title is required.')).toBeInTheDocument()
+  })
+
+  it('groups the list under time headings', async () => {
+    renderWithProviders(<PersonalDeadlinesTab />)
+    await screen.findByRole('button', { name: /Paper draft/ })
+    await user.click(screen.getByRole('radio', { name: 'List' }))
+    const table = await screen.findByRole('table')
+    expect(within(table).getByRole('rowheader', { name: /Later/ })).toBeInTheDocument()
   })
 
   it('opens the details drawer, saves progress and links to the calendar', async () => {

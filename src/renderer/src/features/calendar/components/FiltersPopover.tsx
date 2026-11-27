@@ -1,4 +1,4 @@
-import { Check, Eye, EyeOff, Filter, Pencil, Trash2 } from 'lucide-react'
+import { Ellipsis, Eye, EyeOff, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { getCategory } from '@shared/constants/categories'
 import {
@@ -6,7 +6,6 @@ import {
   type CalendarEventCategory,
   type CalendarSource
 } from '@shared/types/calendar'
-import { DynamicIcon } from '@renderer/components/common/DynamicIcon'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,11 +17,12 @@ import {
   AlertDialogTitle
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
+import { Checkbox } from '@renderer/components/ui/checkbox'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { Switch } from '@renderer/components/ui/switch'
-import { chipStyle, cn } from '@renderer/lib/utils'
+import { cn, userColor } from '@renderer/lib/utils'
 import { useDeleteSource, useUpdateSource } from '../api'
 
 export interface FiltersPopoverProps {
@@ -30,23 +30,34 @@ export interface FiltersPopoverProps {
   /** Categories currently shown. */
   categories: ReadonlySet<CalendarEventCategory>
   onCategoriesChange: (next: Set<CalendarEventCategory>) => void
+  onImport: () => void
+  onExport: () => void
 }
 
+/** A menu row that acts like a text button: 36 px high, label left, hint right. */
+const menuRow =
+  'flex h-9 w-full items-center justify-between rounded-sm px-2 text-sm text-ink hover:bg-hover'
+
 /**
- * Category filter (this session) and calendar sources (spec §10.2: rename, colour, show/hide,
- * delete with or without events). Source visibility is persisted; the event query already skips
- * hidden sources.
+ * The Calendars menu (the `...` at the right of the toolbar): the calendar sources (show / hide,
+ * rename, colour, delete with or without events), the category filter (this session only) and the
+ * two `.ics` entries. Source visibility is persisted; the event query already skips hidden
+ * sources. A source's stored colour is drawn as a 6 px normalised dot, never on the grid.
  */
 export function FiltersPopover({
   sources,
   categories,
-  onCategoriesChange
+  onCategoriesChange,
+  onImport,
+  onExport
 }: FiltersPopoverProps): React.JSX.Element {
   const updateSource = useUpdateSource()
   const deleteSource = useDeleteSource()
+  const [open, setOpen] = useState(false)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | undefined>()
   const [deleting, setDeleting] = useState<CalendarSource | undefined>()
   const [deleteEvents, setDeleteEvents] = useState(false)
+  const [showCategories, setShowCategories] = useState(false)
 
   const toggleCategory = (category: CalendarEventCategory): void => {
     const next = new Set(categories)
@@ -54,8 +65,8 @@ export function FiltersPopover({
     else next.add(category)
     onCategoriesChange(next)
   }
-  const hiddenCount =
-    CALENDAR_EVENT_CATEGORIES.length - categories.size + sources.filter((s) => !s.visible).length
+  const hiddenCategories = CALENDAR_EVENT_CATEGORIES.length - categories.size
+  const hiddenCount = hiddenCategories + sources.filter((s) => !s.visible).length
 
   const commitRename = (): void => {
     if (!renaming) return
@@ -63,94 +74,56 @@ export function FiltersPopover({
     if (name.length > 0) updateSource.mutate({ id: renaming.id, patch: { name } })
     setRenaming(undefined)
   }
+  const choose = (action: () => void): void => {
+    setOpen(false)
+    action()
+  }
 
   return (
     <>
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" aria-label="Filters and sources">
-            <Filter aria-hidden="true" />
-            Filters
+          <Button
+            variant="ghost"
+            size={hiddenCount > 0 ? 'sm' : 'icon'}
+            aria-label={`Calendars and filters${hiddenCount > 0 ? `, ${hiddenCount} hidden` : ''}`}
+          >
             {hiddenCount > 0 && (
-              <span className="tabular rounded-sm bg-primary/15 px-1 text-[10px] text-primary">
-                {hiddenCount} hidden
-              </span>
+              <span className="tabular text-xs text-ink-3">{hiddenCount} hidden</span>
             )}
+            <Ellipsis aria-hidden="true" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-80">
+        <PopoverContent align="end" className="w-80 p-3">
           <div className="flex flex-col gap-4">
-            <section className="flex flex-col gap-1.5" aria-labelledby="filter-categories">
-              <div className="flex items-center justify-between">
-                <h3
-                  id="filter-categories"
-                  className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                >
-                  Categories
+            <section className="flex flex-col gap-1" aria-labelledby="menu-calendars">
+              <div className="flex items-baseline justify-between px-2">
+                <h3 id="menu-calendars" className="text-sm text-ink-2">
+                  Calendars
                 </h3>
-                {categories.size < CALENDAR_EVENT_CATEGORIES.length && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto px-0"
-                    onClick={() => onCategoriesChange(new Set(CALENDAR_EVENT_CATEGORIES))}
-                  >
-                    Show all
-                  </Button>
+                {hiddenCount > 0 && (
+                  <span className="tabular text-xs text-ink-3">{hiddenCount} hidden</span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {CALENDAR_EVENT_CATEGORIES.map((id) => {
-                  const definition = getCategory(id)
-                  const active = categories.has(id)
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => toggleCategory(id)}
-                      style={active ? chipStyle(definition.colorToken) : undefined}
-                      className={cn(
-                        'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-                        active
-                          ? 'chip-tint border-transparent'
-                          : 'border-border text-muted-foreground line-through hover:bg-accent'
-                      )}
-                    >
-                      <DynamicIcon name={definition.icon} className="size-3" />
-                      {definition.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className="flex flex-col gap-1.5" aria-labelledby="filter-sources">
-              <h3
-                id="filter-sources"
-                className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-              >
-                Calendar sources
-              </h3>
               {sources.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="px-2 py-1 text-xs text-ink-3">
                   No sources yet. Importing an .ics file creates one.
                 </p>
               ) : (
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col">
                   {sources.map((source) => (
                     <li
                       key={source.id}
-                      className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-accent/60"
+                      className="group/row flex min-h-9 items-center gap-0.5"
                       data-source-id={source.id}
                     >
                       <label
-                        className="relative flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full"
+                        className="relative flex size-7 shrink-0 cursor-pointer items-center justify-center"
                         title="Change colour"
                       >
                         <span
-                          className="size-3.5 rounded-full"
-                          style={{ backgroundColor: source.color }}
+                          className="size-1.5 rounded-full"
+                          style={{ backgroundColor: userColor(source.color) }}
                           aria-hidden="true"
                         />
                         <input
@@ -174,25 +147,23 @@ export function FiltersPopover({
                             if (e.key === 'Enter') commitRename()
                             if (e.key === 'Escape') setRenaming(undefined)
                           }}
-                          className="h-7 flex-1 text-xs"
+                          className="h-8 flex-1 text-sm"
                         />
                       ) : (
                         <span
                           className={cn(
-                            'flex-1 truncate text-sm',
-                            !source.visible && 'text-muted-foreground line-through'
+                            'min-w-0 flex-1 truncate text-sm',
+                            !source.visible && 'text-ink-3'
                           )}
                         >
                           {source.name}
-                          <span className="ml-1 text-[10px] text-muted-foreground uppercase">
-                            {source.type}
-                          </span>
+                          <span className="ml-2 text-xs text-ink-3">{source.type}</span>
                         </span>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7"
+                        className="size-7 opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100"
                         aria-label={`Rename ${source.name}`}
                         onClick={() => setRenaming({ id: source.id, name: source.name })}
                       >
@@ -218,9 +189,9 @@ export function FiltersPopover({
                         )}
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="icon"
-                        className="size-7 text-destructive hover:text-destructive"
+                        className="size-7 opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100"
                         aria-label={`Delete ${source.name}`}
                         onClick={() => setDeleting(source)}
                       >
@@ -231,14 +202,77 @@ export function FiltersPopover({
                 </ul>
               )}
             </section>
+
+            <section className="flex flex-col gap-1" aria-labelledby="menu-categories">
+              <div className="flex items-baseline justify-between px-2">
+                <h3 id="menu-categories" className="text-sm text-ink-2">
+                  <button
+                    type="button"
+                    className="hover:text-ink"
+                    aria-expanded={showCategories}
+                    aria-controls="menu-category-list"
+                    onClick={() => setShowCategories((value) => !value)}
+                  >
+                    Categories
+                  </button>
+                </h3>
+                {hiddenCategories > 0 && (
+                  <button
+                    type="button"
+                    className="link-quiet text-xs"
+                    onClick={() => onCategoriesChange(new Set(CALENDAR_EVENT_CATEGORIES))}
+                  >
+                    Show all
+                  </button>
+                )}
+              </div>
+              {(showCategories || hiddenCategories > 0) && (
+                <ul id="menu-category-list" className="grid grid-cols-2 gap-x-2">
+                  {CALENDAR_EVENT_CATEGORIES.map((id) => (
+                    <li key={id} className="flex h-8 items-center gap-2 px-2">
+                      <Checkbox
+                        id={`menu-category-${id}`}
+                        checked={categories.has(id)}
+                        onCheckedChange={() => toggleCategory(id)}
+                      />
+                      <Label variant="inline" htmlFor={`menu-category-${id}`} className="min-w-0">
+                        <span className="truncate">{getCategory(id).label}</span>
+                      </Label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <div className="flex flex-col border-t border-line pt-2">
+              <button
+                type="button"
+                className={menuRow}
+                aria-label="Import .ics"
+                onClick={() => choose(onImport)}
+              >
+                <span>Import .ics</span>
+                <span className="text-xs text-ink-3" aria-hidden="true">
+                  ⌘I
+                </span>
+              </button>
+              <button
+                type="button"
+                className={menuRow}
+                aria-label="Export .ics"
+                onClick={() => choose(onExport)}
+              >
+                Export .ics
+              </button>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
 
       <AlertDialog
         open={deleting !== undefined}
-        onOpenChange={(open) => {
-          if (!open) {
+        onOpenChange={(next) => {
+          if (!next) {
             setDeleting(undefined)
             setDeleteEvents(false)
           }
@@ -252,8 +286,10 @@ export function FiltersPopover({
               without a source. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex items-center justify-between rounded-md border px-3 py-2">
-            <Label htmlFor="delete-source-events">Also delete its events</Label>
+          <div className="flex items-center justify-between border-y border-line py-3">
+            <Label variant="inline" htmlFor="delete-source-events">
+              Also delete its events
+            </Label>
             <Switch
               id="delete-source-events"
               checked={deleteEvents}
@@ -279,7 +315,6 @@ export function FiltersPopover({
                 )
               }}
             >
-              <Check aria-hidden="true" />
               {deleteEvents ? 'Delete source and events' : 'Delete source, keep events'}
             </AlertDialogAction>
           </AlertDialogFooter>

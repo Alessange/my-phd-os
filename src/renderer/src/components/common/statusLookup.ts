@@ -23,3 +23,19 @@ export const resolveStatus = (status: string | StatusDefinition): StatusDefiniti
 
 export const resolvePriority = (priority: string): StatusDefinition | undefined =>
   (PRIORITY_DEFINITIONS as Record<string, StatusDefinition>)[priority]
+
+/** Ids that deserve a glyph next to the word: exceptions and states that ask the user to act. */
+const ATTENTION_STATUS_IDS: ReadonlySet<string> = new Set([
+  'urgent',
+  'overdue',
+  'missed',
+  'failed',
+  'delayed',
+  'invalid',
+  'conflict',
+  'at_risk',
+  'behind',
+  'completed'
+])
+
+export const isAttentionStatus = (id: string): boolean => ATTENTION_STATUS_IDS.has(id)

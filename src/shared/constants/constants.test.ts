@@ -75,16 +75,16 @@ describe('shortcuts', () => {
 })
 
 describe('empty states', () => {
-  it('uses the exact spec copy', () => {
+  it('uses the redesign copy (exact titles, sentence-case actions)', () => {
     expect(EMPTY_STATES.calendar.title).toBe('Your calendar is empty.')
-    expect(EMPTY_STATES.calendar.actions).toEqual(['Import .ics', 'Create Event'])
+    expect(EMPTY_STATES.calendar.actions).toEqual(['Import .ics', 'Create event'])
     expect(EMPTY_STATES.conferenceDeadlinesNoSubscription.title).toBe(
       'No conference subscription yet.'
     )
     expect(EMPTY_STATES.personalDeadlines.title).toBe('No personal deadlines yet.')
     expect(EMPTY_STATES.timeline.title).toBe('Your timeline starts here.')
     expect(EMPTY_STATES.habits.title).toBe('No habits yet.')
-    expect(EMPTY_STATES.habits.actions).toEqual(['Create Habit'])
+    expect(EMPTY_STATES.habits.actions).toEqual(['Create habit'])
   })
 })
 

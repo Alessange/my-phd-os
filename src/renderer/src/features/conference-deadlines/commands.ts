@@ -1,6 +1,7 @@
 import { CalendarClock, RefreshCw, Rss } from 'lucide-react'
 import type { RefreshOutcome } from '@shared/types/conference'
 import type { Command } from '@renderer/app/commands'
+import { CREATE_LABELS } from '@renderer/app/navigation'
 import { api } from '@renderer/lib/api'
 import { toastError, toastInfo } from '@renderer/lib/toast'
 
@@ -33,7 +34,7 @@ export const refreshSubscriptionsNow = async (): Promise<void> => {
 export const conferenceDeadlineCommands: Command[] = [
   {
     id: 'conference-deadlines:add-subscription',
-    title: 'Add conference',
+    title: CREATE_LABELS.conference,
     group: 'Create',
     keywords: ['conference', 'ccf', 'subscription', 'follow', 'deadline', 'new', 'add'],
     icon: Rss,

@@ -13,7 +13,7 @@ export function ScrollArea({
       className={cn('relative', className)}
       {...props}
     >
-      <ScrollAreaPrimitive.Viewport className="size-full rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <ScrollAreaPrimitive.Viewport className="size-full rounded-[inherit] outline-none">
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar />
@@ -39,7 +39,7 @@ export function ScrollBar({
       )}
       {...props}
     >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-foreground/25" />
+      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-ink/25" />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   )
 }

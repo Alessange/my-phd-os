@@ -81,7 +81,7 @@ export function FollowDialog({
             conference record.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4 py-2">
+        <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-1.5">
             <Label>Intention</Label>
             <SegmentedControl
@@ -94,9 +94,7 @@ export function FollowDialog({
                 label: FOLLOW_INTENTION_LABELS[value]
               }))}
             />
-            <p className="text-[11px] text-muted-foreground">
-              {FOLLOW_INTENTION_DESCRIPTIONS[intention]}
-            </p>
+            <p className="text-xs text-ink-2">{FOLLOW_INTENTION_DESCRIPTIONS[intention]}</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="follow-progress">Submission progress (optional)</Label>
@@ -134,7 +132,7 @@ export function FollowDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={() => void save()} disabled={saving || !item}>

@@ -53,10 +53,10 @@ describe('CalendarPage', () => {
   it('shows the exact empty-state copy with Import and Create actions on a fresh install', async () => {
     renderWithProviders(<CalendarPage />)
     expect(await screen.findByText('Your calendar is empty.')).toBeInTheDocument()
-    // Header action + empty-state action.
-    expect(screen.getAllByRole('button', { name: 'Import .ics' })).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Create Event' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add Event' })).toBeInTheDocument()
+    // Import lives in the Calendars menu once there is a calendar; the empty state offers it itself.
+    expect(screen.getAllByRole('button', { name: 'Import .ics' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Create event' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add event' })).toBeInTheDocument()
     expect(screen.getByTestId('calendar-now')).toHaveTextContent('No upcoming event.')
   })
 
@@ -80,7 +80,7 @@ describe('CalendarPage', () => {
 
   it('creates an event through the form with the app timezone', async () => {
     renderWithProviders(<CalendarPage />)
-    await user.click(await screen.findByRole('button', { name: 'Add Event' }))
+    await user.click(await screen.findByRole('button', { name: 'Add event' }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Title'), 'Reading group')
     await user.click(within(dialog).getByRole('button', { name: 'Create event' }))
@@ -167,7 +167,9 @@ describe('CalendarPage', () => {
       sourceId: 's1',
       eventIds: ['a', 'b', 'c']
     })
+    windowApi.respond('calendar:listEvents', [event({ id: 'e1', title: 'Supervisor meeting' })])
     renderWithProviders(<CalendarPage />)
+    await user.click(await screen.findByRole('button', { name: /^Calendars and filters/ }))
     await user.click(await screen.findByRole('button', { name: 'Import .ics' }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Choose files…' }))

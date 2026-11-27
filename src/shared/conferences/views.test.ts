@@ -15,6 +15,7 @@ import {
   updatedDeadlineIds,
   urgencyLevel,
   conferenceSubline,
+  conferenceDisplayTitle,
   CONFERENCE_COLOR_COUNT,
   assignConferenceColors,
   deadlineProgress
@@ -301,6 +302,15 @@ describe('urgencyLevel / conferenceSubline', () => {
       })
     ).toBe('CCF A · CORE A* · Abstract · Round 2')
     expect(conferenceSubline({ deadlineKind: 'deadline' })).toBe('')
+  })
+  it('drops a bracketed round from the row title only when the subline already says it', () => {
+    const title = 'RSS 2027 Deadline [Stage 1: initial 6-page extended abstract submission]'
+    const subline = 'CORE A* · TH-CPL A · Stage 1: initial 6-page extended abstract submission'
+    expect(conferenceDisplayTitle(title, subline)).toBe('RSS 2027 Deadline')
+    // Nothing is lost: without the repeat in the subline the full title stays.
+    expect(conferenceDisplayTitle(title, 'CORE A*')).toBe(title)
+    expect(conferenceDisplayTitle('NeurIPS 2027', 'CCF A')).toBe('NeurIPS 2027')
+    expect(conferenceDisplayTitle('[Draft]', '[Draft]')).toBe('[Draft]')
   })
 })
 

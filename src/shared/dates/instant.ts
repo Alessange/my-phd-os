@@ -27,7 +27,8 @@ export const toZonedDateTime = (instantIso: string, zone: ZoneInput): DateTime =
 /**
  * Interprets a wall-clock time (`2026-09-18T23:59` / `2026-09-18T23:59:00`) in `zone` and returns the
  * canonical UTC instant. A string that already carries an offset or `Z` is treated as an absolute instant.
- * Nonexistent wall times inside a DST gap are shifted forward by Luxon; ambiguous ones take the earlier offset.
+ * Nonexistent wall times inside a DST gap are shifted forward by Luxon. An ambiguous wall time (the
+ * hour that happens twice when clocks go back) always takes the earlier of its two instants.
  */
 export const wallTimeToInstant = (localIso: string, zone: ZoneInput): string => {
   const dt = DateTime.fromISO(localIso, { zone: resolveZone(zone).luxonZone })
@@ -37,7 +38,24 @@ export const wallTimeToInstant = (localIso: string, zone: ZoneInput): string => 
       `Invalid wall time "${localIso}": ${dt.invalidExplanation ?? dt.invalidReason}`
     )
   }
-  return dt.toUTC().toISO() as string
+  return DateTime.fromMillis(earliestInstantForWallTime(dt), { zone: 'utc' }).toISO() as string
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Luxon picks one of the two instants of a repeated hour from the UTC offset in force *now*, so the
+ * same input gave different answers depending on the day the app ran. Take every offset in force
+ * within a day of the wall time and keep the earliest instant that really has that wall time.
+ */
+const earliestInstantForWallTime = (dt: DateTime): number => {
+  const ts = dt.toMillis()
+  const wallAsUtc = ts + dt.offset * 60_000
+  const offsets = new Set([dt.zone.offset(ts - DAY_MS), dt.offset, dt.zone.offset(ts + DAY_MS)])
+  const instants = [...offsets]
+    .map((offset) => wallAsUtc - offset * 60_000)
+    .filter((instant) => dt.zone.offset(instant) === (wallAsUtc - instant) / 60_000)
+  return instants.length > 0 ? Math.min(...instants) : ts
 }
 
 export interface WallTime {

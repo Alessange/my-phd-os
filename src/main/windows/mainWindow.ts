@@ -16,8 +16,12 @@ const PERSIST_DEBOUNCE_MS = 300
 /** A restored window must overlap a display by at least this much on both axes. */
 const MIN_VISIBLE_PX = 64
 
-/** Window ground colours matching `--background` in globals.css, painted before the first frame. */
-export const WINDOW_BACKGROUND = { light: '#fafafa', dark: '#1b1c21' } as const
+/**
+ * Window ground colours, painted before the first frame. They MUST equal `--paper` (= `--background`)
+ * of globals.css in each theme: `oklch(0.985 0.004 85)` and `oklch(0.165 0.004 85)`.
+ * `src/renderer/src/styles/tokens.test.ts` computes the hex from the CSS and fails on drift.
+ */
+export const WINDOW_BACKGROUND = { light: '#fbfaf7', dark: '#0f0e0c' } as const
 
 export interface MainWindowOptions {
   db: DatabaseSync | null

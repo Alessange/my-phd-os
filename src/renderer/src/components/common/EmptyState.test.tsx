@@ -16,7 +16,7 @@ describe('EmptyState', () => {
         description="Import or create."
         actions={[
           { label: 'Import .ics', onClick: onImport, variant: 'outline' },
-          { label: 'Create Event', onClick: onCreate }
+          { label: 'Create event', onClick: onCreate }
         ]}
       />
     )
@@ -25,9 +25,36 @@ describe('EmptyState', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Import or create.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Import .ics' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Create Event' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Create event' }))
     expect(onImport).toHaveBeenCalledTimes(1)
     expect(onCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders actions as text links, never a second ink primary, unless one opts in', () => {
+    render(
+      <EmptyState
+        title="Nothing yet."
+        actions={[
+          { label: 'First', onClick: vi.fn() },
+          { label: 'Second', onClick: vi.fn(), variant: 'outline' }
+        ]}
+      />
+    )
+    for (const name of ['First', 'Second']) {
+      const action = screen.getByRole('button', { name })
+      expect(action).toHaveClass('link')
+      expect(action).not.toHaveAttribute('data-slot', 'button')
+    }
+  })
+
+  it('renders a solid button only for an explicit default variant', () => {
+    render(
+      <EmptyState
+        title="Nothing yet."
+        actions={[{ label: 'Go', onClick: vi.fn(), variant: 'default' }]}
+      />
+    )
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveAttribute('data-slot', 'button')
   })
 
   it('renders the compact variant as a single status line', () => {

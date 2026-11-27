@@ -3,18 +3,22 @@ import { describePace } from './pace'
 import { ProgressBar } from './ProgressBar'
 
 export interface DualProgressProps {
-  /** Elapsed share of the tracking window, 0–100. */
+  /** Elapsed share of the tracking window, 0-100. */
   timePercent: number
-  /** Manually entered work completion, 0–100. */
+  /** Manually entered work completion, 0-100. */
   workPercent: number
-  /** `workPercent − timePercent` in percentage points; computed when omitted. */
+  /** `workPercent - timePercent` in percentage points; computed when omitted. */
   paceDifference?: number
-  /** Hide the pace sentence (e.g. in compact cards). */
+  /** Hide the pace sentence (e.g. in compact rows). */
   hidePace?: boolean
   className?: string
 }
 
-/** Two clearly separate bars — time elapsed vs. work completed — never merged into one metric (spec §13.2). */
+/**
+ * Two 2 px lines, time elapsed (lighter) and work completed (ink), each with its value printed
+ * (`Time 96%`, `Work 70%`; the accessible names stay `Time elapsed` and `Work completed`). Never merged into one metric (spec section 13.2).
+ * No legend: the labels are the legend. The pace sentence is a quiet 13 px ink-2 line.
+ */
 export function DualProgress({
   timePercent,
   workPercent,
@@ -26,42 +30,22 @@ export function DualProgress({
   const work = clampPercent(workPercent)
   const pace = paceDifference ?? work - time
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       <ProgressBar
-        label="Time elapsed"
+        label="Time"
+        name="Time elapsed"
         value={time}
         indicatorClassName="bg-progress-time"
         size="sm"
       />
       <ProgressBar
-        label="Work completed"
+        label="Work"
+        name="Work completed"
         value={work}
         indicatorClassName="bg-progress-work"
         size="sm"
       />
-      <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-        <ul className="flex items-center gap-3" aria-label="Legend">
-          <li className="flex items-center gap-1">
-            <span aria-hidden="true" className="size-2 rounded-full bg-progress-time" />
-            Time
-          </li>
-          <li className="flex items-center gap-1">
-            <span aria-hidden="true" className="size-2 rounded-full bg-progress-work" />
-            Work
-          </li>
-        </ul>
-        {!hidePace && (
-          <span
-            className={cn(
-              'tabular font-medium',
-              pace > 0 && 'text-status-ahead',
-              pace < 0 && 'text-status-behind'
-            )}
-          >
-            {describePace(pace)}
-          </span>
-        )}
-      </div>
+      {!hidePace && <span className="tabular text-xs text-ink-2">{describePace(pace)}</span>}
     </div>
   )
 }

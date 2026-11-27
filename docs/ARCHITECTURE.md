@@ -25,23 +25,24 @@ before touching anything conference-related.
 
 ## 1. Stack (pinned; do not add dependencies without updating this section)
 
-| Layer       | Choice                                                                                                | Notes                                                          |
-| ----------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Runtime     | Electron 44.2 (Node 24.20, Chromium 152)                                                              | `process.versions` verified 2026-09-04                         |
-| Bundler     | electron-vite 5 + Vite 7.3                                                                            | electron-vite 5 does **not** support Vite 8                    |
-| UI          | React 19, TypeScript 5.9 strict                                                                       | TS 7 (Go port) is deliberately not used                        |
-| Styling     | Tailwind CSS 4 (`@tailwindcss/vite`), `tw-animate-css`                                                | CSS-first config in `src/renderer/src/styles/globals.css`      |
-| Primitives  | Radix UI (`@radix-ui/react-*`), `cmdk`, `lucide-react`, `sonner`                                      | shadcn-style wrappers live in `src/renderer/src/components/ui` |
-| Calendar    | FullCalendar **6.1.21** (`@fullcalendar/{core,react,daygrid,timegrid,list,interaction,rrule,luxon3}`) | v6 API only; v7 has a different API and is not installed       |
-| Recurrence  | `rrule` 2.8 (renderer expansion via FullCalendar) + `ical.js` 2.2 (parsing/expansion in main/shared)  |                                                                |
-| Time        | Luxon 3.7 (`luxon`, `@types/luxon`)                                                                   | the only date library; no `date-fns`, no `moment`              |
-| Charts      | Recharts 3                                                                                            | only where a chart is genuinely useful                         |
-| Validation  | Zod 4                                                                                                 | every IPC payload is validated in main                         |
-| State       | Zustand 5 (UI state), TanStack Query 5 (server-state cache over IPC)                                  |                                                                |
-| Persistence | **`node:sqlite`** (`DatabaseSync`) built into Electron's Node                                         | see §5 for the tradeoff                                        |
-| Logging     | `electron-log` 5                                                                                      | `userData/logs/main.log`                                       |
-| Tests       | Vitest 5 (+ jsdom, Testing Library), Playwright 1.62 `_electron`                                      |                                                                |
-| Packaging   | electron-builder 26                                                                                   | dmg/zip (mac), nsis (win), AppImage (linux)                    |
+| Layer       | Choice                                                                                                | Notes                                                                                                      |
+| ----------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Runtime     | Electron 44.2 (Node 24.20, Chromium 152)                                                              | `process.versions` verified 2026-09-04                                                                     |
+| Bundler     | electron-vite 5 + Vite 7.3                                                                            | electron-vite 5 does **not** support Vite 8                                                                |
+| UI          | React 19, TypeScript 5.9 strict                                                                       | TS 7 (Go port) is deliberately not used                                                                    |
+| Styling     | Tailwind CSS 4 (`@tailwindcss/vite`), `tw-animate-css`                                                | CSS-first config in `src/renderer/src/styles/globals.css`                                                  |
+| Primitives  | Radix UI (`@radix-ui/react-*`), `cmdk`, `lucide-react`, `sonner`                                      | shadcn-style wrappers live in `src/renderer/src/components/ui`                                             |
+| Typeface    | **Linux Biolinum** (Regular 400, Bold 700, Italic), bundled                                           | `src/renderer/src/assets/fonts` (OFL 1.1 + licence files), no CDN, no system-font dependency (Decision 68) |
+| Calendar    | FullCalendar **6.1.21** (`@fullcalendar/{core,react,daygrid,timegrid,list,interaction,rrule,luxon3}`) | v6 API only; v7 has a different API and is not installed                                                   |
+| Recurrence  | `rrule` 2.8 (renderer expansion via FullCalendar) + `ical.js` 2.2 (parsing/expansion in main/shared)  |                                                                                                            |
+| Time        | Luxon 3.7 (`luxon`, `@types/luxon`)                                                                   | the only date library; no `date-fns`, no `moment`                                                          |
+| Charts      | Recharts 3                                                                                            | only where a chart is genuinely useful                                                                     |
+| Validation  | Zod 4                                                                                                 | every IPC payload is validated in main                                                                     |
+| State       | Zustand 5 (UI state), TanStack Query 5 (server-state cache over IPC)                                  |                                                                                                            |
+| Persistence | **`node:sqlite`** (`DatabaseSync`) built into Electron's Node                                         | see §5 for the tradeoff                                                                                    |
+| Logging     | `electron-log` 5                                                                                      | `userData/logs/main.log`                                                                                   |
+| Tests       | Vitest 5 (+ jsdom, Testing Library), Playwright 1.62 `_electron`                                      |                                                                                                            |
+| Packaging   | electron-builder 26                                                                                   | dmg/zip (mac), nsis (win), AppImage (linux)                                                                |
 
 Environment quirk: shells launched from VS Code export `ELECTRON_RUN_AS_NODE=1`, which makes any
 Electron binary start as plain Node. All npm scripts that launch Electron go through
@@ -132,10 +133,14 @@ src/
     pages/                   CalendarPage.tsx · DeadlinesPage.tsx · TimelinePage.tsx · HabitsPage.tsx · SettingsPage.tsx
     components/ui/           shadcn-style primitives (button, input, label, textarea, select, switch,
                              slider, checkbox, dialog, alert-dialog, sheet, tabs, tooltip, popover,
-                             dropdown-menu, scroll-area, badge, card, progress, command, separator, skeleton,
-                             segmented-control)
+                             dropdown-menu, scroll-area, progress, command, separator, skeleton, segmented-control, kbd, slot)
+                             and the Decision 69 foundation: row (`RowList`, `Row`), section
+                             (`Section`, `SectionHeading`), status-mark, property-row, restore-focus.
+                             No card and no badge exist any more
     components/common/       EmptyState · StatusBadge · CategoryChip · Countdown · ProgressBar
                              · DualProgress · ZonedTime · PageHeader · KeyboardHint · ErrorState
+                             · Page (the page column) · PageAction (+ pageActionContext.ts: the strip's one primary)
+                             · ColourSwatchPicker · pace.ts (`describePace`)
                              · ErrorBoundary (logs via lib/log, offers retry/reload) · LoadingState
                              · PendingFeatureDialog (placeholder dialog for not-yet-built flows) · DynamicIcon
                              (lucide icon by name) · statusLookup.ts (`resolveStatus`, `resolvePriority`)
@@ -149,7 +154,13 @@ src/
     lib/log.ts               `logError(message, error, context?)` → `app:log` with bounded primitive context
     lib/icons.ts · lib/shortcutLabel.ts  lucide name map · `formatShortcutLabel('mod+K', isMac)`
     test/renderWithProviders.tsx  test render with the real QueryClient (cleared), ThemeProvider, TooltipProvider
-    styles/globals.css       Tailwind theme tokens (light/dark), category + status palettes
+    styles/globals.css       Tailwind theme tokens (light/dark), `@font-face`, utilities (link, field, page-column, floating)
+    styles/contrast.ts       WCAG 2 contrast maths used by `tokens.test.ts`
+    assets/fonts/            Linux Biolinum (three .otf) + OFL-1.1.txt + LICENCE.txt (Decision 68)
+    lib/colourSwatches.ts    the shared swatch palette · `utils.ts` `userColor()` (normalised per-record dot)
+    features/habits/habitDisplay.ts   shared check-disc / streak display rules (Habits and Calendar)
+    features/timeline/checks.ts       presentation of the timeline checks (rule order, tags, summary)
+    features/calendar/components/NearestDeadlines.tsx · features/conference-deadlines/components/PassedToggle.tsx
   shared/
     errors.ts                `AppError` (closed `AppErrorCode` union) · `toIpcError` / `fromIpcError`
     types/                   common.ts · calendar.ts · personalDeadline.ts · conference.ts · milestone.ts · habit.ts
@@ -325,7 +336,7 @@ export const calendarChannels = {
   `lib/queryKeys.ts`. `useDataChanged()` (mounted once in `App`) invalidates keys via the
   entity→keys map when `data:changed` arrives. Never keep a second copy of server state in zustand.
 - Time: `useNow({ precision: 'minute' | 'second' })` re-renders on a shared ticker with two slices:
-  `minute` subscribers render only when the wall-clock minute changes even while the top-bar clock
+  `minute` subscribers render only when the wall-clock minute changes even while a countdown
   ticks every second. `Countdown` reads the minute slice, and switches its ticker to `second`
   precision once < 24 h remain (spec §18). Countdowns are always computed from canonical instants
   at render time; never persisted.
@@ -346,20 +357,25 @@ export const calendarChannels = {
   the window, paints `backgroundColor` from it and passes `?theme=light|dark|system` on the initial
   URL; `main.tsx` applies it before the first paint (`bootThemeSetting`) so there is no flash. Tailwind 4 dark variant:
   `@custom-variant dark (&:where(.dark, .dark *))`.
-- Layout: collapsible sidebar (icons only when collapsed), top bar with page title, live clock
-  (`useNow` second precision), active timezone, quick-create button, palette trigger, theme
-  control. The top-bar quick-create button is labelled with the page's `createActionLabel`, which
-  uses the same verb as the page toolbar / empty state (`Add Event`, `Add Milestone`,
-  `Create Habit`) so one action never has two names on screen. Startup: `AppGate` waits for
+- Layout (Decision 69, supersedes the earlier top bar): a 216 px sidebar (76 px collapsed) and a
+  48 px top strip on one paper ground, separated only by a hairline. The strip holds a
+  minute-precision dateline (`Thursday, Nov 26, 2026 · 18:48 PST`; nothing in the chrome ticks, and
+  seconds exist only inside countdowns under 24 h), a ghost `Search ⌘K` button and the page's one
+  primary create button, labelled with the page's `createActionLabel` (on Deadlines it follows the
+  active tab: `Add conference` / `Add personal deadline`). A page may render that button itself
+  through `<PageAction>`, which portals into the strip slot inside the shell and renders inline in
+  unit tests; the strip's default button hides while a `PageAction` is mounted. The theme control is
+  an Appearance menu in the sidebar footer (Settings > General keeps the Light / Dark / System
+  radiogroup). Every page has exactly one visible `h1` (Calendar's is screen-reader only); the strip
+  carries the page label as screen-reader text for the banner contract. Startup: `AppGate` waits for
   `app:getInfo` and the first `settings:get` before mounting the shell; a settings failure falls
-  back to defaults and `AppShell` toasts it with Retry. Content area scrolls independently. Minimum supported width ~960 px; the Calendar
-  right panel collapses under ~1180 px.
+  back to defaults and `AppShell` toasts it with Retry. Content area scrolls independently. Minimum
+  supported width ~960 px; the Calendar right panel collapses under ~1180 px.
 - macOS title bar: the window uses `titleBarStyle: 'hiddenInset'` with `trafficLightPosition
-{ x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px inside the 48 px brand
-  row of the sidebar (which is the `-webkit-app-region: drag` area together with the top bar).
-  Expanded, the brand is offset to `pl-[84px]`; collapsed (56 px rail) the brand icon is hidden
-  and the top bar gets `pl-9` so the page title clears the buttons. Nothing else may be placed in
-  that region on macOS.
+{ x: 16, y: 18 }`, so the native buttons occupy x 16–68 / y 18–30 css px. The top 48 px of the
+  sidebar is an empty `-webkit-app-region: drag` region (no brand). The collapsed rail is 76 px so
+  the buttons (x to 68) sit inside it with a margin instead of overlapping its hairline. Nothing
+  interactive may be placed in x < 80, y < 48 on macOS.
 - Accessibility: Radix primitives for focus management; every icon-only button has `aria-label`;
   `prefers-reduced-motion` disables non-essential animation; status badges include text.
 
@@ -392,19 +408,24 @@ events, personal deadlines, and milestones (ids overlap intentionally, e.g. `cou
 labels, icon names (lucide) and color tokens: Ahead green, On Track blue, Behind orange, At Risk red,
 Urgent coral, Completed muted green, Overdue deep red, TBD violet-gray, Passed neutral. Tokens are
 Tailwind theme colors in `globals.css` with light and dark values; components consume them via
-utility classes (`bg-status-ahead/15 text-status-ahead`). Color is never the only signal.
+utility classes (`text-status-ahead`). Color is never the only signal. **Superseded by Decision 69:**
+neutrals plus ONE signal colour; every status, category, priority and conference token resolves to
+an ink tier (`--ink-2`, `--ink`, `--ink-3`) or to `--signal` (urgent, overdue). The token names are
+kept so call sites and tests do not change; they no longer carry hue.
 
 ## 10. Empty-state copy (exact strings)
 
-| Where                                           | Title                           | Actions                                                                             |
-| ----------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------- |
-| Calendar                                        | Your calendar is empty.         | Import .ics · Create Event                                                          |
-| Conference Deadlines (no subscription)          | No conference subscription yet. | Add CCF Subscription · Enter Subscription URL                                       |
-| Conference Deadlines (subscription, not loaded) | loading / error state           | Retry                                                                               |
-| Personal Deadlines                              | No personal deadlines yet.      | Add Personal Deadline (+ note that countdowns and progress appear after adding one) |
-| Timeline                                        | Your timeline starts here.      | Add Milestone                                                                       |
-| Habits                                          | No habits yet.                  | Create Habit                                                                        |
-| Right-panel sections                            | compact one-line empty states   | —                                                                                   |
+The strip carries the view's one ink primary, so `EmptyState` renders every action as a text link (a solid button only with an explicit `variant: 'default'`). Copy is sentence case.
+
+| Where                                           | Title                           | Actions                                                                                                              |
+| ----------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Calendar                                        | Your calendar is empty.         | Import .ics · Create event                                                                                           |
+| Conference Deadlines (no subscription)          | No conference subscription yet. | Add conference · Enter subscription URL (the Subscription Manager's own empty state leads with Add CCF subscription) |
+| Conference Deadlines (subscription, not loaded) | loading / error state           | Retry                                                                                                                |
+| Personal Deadlines                              | No personal deadlines yet.      | Add personal deadline (+ note that countdowns and progress appear after adding one)                                  |
+| Timeline                                        | Your timeline starts here.      | Add milestone                                                                                                        |
+| Habits                                          | No habits yet.                  | Create habit                                                                                                         |
+| Right-panel sections                            | compact one-line empty states   | — (`Nearest deadline` prints `No active deadline.` once when both kinds are empty)                                   |
 
 ## 11. Testing and scripts
 
@@ -565,7 +586,7 @@ Integration / verification phase (shell e2e), 2026-09-04:
 30. **macOS traffic-light layout fix** (Sidebar/TopBar): the brand icon previously sat under the
     native buttons (both at y 18–30 / x 16–40). See §7 "macOS title bar" for the rule now in force.
 31. **Palette trigger label is `Search commands…`** (was `Search or run a command…`, which truncated
-    at the 224 px trigger width). The accessible name stays `Open command palette (⌘K)`.
+    at the 224 px trigger width). The accessible name is the visible text (`Search ⌘K`, WCAG 2.5.3); the `title` reads `Open command palette`.
 32. **Dev CSP verified, not relaxed further.** With `npm run dev`, Vite injects the React-refresh
     preamble _before_ the `<meta http-equiv="Content-Security-Policy">` tag, so the production meta
     policy does not apply to it; the header policy (`DEVELOPMENT_CSP`) allows `'unsafe-inline'`
@@ -628,9 +649,11 @@ Review-fix pass (foundation), 2026-09-04:
     feature names are `<feature>:<verb>`. `DEADLINES_QUICK_CREATE` (in `app/quickCreate.ts`) maps
     each Deadlines tab to the bus command its feature listens on; `DeadlinesPage` and
     `features/deadlines-summary/**` are integration-owned (§3).
-46. **Quick-create labels**: `PageDefinition.createActionLabel` (`Add Event`, `Add Deadline`,
-    `Add Milestone`, `Create Habit`) labels the top-bar button with the page toolbar's verb; the
-    §19 empty-state strings (`Create Event`, …) are unchanged. `New <noun>` is gone.
+46. **Quick-create labels**: `PageDefinition.createActionLabel` (`Add event`, `Add deadline`,
+    `Add milestone`, `Create habit`; one `CREATE_LABELS` source also feeds the palette) labels the strip's primary button with the page toolbar's verb (it was the top-bar button
+    before; superseded by Decision 70(a)). `New <noun>` is gone. The empty-state action labels
+    (`Create event`, `Add CCF subscription`, …) are now sentence case too (see Decision 70);
+    the §19 empty-state titles are unchanged.
 47. **Removed dead code**: `KnownStatusId` (resolved to `never`), `formatShortcut` in
     `shared/constants/shortcuts.ts` (the renderer's `formatShortcutLabel` is the one formatter),
     `quickCreateLabel`, `AppInfoWithDbError` (identity alias) and the `window as unknown` cast in
@@ -667,7 +690,8 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     `detectTimelineWarnings.ts` (as in §3); the habits module is `src/shared/habits/streaks.ts`;
     `startOfWeek(date, weekStartsOn)` lives in `dates/allDay.ts`.
 53. **Habit icons render through `DynamicIcon`**: `Repeat` was added to `lib/icons.ts` so the curated
-    habit icon names (`features/habits/icons.ts`) all resolve through the shared registry.
+    habit icon names all resolve through the shared registry. (Superseded by Decision 70(e): the
+    stored habit icon is no longer drawn and `features/habits/icons.ts` is gone.)
 54. **Palette deep links track the param's current value**: pages/tabs that open an editor from
     `{ create }` or an entity id compare the param against its last seen value (not "changed since
     mount"), so a repeated command after the param was cleared on close fires again.
@@ -715,7 +739,9 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     category tracks (`pointInWindow` + `packPointLanes` in `features/timeline/layout.ts`; TBD rounds
     have no instant and are skipped; passed rounds are dimmed). Clicking a marker deep-links to
     `{ tab: 'conference', id }`. Unfollowed conferences never reach the Timeline (spec §12.6).
-61. **The Conference tab shows only chosen conferences; the feed is a lookup source.** On the
+61. **The Conference tab shows only chosen conferences; the feed is a lookup source.** _(The bar
+    colouring and the KPI wording below are superseded by Decisions 69 and 70: no per-urgency colour,
+    a 2 px time-gone line, a lead sentence instead of tiles. The board / picker / sheet split stands.)_ On the
     owner's feedback (too many words, too many conferences) the tab became a board of followed
     conferences — one row each with a followedAt → deadline bar coloured by `urgencyLevel`, the dates
     and a big countdown, plus a months axis — with details in a sheet. Browsing the whole feed moved
@@ -730,13 +756,17 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     tint and coloured bar rendered transparent. The raw `--status-*` / `--category-*` /
     `--conference-*` properties are declared for both themes, so `--chip: var(--<token>)` is correct
     and stays theme-aware. Anything reading a palette value at runtime must use the raw name.
-63. **Conference rows are colour-coded per conference, not per urgency.** A ten-hue
+63. **Conference rows are colour-coded per conference, not per urgency.** _(Superseded by Decision
+    69: nothing is painted per conference any more; the stripe, dot and bar colours are gone.
+    `--conference-1…10` still resolve to ink-2 as an inert token contract (DESIGN.md 4), and
+    `assignConferenceColors` / `conferenceColorToken` remain in `views.ts` as unused, tested helpers
+    that a later clean-up can remove together with the tokens. Kept for history.)_ A ten-hue
     `--conference-1…10` palette (spaced around the wheel _and_ varied in lightness, because hue alone
     separates poorly across green-to-teal) gives each followed conference a stripe, dot and bar in
     its own colour; `assignConferenceColors` picks a slot from a hash of the stable key so the colour
     survives reordering, resolving collisions greedily so up to ten on screen are always distinct.
     Urgency stays legible through the countdown and an urgent ring, not through the bar colour.
-64. **The conference bar measures time remaining on one shared scale**, not elapsed-since-followed:
+64. **The conference bar measures time remaining on one shared scale**, not elapsed-since-followed _(superseded by Decision 67, then by 70)_:
     the old bar started at `followedAt`, so a conference added today rendered a 0%-wide fill. The
     scale is the square root of `remaining / furthest remaining`, which keeps the ordering exact
     while stopping one far-off conference from collapsing every near one onto the minimum width; the
@@ -757,6 +787,8 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     start's date is twenty-three hours earlier, so the form failed validation and no event could be
     created at all. The helper is unit-tested across all twenty-four hours.
 67. **The conference bar is progress through its own window, not remaining time on a shared one.**
+    _(The progress rule stands; the colours are superseded by Decisions 69 and 70: the bar is a 2 px
+    ink line on the row's lower edge, `role=progressbar`, with the text "N% of the way there".)_
     Decision 64's shared scale (`remaining / furthest remaining`) was wrong in practice: the
     yardstick shrank at the same rate as every bar, so a conference sixty days out moved 0.3% a day
     and the furthest one sat pinned at 100% for ever — the row read as a static decoration.
@@ -765,3 +797,60 @@ UPDATE`; previews wait in memory for 15 minutes behind a token. `ENTITY_TABLES` 
     exactly at the deadline. The track is the conference colour at 15% and the fill is the solid
     colour, so a conference added today still reads as its own colour instead of an empty grey box.
     Comparison across conferences is the months axis above the list, not the bar.
+68. **The UI typeface is Linux Biolinum, bundled.** Owner requirement. Three unmodified OpenType
+    files (`LinBiolinum_R.otf` 400, `LinBiolinum_RB.otf` 700, `LinBiolinum_RI.otf` italic) live in
+    `src/renderer/src/assets/fonts/` with `OFL-1.1.txt` and `LICENCE.txt`, are declared by three
+    `@font-face` rules in `globals.css` (relative `url()`, `font-display: block`) and are hashed by
+    Vite into `out/renderer/assets/`, which electron-builder already packages (`files` excludes only
+    sources, never `out/`). The CSP is unchanged (`font-src 'self' data:`). No CDN, no runtime
+    download. Only Regular, Bold and Italic exist, so Tailwind's weights are remapped
+    (`--font-weight-medium: 400`, `semibold` and `bold: 700`; `font-synthesis: none`) and bold is
+    rationed to the next calendar event and the one habit still to do. Numerals are tabular lining
+    by default, so no monospace family is used anywhere (`--font-mono` is the same stack). Biolinum
+    is the first family of `--font-sans`; a system stack follows only as a glyph fallback (CJK, `⌘`).
+    The licence is listed under Settings > About > Open-source licenses, and the two licence texts
+    ship with the app as `resources/licenses/fonts/*.txt` (an electron-builder `extraResources`
+    entry; Vite emits only the `.otf` files). An e2e test asserts that all
+    three faces report `loaded` through `document.fonts` (the owner's Mac also has the font
+    installed, which would hide a broken bundle) and that `body` computes to Linux Biolinum.
+    Replaces the system-font stack and the 13 px base size: the scale
+    is meta 13, body 15, lead 18, title 28, display 40, hero 64.
+69. **Visual direction: "Editorial, calmer".** Supersedes prompt.md section 7 ("colorful but focused")
+    and Decisions 61, 63, 64 and 67 where they concern colour (the per-conference hues and the
+    conference bar track tint). Principles: subtract first; colour is the exception (one signal
+    vermilion for urgent, overdue, failed, destructive confirm); structure is felt, not seen
+    (whitespace, then a 1 px hairline, then, for floating layers only, a ring and shadow); six type
+    sizes, two weights; both themes authored (dark paper `oklch(.165 .004 85)`, floating layers one
+    step lighter). Tokens: `--paper`, `--ink`..`--ink-4`, `--line`, `--line-strong`, `--edge`,
+    `--signal`, and ink-alpha overlays `--hover`, `--selected`, `--track`, `--wash`; shadcn names are
+    re-pointed (`--primary` = ink). `WINDOW_BACKGROUND` equals `--paper` in both themes (a unit test
+    computes the hex from the CSS), which also fixes the old dark-theme launch flash. Cards do not
+    exist; the only bordered surfaces are floating layers. `StatusBadge` and `CategoryChip` render
+    words (a glyph only for attention states). Contrast is a regression test
+    (`styles/tokens.test.ts`: text 4.5:1, primary text 7:1, control edges and focus 3:1, both
+    themes). The seconds clock and timezone chip are gone from the chrome (see section 7).
+70. **Surface redesign (Deadlines, Habits, Settings, Timeline, Calendar) and shell contracts.**
+    Each page follows [`docs/DESIGN.md`](DESIGN.md) 8.x on the Decision 69 foundation. Cross-surface rules that code
+    and tests now pin: (a) the strip's primary button has the accessible name `<visible label>
+(<shortcut>)` (`Add conference (⌘N)`), so the visible text is contained in the name (WCAG 2.5.3);
+    `resolveCreateAction` returns only `{ label }`. (b) `PageHeader` owns the lead sentence: its
+    `subtitle` (a string or a node such as Deadlines' `DeadlineSummary`) sits inside the head (72 px with it, 44 px without)
+    under the title, 18 px ink-2, with no negative margins at call sites. (c) `ThemeToggle` is
+    text-only by default (`iconsOnly` for icons), and Settings > General uses it. (d) The conference
+    row has no tint or per-conference colour: a 2 px ink time-gone line, an Urgent word plus glyph
+    under 24 h, hairline rows; the Personal tab opens on a lead sentence (`DeadlineSummary`), not six
+    tiles. (e) Habits keep one check disc per row, a 10x7 grid, a streak numeral with a unit
+    sibling; the stored habit colour and icon are no longer drawn (Calendar and Habits show the same
+    disc). (f) Calendar events are neutral ink-wash marks (`toFcEvents` passes no colours); stored
+    per-record colours reach the screen only as a normalised dot through `userColor()`. (g) The
+    timeline checks print dates through formatters the caller passes to `detectTimelineWarnings`
+    (`TimelineDateFormatters`; the default is the UTC date, the renderer passes `useFormat`), so the
+    text agrees with the bars; stable warning ids still use the raw keys. (h) The Calendar panel's
+    `Nearest deadline` section is `NearestDeadlines`: one personal and one followed conference
+    deadline separated by a hairline, or a single `No active deadline.` line. (i) Bold is rationed:
+    `tokens.test.ts` bans `font-bold` / `font-semibold` / 600-700 outside `CalendarBoard`,
+    `TodayPanel`, `HabitCard` and `calendar.css`; the migration ratchet list is gone because every
+    page is migrated. (j) Button and action labels are sentence case (`Add personal deadline`,
+    `Create habit`, `Create event`, `Add CCF subscription`; `CREATE_LABELS` and `EMPTY_STATES` are
+    the sources): an owner-approved deviation from the Title Case actions listed in prompt.md
+    section 19. The empty-state titles stay exact copy.

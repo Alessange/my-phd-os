@@ -62,12 +62,12 @@ describe('formatCountdown', () => {
   it('emphasises hours, minutes and seconds under 24 hours', () => {
     expect(formatCountdown(under24h, { style: 'long' })).toBe('08 hours 14 minutes 09 seconds')
     expect(countdownSegments(under24h).map((s) => s.unit)).toEqual(['hour', 'minute', 'second'])
-    expect(formatCountdown(under24h, { style: 'compact' })).toBe('08h 14m')
-    expect(formatCountdown(underHour, { style: 'compact' })).toBe('14m 09s')
+    expect(formatCountdown(under24h, { style: 'compact' })).toBe('08 h 14 m')
+    expect(formatCountdown(underHour, { style: 'compact' })).toBe('14 m 09 s')
   })
 
   it('formats compact and stacked styles', () => {
-    expect(formatCountdown(dayPlus, { style: 'compact' })).toBe('32d 08h')
+    expect(formatCountdown(dayPlus, { style: 'compact' })).toBe('32 d 08 h')
     expect(formatCountdown(dayPlus, { style: 'stacked' })).toBe('32 days\n08 hours\n14 minutes')
   })
 
@@ -90,7 +90,7 @@ describe('formatCountdown', () => {
     expect(formatCountdown(calculateRemainingTime(plus(-30_000), now))).toBe('Passed just now')
     expect(
       formatCountdown(calculateRemainingTime(plus(-2 * MS_PER_DAY), now), { style: 'compact' })
-    ).toBe('Passed 2d ago')
+    ).toBe('Passed 2 d ago')
   })
 })
 

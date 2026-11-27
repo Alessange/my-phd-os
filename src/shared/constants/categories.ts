@@ -10,7 +10,7 @@ export type CategoryId = CalendarEventCategory | PersonalDeadlineCategory | Mile
 export interface CategoryDefinition {
   id: CategoryId
   label: string
-  /** Tailwind theme color token defined in `globals.css`, consumed as `bg-<token>` / `text-<token>`. */
+  /** Colour token name defined in `globals.css`; categories render as words, so no renderer code consumes this token today. */
   colorToken: string
   /** lucide-react component name. */
   icon: string

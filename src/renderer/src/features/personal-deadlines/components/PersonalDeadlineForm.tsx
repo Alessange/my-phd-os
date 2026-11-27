@@ -1,5 +1,5 @@
-import { Check, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { CircleAlert } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { getCategory } from '@shared/constants/categories'
 import {
   PERSONAL_DEADLINE_STATUS_DEFINITIONS,
@@ -27,7 +27,6 @@ import {
   type PersonalDeadlineStatus,
   type Priority
 } from '@shared/types/personalDeadline'
-import { DynamicIcon } from '@renderer/components/common/DynamicIcon'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +48,7 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
+import { AddRow, PropertyRow } from '@renderer/components/ui/property-row'
 import { SegmentedControl } from '@renderer/components/ui/segmented-control'
 import {
   Select,
@@ -64,7 +64,6 @@ import { Textarea } from '@renderer/components/ui/textarea'
 import { useMilestones } from '@renderer/features/timeline/api'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
-import { chipStyle, cn } from '@renderer/lib/utils'
 import {
   useCreatePersonalDeadline,
   useDeletePersonalDeadline,
@@ -185,6 +184,16 @@ const fromDeadline = (d: PersonalDeadline): FormState => {
   }
 }
 
+/** Signal glyph and a 13 px message below the field (the rule itself turns signal via `aria-invalid`). */
+function FieldError({ children }: { children: ReactNode }): React.JSX.Element {
+  return (
+    <p className="text-meta flex items-center gap-1.5 text-signal" role="alert">
+      <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+      {children}
+    </p>
+  )
+}
+
 export interface PersonalDeadlineFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -213,6 +222,9 @@ export function PersonalDeadlineForm({
 
   const [state, setState] = useState<FormState>(() => emptyFor(nowIso, zoneDefault))
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Validation speaks only after the field was left; a pristine form shows no error.
+  const [titleTouched, setTitleTouched] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   // Reset when the dialog opens or switches target (derived during render; see HabitForm).
   const [prevOpen, setPrevOpen] = useState(open)
   const [prevDeadline, setPrevDeadline] = useState(deadline)
@@ -222,6 +234,8 @@ export function PersonalDeadlineForm({
     if (open) {
       setState(deadline ? fromDeadline(deadline) : emptyFor(nowIso, zoneDefault))
       setConfirmDelete(false)
+      setTitleTouched(false)
+      setMoreOpen(false)
     }
   }
 
@@ -299,287 +313,289 @@ export function PersonalDeadlineForm({
   }
 
   const zoneKnown = KNOWN_ZONE_IDS.has(state.timezone)
+  // `Local:` only when it says something the first half does not.
+  const zonedPreview = deadlineAt ? format.formatDateTimeWithZone(deadlineAt, state.timezone) : ''
+  const localPreview = deadlineAt ? format.formatDateTimeWithZone(deadlineAt) : ''
+  const titleInvalid = !titleValid && titleTouched
+  const showMore = moreOpen || deadline !== undefined || !urlValid || !windowValid
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-h-[calc(100vh-2rem)] overflow-y-auto">
+      <DialogContent size="lg" className="max-h-[calc(100vh-3rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{deadline ? 'Edit personal deadline' : 'Add personal deadline'}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             Track the time left and your own progress toward a deadline. Times are interpreted in
             the deadline’s timezone and shown in yours.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
+        <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="deadline-title">Title</Label>
             <Input
               id="deadline-title"
               value={state.title}
               onChange={(e) => patch({ title: e.target.value })}
+              onBlur={() => setTitleTouched(true)}
               placeholder="e.g. NeurIPS camera-ready, Scholarship application"
               autoComplete="off"
-              aria-invalid={!titleValid}
+              aria-invalid={titleInvalid || undefined}
             />
-            {!titleValid && state.title.length > 0 && (
-              <p className="text-xs text-destructive">Title is required.</p>
-            )}
+            {titleInvalid && <FieldError>Title is required.</FieldError>}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deadline-date">Deadline date</Label>
-              <Input
-                id="deadline-date"
-                type="date"
-                value={state.deadlineDate}
-                onChange={(e) => patch({ deadlineDate: e.target.value })}
-                aria-invalid={!isAllDayDate(state.deadlineDate)}
-              />
+          <div className="flex flex-col gap-2">
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deadline-date">Deadline date</Label>
+                <Input
+                  id="deadline-date"
+                  type="date"
+                  value={state.deadlineDate}
+                  onChange={(e) => patch({ deadlineDate: e.target.value })}
+                  aria-invalid={!isAllDayDate(state.deadlineDate) || undefined}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deadline-time">Exact deadline time</Label>
+                <Input
+                  id="deadline-time"
+                  type="time"
+                  value={state.deadlineTime}
+                  onChange={(e) => patch({ deadlineTime: e.target.value })}
+                  aria-invalid={!TIME_PATTERN.test(state.deadlineTime) || undefined}
+                />
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deadline-time">Exact deadline time</Label>
-              <Input
-                id="deadline-time"
-                type="time"
-                value={state.deadlineTime}
-                onChange={(e) => patch({ deadlineTime: e.target.value })}
-                aria-invalid={!TIME_PATTERN.test(state.deadlineTime)}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="deadline-timezone">Timezone</Label>
-            <Select value={state.timezone} onValueChange={(timezone) => patch({ timezone })}>
-              <SelectTrigger id="deadline-timezone" className="w-full" aria-label="Timezone">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {!zoneKnown && (
-                  <SelectGroup>
-                    <SelectLabel>Current</SelectLabel>
-                    <SelectItem value={state.timezone}>{state.timezone}</SelectItem>
-                  </SelectGroup>
-                )}
-                {ZONE_GROUPS.map((group) => (
-                  <SelectGroup key={group.group}>
-                    <SelectLabel>{group.group}</SelectLabel>
-                    {group.options.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
             {deadlineAt && zoneValid && (
-              <p className="tabular text-xs text-muted-foreground" data-testid="deadline-preview">
-                {format.formatDateTimeWithZone(deadlineAt, state.timezone)} · Local:{' '}
-                {format.formatDateTimeWithZone(deadlineAt)}
+              <p className="text-meta tabular text-ink-3" data-testid="deadline-preview">
+                {zonedPreview}
+                {zonedPreview !== localPreview && ` · Local: ${localPreview}`}
               </p>
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tracking-date">Tracking start date</Label>
-              <Input
-                id="tracking-date"
-                type="date"
-                value={state.trackingDate}
-                onChange={(e) => patch({ trackingDate: e.target.value })}
-                aria-invalid={!isAllDayDate(state.trackingDate) || !windowValid}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tracking-time">Tracking start time</Label>
-              <Input
-                id="tracking-time"
-                type="time"
-                value={state.trackingTime}
-                onChange={(e) => patch({ trackingTime: e.target.value })}
-                aria-invalid={!TIME_PATTERN.test(state.trackingTime)}
-              />
-            </div>
-          </div>
-          {trackingStartAt && deadlineAt && !windowValid && (
-            <p className="text-xs text-destructive">{DEADLINE_WINDOW_MESSAGE}.</p>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Category</Label>
-            <div
-              className="grid grid-cols-2 gap-1.5 sm:grid-cols-4"
-              role="group"
-              aria-label="Category"
-            >
-              {PERSONAL_DEADLINE_CATEGORIES.map((id) => {
-                const definition = getCategory(id)
-                const active = state.category === id
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => patch({ category: id })}
-                    style={active ? chipStyle(definition.colorToken) : undefined}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                      active
-                        ? 'chip-tint border-transparent'
-                        : 'border-border text-muted-foreground hover:bg-accent'
-                    )}
-                  >
-                    <DynamicIcon name={definition.icon} className="size-3.5 shrink-0" />
-                    <span className="truncate">{definition.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>Priority</Label>
+          <div className="flex flex-col">
+            <PropertyRow label="Category">
+              <Select
+                value={state.category}
+                onValueChange={(category) =>
+                  patch({ category: category as PersonalDeadlineCategory })
+                }
+              >
+                <SelectTrigger variant="bare" aria-label="Category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERSONAL_DEADLINE_CATEGORIES.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {getCategory(id).label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </PropertyRow>
+            <PropertyRow label="Priority">
               <SegmentedControl
                 aria-label="Priority"
                 size="sm"
                 value={state.priority}
                 onValueChange={(priority) => patch({ priority })}
                 options={PRIORITY_OPTIONS}
+                className="gap-x-4"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Status</Label>
-              <SegmentedControl
-                aria-label="Status"
-                size="sm"
-                value={state.status}
-                onValueChange={(status) => patch({ status })}
-                options={STATUS_OPTIONS}
-              />
-            </div>
+            </PropertyRow>
+            {!showMore && (
+              <AddRow
+                aria-expanded={false}
+                aria-controls="deadline-more"
+                onClick={() => setMoreOpen(true)}
+              >
+                More options
+              </AddRow>
+            )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="deadline-progress">Current progress</Label>
-              <div className="flex items-center gap-1">
-                <Input
-                  id="deadline-progress"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={state.progress}
-                  onChange={(e) =>
-                    patch({ progress: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })
-                  }
-                  className="tabular w-20"
+          {showMore && (
+            <div className="flex flex-col gap-8" id="deadline-more">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deadline-timezone">Timezone</Label>
+                <Select value={state.timezone} onValueChange={(timezone) => patch({ timezone })}>
+                  <SelectTrigger id="deadline-timezone" className="w-full" aria-label="Timezone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!zoneKnown && (
+                      <SelectGroup>
+                        <SelectLabel>Current</SelectLabel>
+                        <SelectItem value={state.timezone}>{state.timezone}</SelectItem>
+                      </SelectGroup>
+                    )}
+                    {ZONE_GROUPS.map((group) => (
+                      <SelectGroup key={group.group}>
+                        <SelectLabel>{group.group}</SelectLabel>
+                        {group.options.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="tracking-date">Tracking start date</Label>
+                    <Input
+                      id="tracking-date"
+                      type="date"
+                      value={state.trackingDate}
+                      onChange={(e) => patch({ trackingDate: e.target.value })}
+                      aria-invalid={!isAllDayDate(state.trackingDate) || !windowValid || undefined}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="tracking-time">Tracking start time</Label>
+                    <Input
+                      id="tracking-time"
+                      type="time"
+                      value={state.trackingTime}
+                      onChange={(e) => patch({ trackingTime: e.target.value })}
+                      aria-invalid={!TIME_PATTERN.test(state.trackingTime) || undefined}
+                    />
+                  </div>
+                </div>
+                {trackingStartAt && deadlineAt && !windowValid && (
+                  <FieldError>{DEADLINE_WINDOW_MESSAGE}.</FieldError>
+                )}
+              </div>
+
+              <PropertyRow label="Status">
+                <SegmentedControl
+                  aria-label="Status"
+                  size="sm"
+                  value={state.status}
+                  onValueChange={(status) => patch({ status })}
+                  options={STATUS_OPTIONS}
+                  className="gap-x-4"
                 />
-                <span className="text-xs text-muted-foreground">%</span>
+              </PropertyRow>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <Label htmlFor="deadline-progress">Current progress</Label>
+                  <div className="flex items-baseline gap-1">
+                    <Input
+                      id="deadline-progress"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={state.progress}
+                      onChange={(e) =>
+                        patch({ progress: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })
+                      }
+                      className="tabular w-16 text-right"
+                    />
+                    <span className="text-meta text-ink-3">%</span>
+                  </div>
+                </div>
+                <Slider
+                  value={[state.progress]}
+                  onValueChange={(v) => patch({ progress: v[0] ?? 0 })}
+                  aria-label="Current progress"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deadline-desc">Description (optional)</Label>
+                <Textarea
+                  id="deadline-desc"
+                  value={state.description}
+                  onChange={(e) => patch({ description: e.target.value })}
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="deadline-url">Source URL (optional)</Label>
+                  <Input
+                    id="deadline-url"
+                    type="url"
+                    inputMode="url"
+                    value={state.sourceUrl}
+                    onChange={(e) => patch({ sourceUrl: e.target.value })}
+                    placeholder="https://"
+                    aria-invalid={!urlValid || undefined}
+                  />
+                  {!urlValid && <FieldError>Enter an http(s) link.</FieldError>}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="deadline-location">Location (optional)</Label>
+                  <Input
+                    id="deadline-location"
+                    value={state.location}
+                    onChange={(e) => patch({ location: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="deadline-tags">Tags (optional)</Label>
+                  <Input
+                    id="deadline-tags"
+                    value={state.tags}
+                    onChange={(e) => patch({ tags: e.target.value })}
+                    placeholder="thesis, grant"
+                  />
+                  <p className="text-meta text-ink-3">Separate tags with commas.</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="deadline-milestone">Linked milestone (optional)</Label>
+                  <Select
+                    value={state.linkedMilestoneId}
+                    onValueChange={(linkedMilestoneId) => patch({ linkedMilestoneId })}
+                  >
+                    <SelectTrigger
+                      id="deadline-milestone"
+                      className="w-full"
+                      aria-label="Linked milestone"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>No milestone</SelectItem>
+                      {(milestones.data ?? []).map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-            <Slider
-              value={[state.progress]}
-              onValueChange={(v) => patch({ progress: v[0] ?? 0 })}
-              aria-label="Current progress"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="deadline-desc">Description (optional)</Label>
-            <Textarea
-              id="deadline-desc"
-              value={state.description}
-              onChange={(e) => patch({ description: e.target.value })}
-              rows={2}
-            />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deadline-url">Source URL (optional)</Label>
-              <Input
-                id="deadline-url"
-                type="url"
-                inputMode="url"
-                value={state.sourceUrl}
-                onChange={(e) => patch({ sourceUrl: e.target.value })}
-                placeholder="https://"
-                aria-invalid={!urlValid}
-              />
-              {!urlValid && <p className="text-xs text-destructive">Enter an http(s) link.</p>}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deadline-location">Location (optional)</Label>
-              <Input
-                id="deadline-location"
-                value={state.location}
-                onChange={(e) => patch({ location: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deadline-tags">Tags (optional)</Label>
-              <Input
-                id="deadline-tags"
-                value={state.tags}
-                onChange={(e) => patch({ tags: e.target.value })}
-                placeholder="thesis, grant"
-              />
-              <p className="text-[11px] text-muted-foreground">Separate tags with commas.</p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deadline-milestone">Linked milestone (optional)</Label>
-              <Select
-                value={state.linkedMilestoneId}
-                onValueChange={(linkedMilestoneId) => patch({ linkedMilestoneId })}
-              >
-                <SelectTrigger
-                  id="deadline-milestone"
-                  className="w-full"
-                  aria-label="Linked milestone"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>No milestone</SelectItem>
-                  {(milestones.data ?? []).map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
         </div>
 
         <DialogFooter className="sm:justify-between">
           <div>
             {deadline && (
-              <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setConfirmDelete(true)}
-                disabled={busy}
-              >
-                <Trash2 aria-hidden="true" />
+              <Button variant="destructive" onClick={() => setConfirmDelete(true)} disabled={busy}>
                 Delete
               </Button>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={submit} disabled={!canSubmit}>
-              <Check aria-hidden="true" />
               {deadline ? 'Save changes' : 'Create deadline'}
             </Button>
           </div>

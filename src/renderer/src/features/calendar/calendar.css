@@ -1,123 +1,527 @@
-/* FullCalendar 6 theme hooks mapped to the application tokens (light + dark flip with the tokens). */
+/*
+ * FullCalendar 6 restyled to the "editorial, calmer" design (DESIGN.md 8.3).
+ *
+ * Neutral ink-wash only: an event is a 5% ink fill with a 2 px ink rule, never a hue. The stored
+ * source colour is shown as a 6 px dot in the Calendars menu, nowhere on the grid. Everything reads
+ * the raw tokens (`--ink`, `--line`, ...), which flip with the theme. This file stays outside any
+ * `@layer`: FullCalendar injects an unlayered stylesheet and an unlayered rule beats a layered one.
+ * Sizes are the six roles of the type scale (13 meta, 15 body, 28 title).
+ */
 .fc {
-  --fc-border-color: var(--color-border);
-  --fc-page-bg-color: var(--color-card);
-  --fc-neutral-bg-color: var(--color-muted);
-  --fc-neutral-text-color: var(--color-muted-foreground);
-  --fc-today-bg-color: color-mix(in oklab, var(--color-primary) 8%, transparent);
-  --fc-now-indicator-color: var(--status-overdue);
+  --fc-border-color: var(--line);
+  --fc-page-bg-color: var(--paper);
+  --fc-neutral-bg-color: transparent;
+  --fc-neutral-text-color: var(--ink-3);
+  --fc-today-bg-color: transparent;
+  --fc-now-indicator-color: var(--ink);
+  --fc-event-bg-color: var(--event-fill);
   --fc-event-border-color: transparent;
-  --fc-event-text-color: #fff;
-  --fc-list-event-hover-bg-color: var(--color-accent);
-  --fc-highlight-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  --fc-event-text-color: var(--ink);
+  --fc-event-selected-overlay-color: transparent;
+  --fc-list-event-hover-bg-color: var(--hover);
+  --fc-highlight-color: var(--selected);
   --fc-non-business-color: transparent;
-  --fc-small-font-size: 0.75rem;
-  font-size: 13px;
-  color: var(--color-foreground);
+  --fc-more-link-bg-color: transparent;
+  --fc-more-link-text-color: var(--ink-2);
+  --fc-small-font-size: 13px;
+  font-size: 15px;
+  color: var(--ink);
 }
 
 .fc .fc-view-harness {
-  background: var(--color-card);
+  background: transparent;
 }
 
-.fc a,
-.fc .fc-col-header-cell-cushion,
-.fc .fc-daygrid-day-number,
-.fc .fc-list-day-text,
-.fc .fc-list-day-side-text {
-  color: var(--color-foreground);
+.fc a {
+  color: inherit;
   text-decoration: none;
 }
 
+/* Regular weight throughout: Bold is rationed to the next event. */
+.fc th,
+.fc td {
+  font-weight: 400;
+}
+
+/* ---- frame: hairlines only, no outer border, no radius, no table lattice ---------------------- */
+.fc.fc-theme-standard .fc-scrollgrid,
+.fc .fc-theme-standard .fc-scrollgrid {
+  border: 0;
+}
+
+.fc .fc-scrollgrid-section > * {
+  border-color: var(--line);
+}
+
+/* ---- day headers: weekday (meta, ink-3) over a 28 px numeral; today = ink disc ------------------ */
+.fc .fc-col-header-cell {
+  border: 0;
+}
+
 .fc .fc-col-header-cell-cushion {
-  padding: 6px 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--color-muted-foreground);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2px 0 6px 8px;
+  color: var(--ink-3);
+}
+
+.fc .cal-wd {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+
+.fc .cal-dn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  margin: 4px 0 0 -5px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.012em;
+  color: var(--ink-2);
+}
+
+.fc .fc-day-today .cal-wd {
+  color: var(--ink);
+}
+
+.fc .fc-day-today .cal-dn {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Month header: weekday names only, sitting on the first hairline. */
+.fc .fc-daygrid .fc-col-header-cell {
+  border-bottom: 1px solid var(--line);
+}
+
+.fc .fc-daygrid .fc-col-header-cell-cushion {
+  padding: 0 0 8px 10px;
+  font-size: 13px;
+}
+
+/* ---- time axis and hour lines ----------------------------------------------------------------- */
+.fc .fc-timegrid-slot {
+  height: 21px; /* 42 px per hour */
+}
+
+.fc .fc-timegrid-slot-minor {
+  border-top-color: transparent;
+}
+
+.fc .fc-timegrid-slot-label,
+.fc .fc-timegrid-axis {
+  border-color: transparent;
+  vertical-align: top;
 }
 
 .fc .fc-timegrid-slot-label-cushion,
 .fc .fc-timegrid-axis-cushion {
-  font-size: 11px;
-  color: var(--color-muted-foreground);
-  font-variant-numeric: tabular-nums;
+  padding: 3px 10px 0 0;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--ink-3);
 }
 
-.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-  display: inline-flex;
-  min-width: 1.6rem;
-  height: 1.6rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-weight: 600;
+/* The all-day row: one divider under it, nothing around it. */
+.fc .fc-timegrid-divider {
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
 }
 
-.fc .fc-event {
-  border-radius: 5px;
-  font-size: 12px;
-  line-height: 1.25;
-  cursor: pointer;
+.fc .fc-timegrid-axis-cushion {
+  text-align: right;
 }
 
-.fc .fc-timegrid-event .fc-event-main {
-  padding: 2px 4px;
-}
-
-.fc .fc-event-cancelled {
-  opacity: 0.55;
-  text-decoration: line-through;
-}
-
-.fc .fc-event-managed {
-  border-left: 3px solid rgba(255, 255, 255, 0.75) !important;
-}
-
+/* ---- the now line: 1 px ink with a 7 px dot, no arrow ------------------------------------------ */
 .fc .fc-timegrid-now-indicator-line {
-  border-width: 2px 0 0;
+  border-width: 1px 0 0;
+}
+
+.fc .fc-timegrid-now-indicator-line::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--ink);
 }
 
 .fc .fc-timegrid-now-indicator-arrow {
-  border-width: 6px 0 6px 7px;
+  display: none;
 }
 
-.fc .fc-list {
-  border-radius: 0.5rem;
+/* ---- event marks ------------------------------------------------------------------------------- */
+.fc .fc-timegrid-event,
+.fc .fc-daygrid-block-event {
+  border: 0;
+  border-left: 2px solid var(--event-rule);
+  border-radius: 0 2px 2px 0;
+  background: var(--event-fill);
+  box-shadow: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.fc .fc-timegrid-event {
+  margin-bottom: 0;
   overflow: hidden;
 }
 
-.fc .fc-list-empty {
-  background: var(--color-card);
-  color: var(--color-muted-foreground);
+.fc .fc-timegrid-event .fc-event-main {
+  padding: 3px 6px 3px 8px;
 }
 
-.fc .fc-scrollgrid {
-  border-radius: 0.5rem;
+.fc .fc-timegrid-event-harness-inset .fc-timegrid-event,
+.fc .fc-timegrid-event.fc-event-mirror {
+  box-shadow: none;
+}
+
+.fc .cal-ev-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; /* marks wrap up to three lines, then clip */
   overflow: hidden;
+  font-size: 15px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
 }
 
-.fc .fc-popover {
-  background: var(--color-popover);
-  color: var(--color-popover-foreground);
-  border-color: var(--color-border);
-  border-radius: 0.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+.fc .cal-ev-time {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--ink-3);
+  white-space: nowrap;
 }
 
-.fc .fc-popover-header {
-  background: var(--color-muted);
+/*
+ * What a mark shows depends on its own height (container queries; the mark has a definite box).
+ * The clip must land between lines: a line is 18 px and the mark pads 3 px top and bottom, so
+ * under 42 px one line fits, from 42 px two, from 60 px the time too (2 x 18 + 16 + 6 = 58), and
+ * from 76 px three lines and the time. The selectors repeat the base rule's specificity so that
+ * they win over its three-line clamp.
+ */
+.fc .fc-timegrid-event {
+  container-type: size;
 }
 
-.fc .fc-more-link {
-  color: var(--color-primary);
+.fc .fc-timegrid-event .cal-ev-time {
+  display: none;
+}
+
+@container (min-height: 60px) {
+  .fc .fc-timegrid-event .cal-ev-time {
+    display: block;
+  }
+}
+
+@container (height < 42px) {
+  .fc .fc-timegrid-event .cal-ev-title {
+    -webkit-line-clamp: 1;
+  }
+}
+
+@container (42px <= height < 76px) {
+  .fc .fc-timegrid-event .cal-ev-title {
+    -webkit-line-clamp: 2;
+  }
+}
+
+.fc .fc-timegrid-col-events {
+  margin: 0 3px 0 2px;
+}
+
+/* Month rows are narrow: the repeat glyph is dropped there (it is still spoken). */
+.fc .fc-daygrid-dot-event .cal-glyph-repeat {
+  display: none;
+}
+
+/* Past (ended): text ink-2, rule ink-3. */
+.fc .fc-event-past {
+  --event-rule: var(--event-rule-past);
+  color: var(--ink-2);
+}
+
+.fc .fc-event-past .cal-ev-title {
+  color: var(--ink-2);
+}
+
+/* Next: the one Bold title on the grid. */
+.fc .fc-event-next .cal-ev-title {
+  font-weight: 700;
+}
+
+/* Cancelled: struck through and ink-3 (never colour alone). */
+.fc .fc-event-cancelled {
+  --event-rule: var(--event-rule-past);
+}
+
+.fc .fc-event-cancelled .cal-ev-title {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
+/* Source-managed (lock glyph) and recurring (repeat glyph): 12 px before the title. */
+.fc .cal-glyph {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  color: var(--ink-3);
+}
+
+.fc .fc-event-managed {
+  cursor: default;
+}
+
+/* Focus is the global 2 px ink outline; drop FullCalendar's shadow and dark overlay. */
+.fc .fc-event:focus,
+.fc .fc-event-selected {
+  box-shadow: none;
+}
+
+.fc .fc-event:focus::after,
+.fc .fc-event-selected::after {
+  display: none;
+}
+
+.fc .fc-event-dragging:not(.fc-event-selected) {
+  opacity: 0.8;
 }
 
 .fc .fc-highlight {
-  border-radius: 4px;
+  border-radius: 0;
+}
+
+/* ---- all-day marks (24 px) -------------------------------------------------------------------- */
+.fc .fc-daygrid-block-event {
+  margin-top: 2px;
+}
+
+.fc .fc-timegrid .fc-daygrid-day-bottom {
+  margin: 0;
+  padding: 0;
+}
+
+.fc .fc-daygrid-block-event .fc-event-main {
+  padding: 0 8px;
+}
+
+.fc .fc-daygrid-block-event .cal-ev {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  height: 22px;
+  overflow: hidden;
+}
+
+.fc .fc-daygrid-block-event .cal-ev-title {
+  display: block;
+  font-size: 13px;
+  line-height: 22px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fc .fc-daygrid-block-event .cal-ev-time {
+  margin-right: 6px;
+  line-height: 22px;
+}
+
+/* ---- month: day numbers, text rows (no blocks), "+N more" ------------------------------------- */
+.fc .fc-daygrid-day-top {
+  flex-direction: row;
+}
+
+.fc .fc-daygrid-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  margin: 4px 0 2px 4px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+.fc .fc-day-other .fc-daygrid-day-top {
+  opacity: 1;
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+  color: var(--ink-3);
+}
+
+.fc .fc-day-today .fc-daygrid-day-number {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.fc .fc-daygrid-event-dot {
+  display: none;
+}
+
+.fc .fc-daygrid-dot-event {
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.fc .fc-daygrid-dot-event:hover {
+  background: var(--hover);
+}
+
+.fc .fc-daygrid-dot-event .cal-ev {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  min-width: 0;
+}
+
+.fc .fc-daygrid-dot-event .cal-ev-time {
+  flex: none;
+  margin-right: 6px;
+}
+
+.fc .fc-daygrid-dot-event .cal-ev-title {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fc .fc-daygrid-more-link,
+.fc .fc-timegrid-more-link {
+  margin: 1px 0 0 8px;
+  padding: 2px 0;
+  border-radius: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+
+.fc .fc-daygrid-more-link:hover {
+  background: transparent;
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+/* ---- agenda: hairline rows under 18 px day headings ------------------------------------------- */
+.fc .fc-list,
+.fc.fc-theme-standard .fc-list {
+  border: 0;
+}
+
+.fc .fc-list-table td {
+  padding: 12px 0;
+  border-color: var(--line);
+}
+
+.fc .fc-list-day-cushion {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 28px 0 10px;
+  background: transparent;
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.fc .fc-list-table th {
+  border-color: var(--line);
+}
+
+.fc .fc-list-day-text,
+.fc .fc-list-day-side-text {
+  float: none;
+}
+
+.fc .fc-list-day-text {
+  color: var(--ink-2);
+}
+
+.fc .fc-list-day-side-text {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.fc .fc-list-day.fc-day-today .fc-list-day-text {
+  color: var(--ink);
+}
+
+.fc .fc-list-event-graphic {
+  display: none;
+}
+
+.fc .fc-list-event-time {
+  width: 1px;
+  min-width: 128px;
+  padding-right: 24px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.fc .fc-list-event-title {
+  font-size: 15px;
+}
+
+.fc .fc-list-event .cal-ev-title {
+  display: inline;
+}
+
+.fc .fc-list-event:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.fc .fc-list-event:hover td {
+  background: var(--hover);
+}
+
+.fc .fc-list-empty {
+  background: transparent;
+  color: var(--ink-3);
+}
+
+/* ---- "+N more" popover is a floating layer ---------------------------------------------------- */
+.fc .fc-popover {
+  border: 0;
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+}
+
+.fc .fc-popover-header {
+  padding: 10px 14px 4px;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.fc .fc-popover-close {
+  opacity: 1;
+  color: var(--ink-3);
+}
+
+.fc .fc-more-popover .fc-popover-body {
+  padding: 4px 6px 10px;
 }
 
 @media (prefers-reduced-motion: reduce) {

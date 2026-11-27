@@ -1,4 +1,4 @@
-import { Check, Plus, RefreshCw, Search } from 'lucide-react'
+import { Check, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
   conferenceSubline,
@@ -18,9 +18,10 @@ import {
   DialogTitle
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
-import { Switch } from '@renderer/components/ui/switch'
 import { useFormat } from '@renderer/hooks/useFormat'
+import { cn } from '@renderer/lib/utils'
 import { toastError } from '@renderer/lib/toast'
+import { PassedToggle } from './PassedToggle'
 import {
   useAddSubscription,
   useConferenceDeadlines,
@@ -52,10 +53,13 @@ export function ConferencePicker({
 }: ConferencePickerProps): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-h-[85vh] overflow-hidden">
+      <DialogContent
+        size="lg"
+        className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
+      >
         <DialogHeader>
           <DialogTitle>Add conference</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             Search the CCF Deadlines list and add the conferences you care about.
           </DialogDescription>
         </DialogHeader>
@@ -112,58 +116,48 @@ function PickerBody({ onAdvanced }: { onAdvanced: () => void }): React.JSX.Eleme
 
   if ((subscriptions.data ?? []).length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center">
-        <p className="max-w-sm text-sm text-muted-foreground">
+      <div className="flex flex-col items-start gap-5">
+        <p className="text-body max-w-sm text-ink-2">
           Load the CCF Deadlines list once; afterwards you only search it and pick conferences. The
           list refreshes itself in the background.
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
           <Button onClick={() => void loadList('en')} disabled={add.isPending}>
-            <Plus aria-hidden="true" />
             Load list (English)
           </Button>
-          <Button variant="outline" onClick={() => void loadList('zh')} disabled={add.isPending}>
+          <button
+            type="button"
+            className="link app-no-drag"
+            onClick={() => void loadList('zh')}
+            disabled={add.isPending}
+          >
             Load list (简体中文)
-          </Button>
+          </button>
         </div>
-        <Button variant="link" size="sm" onClick={onAdvanced}>
+        <button type="button" className="link-quiet app-no-drag" onClick={onAdvanced}>
           Filtered feed or custom URL…
-        </Button>
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            autoFocus
-            type="search"
-            aria-label="Search conferences"
-            placeholder="Search by name, e.g. NeurIPS, ICSE, SIGGRAPH…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-7"
-          />
-        </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Switch checked={showPassed} onCheckedChange={setShowPassed} aria-label="Show passed" />
-          Show passed
-        </label>
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label="Refresh list"
-          disabled={inProgress}
-          onClick={() => refresh.mutate({ force: true })}
-        >
-          <RefreshCw aria-hidden="true" className={inProgress ? 'animate-spin' : undefined} />
-        </Button>
+    <div className="flex min-h-0 flex-col gap-4">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+        <Input
+          autoFocus
+          type="search"
+          aria-label="Search conferences"
+          placeholder="Search by name, e.g. NeurIPS, ICSE, SIGGRAPH…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-0 flex-1"
+        />
+        <PassedToggle
+          checked={showPassed}
+          onCheckedChange={setShowPassed}
+          className="h-9 items-center"
+        />
       </div>
 
       {deadlines.isError ? (
@@ -185,12 +179,10 @@ function PickerBody({ onAdvanced }: { onAdvanced: () => void }): React.JSX.Eleme
           />
         )
       ) : results.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Nothing matches “{search}”.
-        </p>
+        <p className="text-body py-6 text-ink-3">Nothing matches “{search}”.</p>
       ) : (
         <ul
-          className="-mx-1 flex max-h-[50vh] flex-col overflow-y-auto px-1"
+          className="-mx-1 flex min-h-0 flex-1 flex-col divide-y divide-line overflow-y-auto px-1"
           aria-label="Search results"
         >
           {results.slice(0, MAX_RESULTS).map((item) => {
@@ -202,48 +194,60 @@ function PickerBody({ onAdvanced }: { onAdvanced: () => void }): React.JSX.Eleme
             return (
               <li
                 key={item.id}
-                className="flex items-center gap-3 border-b py-2 last:border-b-0"
+                className="flex min-h-14 items-center gap-4 py-2"
                 data-conference-id={item.id}
               >
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-medium">{item.title}</span>
-                  <span className="truncate text-[11px] text-muted-foreground">
+                  <span className="text-body truncate text-ink">{item.title}</span>
+                  <span className="text-meta truncate text-ink-3">
                     {item.deadlineAt ? format.formatDate(item.deadlineAt) : 'TBD'}
                     {item.status === 'passed' ? ' · passed' : ''}
                     {subline ? ` · ${subline}` : ''}
                   </span>
                 </span>
-                <Button
-                  size="sm"
-                  variant={followed ? 'outline' : 'default'}
+                <button
+                  type="button"
                   disabled={busy}
                   aria-label={`${followed ? 'Remove' : 'Add'} ${item.title}`}
+                  className={cn(
+                    'app-no-drag inline-flex items-center gap-1.5 text-body disabled:opacity-50',
+                    followed ? 'link-quiet' : 'link'
+                  )}
                   onClick={() =>
                     followed ? unfollow.mutate({ id: item.id }) : follow.mutate({ id: item.id })
                   }
                 >
-                  {followed ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                  {followed && <Check className="size-3.5" aria-hidden="true" />}
                   {followed ? 'Added' : 'Add'}
-                </Button>
+                </button>
               </li>
             )
           })}
           {results.length > MAX_RESULTS && (
-            <li className="py-2 text-center text-[11px] text-muted-foreground">
+            <li className="text-meta py-3 text-ink-3">
               {results.length - MAX_RESULTS} more — keep typing to narrow the list.
             </li>
           )}
         </ul>
       )}
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
+      <div className="text-meta flex items-center justify-between gap-4 text-ink-3">
+        <span className="flex items-center gap-1">
           {status.data?.lastSuccessAt
             ? `List updated ${format.formatRelative(status.data.lastSuccessAt, new Date().toISOString())}`
             : 'List not loaded yet'}
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Refresh list"
+            disabled={inProgress}
+            onClick={() => refresh.mutate({ force: true })}
+          >
+            <RefreshCw aria-hidden="true" />
+          </Button>
         </span>
-        <Button variant="link" size="sm" className="h-auto p-0 text-[11px]" onClick={onAdvanced}>
+        <button type="button" className="link-quiet app-no-drag" onClick={onAdvanced}>
           Filtered feed or custom URL…
-        </Button>
+        </button>
       </div>
     </div>
   )

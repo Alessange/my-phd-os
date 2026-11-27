@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Rss, Trash2 } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { describeFilters, parseSubscriptionUrl } from '@shared/conferences/buildSubscriptionUrl'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
@@ -16,8 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@renderer/components/ui/alert-dialog'
-import { Badge } from '@renderer/components/ui/badge'
-import { Button } from '@renderer/components/ui/button'
 import { Switch } from '@renderer/components/ui/switch'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { cn } from '@renderer/lib/utils'
@@ -50,6 +48,7 @@ export function SubscriptionManager({
   const update = useUpdateSubscription()
   const remove = useRemoveSubscription()
   const [builder, setBuilder] = useState<BuilderMode | undefined>()
+  const [details, setDetails] = useState<string | undefined>()
   const [removing, setRemoving] = useState<ConferenceSubscription | undefined>()
 
   const list = subscriptions.data ?? []
@@ -68,23 +67,21 @@ export function SubscriptionManager({
     )
 
   return (
-    <div className={cn('flex flex-col gap-3', variant === 'compact' && 'gap-2')}>
+    <div className={cn('flex flex-col gap-4', variant === 'compact' && 'gap-2')}>
       {list.length === 0 ? (
         <EmptyState
           variant="compact"
-          icon={Rss}
           title={EMPTY_STATES.conferenceDeadlinesNoSubscription.title}
           actions={[
             {
               label: EMPTY_STATES.conferenceDeadlinesNoSubscription.actions[0],
-              onClick: () => setBuilder('official'),
-              variant: 'outline'
+              onClick: () => setBuilder('official')
             }
           ]}
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-meta text-ink-3">
             <span className="tabular" data-testid="refresh-summary">
               {inProgress ? (
                 <LoadingState variant="inline" label="Refreshing…" />
@@ -97,20 +94,18 @@ export function SubscriptionManager({
                 ? ` · next automatic check ${format.formatRelative(status.data.nextAutoRefreshAt, new Date().toISOString())}`
                 : ''}
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
+            <div className="flex items-baseline gap-5 text-body">
+              <button
+                type="button"
+                className="link-quiet disabled:no-underline disabled:opacity-50"
                 onClick={() => refresh.mutate({ force: true })}
                 disabled={inProgress || refresh.isPending}
               >
-                <RefreshCw aria-hidden="true" className={inProgress ? 'animate-spin' : undefined} />
                 Refresh now
-              </Button>
-              <Button size="sm" onClick={() => setBuilder('official')}>
-                <Plus aria-hidden="true" />
+              </button>
+              <button type="button" className="link" onClick={() => setBuilder('official')}>
                 Add subscription
-              </Button>
+              </button>
             </div>
           </div>
           {status.data?.lastError && !inProgress && (
@@ -121,101 +116,110 @@ export function SubscriptionManager({
               onRetry={() => refresh.mutate({ force: true })}
             />
           )}
-          <ul className="flex flex-col gap-2" aria-label="Conference subscriptions">
+          <ul className="flex flex-col border-t border-line" aria-label="Conference subscriptions">
             {list.map((subscription) => {
               const spec = parseSubscriptionUrl(subscription.url)
               const filters = describeFilters(subscription.filters ?? spec?.filters)
+              const language = subscription.language ?? spec?.language
               const state = status.data?.perSubscription[subscription.id]
+              const isOpen = details === subscription.id
               return (
                 <li
                   key={subscription.id}
-                  className="flex flex-col gap-1.5 rounded-lg border bg-card p-3 shadow-xs"
+                  className="flex flex-col gap-1 border-b border-line py-3"
                   data-subscription-id={subscription.id}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Badge variant={subscription.kind === 'official' ? 'secondary' : 'outline'}>
-                        {subscription.kind === 'official' ? 'CCF Deadlines' : 'Custom'}
-                      </Badge>
-                      <span
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+                    <div className="min-w-0 flex-1">
+                      <div
                         className={cn(
-                          'truncate text-sm font-medium',
-                          !subscription.enabled && 'text-muted-foreground line-through'
+                          'truncate text-body',
+                          subscription.enabled ? 'text-ink' : 'text-ink-3'
                         )}
+                        title={subscription.label}
                       >
                         {subscription.label}
-                      </span>
-                      {(subscription.language ?? spec?.language) && (
-                        <Badge variant="outline">
-                          {(subscription.language ?? spec?.language) === 'zh'
-                            ? '简体中文'
-                            : 'English'}
-                        </Badge>
-                      )}
-                      {filters && <Badge variant="outline">{filters}</Badge>}
+                      </div>
+                      <div className="flex flex-wrap gap-x-2 text-meta text-ink-3">
+                        {subscription.kind === 'custom' && <span>Custom</span>}
+                        {language && <span>{language === 'zh' ? '简体中文' : 'English'}</span>}
+                        {filters && <span>{filters}</span>}
+                        {!subscription.enabled && <span>Paused</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Switch
-                          checked={subscription.enabled}
-                          onCheckedChange={(enabled) =>
-                            update.mutate({ id: subscription.id, patch: { enabled } })
-                          }
-                          aria-label={`Enable ${subscription.label}`}
-                        />
-                        {subscription.enabled ? 'Enabled' : 'Disabled'}
-                      </label>
-                      <Button
-                        size="icon"
-                        variant="ghost"
+                    <div className="flex items-center gap-5 text-body">
+                      <button
+                        type="button"
+                        className="link-quiet disabled:no-underline disabled:opacity-50"
                         aria-label={`Refresh ${subscription.label}`}
                         disabled={!subscription.enabled || state?.inProgress || refresh.isPending}
                         onClick={() =>
                           refresh.mutate({ subscriptionId: subscription.id, force: true })
                         }
                       >
-                        <RefreshCw
-                          aria-hidden="true"
-                          className={state?.inProgress ? 'animate-spin' : undefined}
-                        />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
+                        {state?.inProgress ? 'Refreshing…' : 'Refresh'}
+                      </button>
+                      <button
+                        type="button"
+                        className="link-quiet"
                         aria-label={`Remove ${subscription.label}`}
                         onClick={() => setRemoving(subscription)}
                       >
-                        <Trash2 aria-hidden="true" />
-                      </Button>
+                        Remove
+                      </button>
+                      <Switch
+                        checked={subscription.enabled}
+                        onCheckedChange={(enabled) =>
+                          update.mutate({ id: subscription.id, patch: { enabled } })
+                        }
+                        aria-label={`Enable ${subscription.label}`}
+                      />
                     </div>
                   </div>
-                  <code
-                    className="truncate text-[11px] text-muted-foreground"
-                    title={subscription.url}
-                  >
-                    {subscription.url}
-                  </code>
-                  <div className="tabular flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
+                  <div className="tabular flex flex-wrap items-baseline gap-x-4 text-meta text-ink-3">
                     <span>
-                      Last success:{' '}
                       {subscription.lastSuccessAt
-                        ? format.formatDateTime(subscription.lastSuccessAt)
-                        : 'never'}
+                        ? `Updated ${format.formatDateTime(subscription.lastSuccessAt)}`
+                        : 'Never updated'}
                     </span>
-                    <span>
-                      Last attempt:{' '}
-                      {subscription.lastAttemptAt
-                        ? format.formatDateTime(subscription.lastAttemptAt)
-                        : 'never'}
-                    </span>
-                    {subscription.etag && <span>ETag {subscription.etag}</span>}
                     {subscription.lastError && (
-                      <span className="text-status-at-risk">
-                        Error: {subscription.lastError.message}
+                      <span className="inline-flex items-center gap-1 text-signal">
+                        <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+                        <span>Error: {subscription.lastError.message}</span>
                       </span>
                     )}
+                    <button
+                      type="button"
+                      className="link-quiet"
+                      aria-expanded={isOpen}
+                      aria-controls={`subscription-details-${subscription.id}`}
+                      aria-label={`Details of ${subscription.label}`}
+                      onClick={() => setDetails(isOpen ? undefined : subscription.id)}
+                    >
+                      {isOpen ? 'Hide details' : 'Details'}
+                    </button>
                   </div>
+                  {isOpen && (
+                    <dl
+                      id={`subscription-details-${subscription.id}`}
+                      className="tabular mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-0.5 text-meta text-ink-2"
+                    >
+                      <dt className="text-ink-3">Feed</dt>
+                      <dd className="break-all">{subscription.url}</dd>
+                      <dt className="text-ink-3">Last attempt</dt>
+                      <dd>
+                        {subscription.lastAttemptAt
+                          ? format.formatDateTime(subscription.lastAttemptAt)
+                          : 'never'}
+                      </dd>
+                      {subscription.etag && (
+                        <>
+                          <dt className="text-ink-3">ETag</dt>
+                          <dd className="break-all">{subscription.etag}</dd>
+                        </>
+                      )}
+                    </dl>
+                  )}
                 </li>
               )
             })}

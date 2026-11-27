@@ -8,11 +8,13 @@ export interface EmptyStateCopy {
 export const EMPTY_STATES = {
   calendar: {
     title: 'Your calendar is empty.',
-    actions: ['Import .ics', 'Create Event']
+    actions: ['Import .ics', 'Create event']
   },
+  // The Deadlines tab leads with "Add conference" (CREATE_LABELS) and uses only actions[1] from
+  // here; actions[0] is the Subscription Manager's empty-state action.
   conferenceDeadlinesNoSubscription: {
     title: 'No conference subscription yet.',
-    actions: ['Add CCF Subscription', 'Enter Subscription URL']
+    actions: ['Add CCF subscription', 'Enter subscription URL']
   },
   conferenceDeadlinesNotLoaded: {
     title: 'Conference deadlines have not loaded yet.',
@@ -22,15 +24,15 @@ export const EMPTY_STATES = {
   personalDeadlines: {
     title: 'No personal deadlines yet.',
     description: 'Countdowns and progress tracking appear after you add a deadline.',
-    actions: ['Add Personal Deadline']
+    actions: ['Add personal deadline']
   },
   timeline: {
     title: 'Your timeline starts here.',
-    actions: ['Add Milestone']
+    actions: ['Add milestone']
   },
   habits: {
     title: 'No habits yet.',
-    actions: ['Create Habit']
+    actions: ['Create habit']
   },
   todayEvents: { title: 'Nothing scheduled today.', actions: [] },
   nextEvent: { title: 'No upcoming event.', actions: [] },

@@ -49,7 +49,7 @@ export function ConferenceSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="sm:max-w-lg">
+        <SheetContent>
           <SheetHeader>
             <SheetTitle>{item?.title ?? 'Conference'}</SheetTitle>
             <SheetDescription>
@@ -57,7 +57,7 @@ export function ConferenceSheet({
                 'Details from CCF Deadlines. Canonical dates cannot be edited here.'}
             </SheetDescription>
           </SheetHeader>
-          <SheetBody>
+          <SheetBody className="pb-8">
             {item && (
               <ConferenceCard
                 item={item}

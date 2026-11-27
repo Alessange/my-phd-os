@@ -61,8 +61,22 @@ const isHighPriority = (p: PersonalDeadline['priority']): boolean =>
 /** Whether a milestone still counts toward scheduling-overlap checks (completed ones are done). */
 const isActive = (m: Milestone): boolean => m.status !== 'completed'
 
-/** UTC calendar date of an instant as a stable, zone-independent token for detail text. */
-const dateOf = (instantIso: string): string => instantIso.slice(0, 10)
+/**
+ * How dates are printed in a warning's title and detail. The caller (the renderer) passes the
+ * user's date format and zone so the text agrees with the bars on screen; the default is the UTC
+ * calendar date, a stable zone-independent token for headless callers and tests.
+ */
+export interface TimelineDateFormatters {
+  /** An instant (`2026-11-17T01:00:00.000Z`). */
+  instant: (instantIso: string) => string
+  /** A local calendar-day key (`2026-11-23`, a week start). */
+  dateKey: (key: string) => string
+}
+
+export const UTC_DATE_FORMATTERS: TimelineDateFormatters = {
+  instant: (instantIso) => instantIso.slice(0, 10),
+  dateKey: (key) => key
+}
 
 const sortIds = (ids: readonly string[]): string[] =>
   [...ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
@@ -77,14 +91,17 @@ const sortByKey = <T>(items: T[], key: (t: T) => string): T[] =>
   })
 
 // 6. Start occurs after target — invalid date ordering.
-export const detectStartAfterTarget = (milestones: readonly Milestone[]): TimelineWarning[] =>
+export const detectStartAfterTarget = (
+  milestones: readonly Milestone[],
+  fmt: TimelineDateFormatters = UTC_DATE_FORMATTERS
+): TimelineWarning[] =>
   milestones
     .filter((m) => compareInstants(m.startAt, m.targetAt) > 0)
     .map((m) => ({
       id: makeId('start_after_target', m.id),
       rule: 'start_after_target',
       title: `"${m.title}" starts after its target date`,
-      detail: `Start ${dateOf(m.startAt)} is after target ${dateOf(m.targetAt)}; the dates look reversed.`,
+      detail: `Start ${fmt.instant(m.startAt)} is after target ${fmt.instant(m.targetAt)}; the dates look reversed.`,
       milestoneIds: [m.id],
       deadlineIds: [],
       navigateTo: { kind: 'timeline', milestoneId: m.id }
@@ -93,7 +110,8 @@ export const detectStartAfterTarget = (milestones: readonly Milestone[]): Timeli
 // 1. Target has passed but the milestone isn't complete.
 export const detectPassedIncomplete = (
   milestones: readonly Milestone[],
-  nowIso: string
+  nowIso: string,
+  fmt: TimelineDateFormatters = UTC_DATE_FORMATTERS
 ): TimelineWarning[] =>
   milestones
     .filter((m) => m.status !== 'completed' && compareInstants(m.targetAt, nowIso) < 0)
@@ -101,7 +119,7 @@ export const detectPassedIncomplete = (
       id: makeId('milestone_passed_incomplete', m.id),
       rule: 'milestone_passed_incomplete',
       title: `Milestone "${m.title}" is past its target but not complete`,
-      detail: `"${m.title}" was targeted for ${dateOf(m.targetAt)} and is still ${m.status.replace('_', ' ')}.`,
+      detail: `"${m.title}" was targeted for ${fmt.instant(m.targetAt)} and is still ${m.status.replace('_', ' ')}.`,
       milestoneIds: [m.id],
       deadlineIds: [],
       navigateTo: { kind: 'timeline', milestoneId: m.id }
@@ -137,7 +155,8 @@ export const detectTimeProgressExceedsWork = (
 // 2. A deadline linked to a milestone lands after that milestone's target.
 export const detectDeadlineAfterMilestoneTarget = (
   milestones: readonly Milestone[],
-  deadlines: readonly PersonalDeadline[]
+  deadlines: readonly PersonalDeadline[],
+  fmt: TimelineDateFormatters = UTC_DATE_FORMATTERS
 ): TimelineWarning[] => {
   const byId = new Map(milestones.map((m) => [m.id, m]))
   const out: TimelineWarning[] = []
@@ -150,7 +169,7 @@ export const detectDeadlineAfterMilestoneTarget = (
         id: makeId('deadline_after_milestone_target', d.id),
         rule: 'deadline_after_milestone_target',
         title: `Deadline "${d.title}" lands after its linked milestone target`,
-        detail: `"${d.title}" is due ${dateOf(d.deadlineAt)}, after milestone "${m.title}" targets ${dateOf(m.targetAt)}.`,
+        detail: `"${d.title}" is due ${fmt.instant(d.deadlineAt)}, after milestone "${m.title}" targets ${fmt.instant(m.targetAt)}.`,
         milestoneIds: [m.id],
         deadlineIds: [d.id],
         navigateTo: { kind: 'personalDeadlines', deadlineId: d.id }
@@ -164,7 +183,8 @@ export const detectDeadlineAfterMilestoneTarget = (
 //    week-start). Completed deadlines don't count.
 export const detectManyHighPrioritySameWeek = (
   deadlines: readonly PersonalDeadline[],
-  weekStartsOn: 0 | 1
+  weekStartsOn: 0 | 1,
+  fmt: TimelineDateFormatters = UTC_DATE_FORMATTERS
 ): TimelineWarning[] => {
   const byWeek = new Map<string, PersonalDeadline[]>()
   for (const d of deadlines) {
@@ -180,8 +200,8 @@ export const detectManyHighPrioritySameWeek = (
       out.push({
         id: makeId('many_high_priority_deadlines_same_week', weekKey),
         rule: 'many_high_priority_deadlines_same_week',
-        title: `${list.length} high-priority deadlines in the week of ${weekKey}`,
-        detail: `${list.map((d) => `"${d.title}"`).join(', ')} all fall in the week starting ${weekKey}.`,
+        title: `${list.length} high-priority deadlines in the week of ${fmt.dateKey(weekKey)}`,
+        detail: `${list.map((d) => `"${d.title}"`).join(', ')} all fall in the week starting ${fmt.dateKey(weekKey)}.`,
         milestoneIds: [],
         deadlineIds: sortIds(list.map((d) => d.id)),
         navigateTo: { kind: 'personalDeadlines', weekStartKey: weekKey }

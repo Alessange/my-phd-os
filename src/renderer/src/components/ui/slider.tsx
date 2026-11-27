@@ -2,12 +2,15 @@ import * as SliderPrimitive from '@radix-ui/react-slider'
 import type { ComponentProps } from 'react'
 import { cn } from '@renderer/lib/utils'
 
+/** 2 px track line, ink fill, 16 px ink thumb inside a 28 px hit box. */
 export function Slider({
   className,
   defaultValue,
   value,
   min = 0,
   max = 100,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledby,
   ...props
 }: ComponentProps<typeof SliderPrimitive.Root>): React.JSX.Element {
   const values = value ?? defaultValue ?? [min]
@@ -19,18 +22,21 @@ export function Slider({
       min={min}
       max={max}
       className={cn(
-        'relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
+        'relative flex h-7 w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-7 data-[orientation=vertical]:flex-col',
         className
       )}
       {...props}
     >
-      <SliderPrimitive.Track className="relative grow overflow-hidden rounded-full bg-muted data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5">
+      <SliderPrimitive.Track className="relative grow overflow-hidden bg-track data-[orientation=horizontal]:h-0.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-0.5">
         <SliderPrimitive.Range className="absolute bg-primary data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full" />
       </SliderPrimitive.Track>
       {values.map((_, index) => (
         <SliderPrimitive.Thumb
           key={index}
-          className="block size-4 shrink-0 rounded-full border border-primary bg-card shadow-sm transition-[color,box-shadow] outline-none hover:ring-4 hover:ring-ring/30 focus-visible:ring-4 focus-visible:ring-ring/40 disabled:pointer-events-none"
+          // The focusable role=slider element is the thumb, so it carries the name (one thumb gets none from Radix).
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledby}
+          className="block size-4 shrink-0 rounded-full bg-primary transition-transform duration-100 hover:scale-110 disabled:pointer-events-none"
         />
       ))}
     </SliderPrimitive.Root>

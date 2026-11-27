@@ -11,4 +11,6 @@ sections; `pages/SettingsPage.tsx` provides the in-page section nav and `{ secti
 - Backup format and validation: `src/shared/backup` (`format.ts`, `validate.ts`); file I/O and the
   atomic import: `src/main/filesystem/backup.ts`; handlers: `src/main/ipc/handlers/data.ts`.
 
-Left for integration: `calendar:exportIcs` is still a stub in main (calendar feature).
+Calendar export (`calendar:exportIcs`) is implemented in main (`src/main/ipc/handlers/calendar.ts`); Data
+
+> Export calendar (.ics) opens the same dialog as the Calendars menu.

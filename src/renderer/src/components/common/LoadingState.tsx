@@ -1,15 +1,15 @@
-import { LoaderCircle } from 'lucide-react'
 import { Skeleton } from '@renderer/components/ui/skeleton'
 import { cn } from '@renderer/lib/utils'
 
 export interface LoadingStateProps {
   label?: string
-  /** `skeleton` draws placeholder rows instead of a spinner. */
+  /** `skeleton` draws static placeholder rows; `spinner` and `inline` render the plain text label (no spinner). */
   variant?: 'spinner' | 'skeleton' | 'inline'
   rows?: number
   className?: string
 }
 
+/** Static loading: the words "Loading..." or quiet placeholder rows in `--track`. Nothing spins or pulses. */
 export function LoadingState({
   label = 'Loading…',
   variant = 'spinner',
@@ -33,12 +33,7 @@ export function LoadingState({
   }
   if (variant === 'inline') {
     return (
-      <span
-        role="status"
-        aria-live="polite"
-        className={cn('inline-flex items-center gap-1.5 text-xs text-muted-foreground', className)}
-      >
-        <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+      <span role="status" aria-live="polite" className={cn('text-sm text-ink-3', className)}>
         {label}
       </span>
     )
@@ -47,12 +42,8 @@ export function LoadingState({
     <div
       role="status"
       aria-live="polite"
-      className={cn(
-        'flex flex-col items-center justify-center gap-2 py-12 text-[13px] text-muted-foreground',
-        className
-      )}
+      className={cn('flex items-center justify-center py-12 text-sm text-ink-3', className)}
     >
-      <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
       {label}
     </div>
   )

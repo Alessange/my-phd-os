@@ -8,7 +8,7 @@ export interface StatusDefinition<Id extends string = string> {
   label: string
   /** lucide-react component name. */
   icon: string
-  /** Tailwind theme color token from `globals.css` (`bg-<token>/15 text-<token>`). */
+  /** Colour token name from `globals.css` (e.g. `status-urgent`); `StatusMark` feeds it to `chipStyle` as `--chip`. */
   colorToken: string
 }
 
@@ -30,9 +30,9 @@ export const DEADLINE_STATUS_DEFINITIONS: Readonly<
 > = {
   ahead: define('ahead', 'Ahead', 'TrendingUp', 'status-ahead'),
   on_track: define('on_track', 'On Track', 'CircleCheck', 'status-on-track'),
-  behind: define('behind', 'Behind', 'TrendingDown', 'status-behind'),
+  behind: define('behind', 'Behind', 'TriangleAlert', 'status-behind'),
   at_risk: define('at_risk', 'At Risk', 'TriangleAlert', 'status-at-risk'),
-  urgent: define('urgent', 'Urgent', 'Siren', 'status-urgent'),
+  urgent: define('urgent', 'Urgent', 'CircleAlert', 'status-urgent'),
   completed: define('completed', 'Completed', 'CheckCheck', 'status-completed'),
   overdue: define('overdue', 'Overdue', 'CircleX', 'status-overdue')
 }

@@ -1,12 +1,8 @@
-import { CalendarPlus, CalendarX, ExternalLink, Pencil, Route, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { PRIORITY_DEFINITIONS } from '@shared/constants/statuses'
+import { useState, type ReactNode } from 'react'
 import { dateKeyInZone } from '@shared/dates'
 import type { DescribedDeadline } from '@shared/personal-deadlines/views'
 import type { PersonalDeadline } from '@shared/types/personalDeadline'
 import { useNavigation } from '@renderer/app/navigation'
-import { CategoryChip } from '@renderer/components/common/CategoryChip'
-import { Countdown } from '@renderer/components/common/Countdown'
 import { DualProgress } from '@renderer/components/common/DualProgress'
 import { StatusBadge } from '@renderer/components/common/StatusBadge'
 import { ZonedTime } from '@renderer/components/common/ZonedTime'
@@ -20,7 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@renderer/components/ui/alert-dialog'
-import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import {
@@ -33,6 +28,7 @@ import {
   SheetTitle
 } from '@renderer/components/ui/sheet'
 import { Slider } from '@renderer/components/ui/slider'
+import { DeadlineCountdown } from '@renderer/features/conference-deadlines/components/DeadlineCountdown'
 import { useMilestones } from '@renderer/features/timeline/api'
 import { useFormat } from '@renderer/hooks/useFormat'
 import {
@@ -42,6 +38,17 @@ import {
   useUnlinkCalendarEvent,
   useUpdatePersonalDeadline
 } from '../api'
+import { DeadlineMeta } from './DeadlineMeta'
+
+/** One labelled line of the sheet; the hairline above it is the only structure. */
+function Field({ label, children }: { label: string; children: ReactNode }): React.JSX.Element {
+  return (
+    <div className="grid grid-cols-[112px_minmax(0,1fr)] items-baseline gap-x-4 border-t border-line py-3">
+      <dt className="text-meta text-ink-3">{label}</dt>
+      <dd className="text-body min-w-0 text-ink">{children}</dd>
+    </div>
+  )
+}
 
 export interface PersonalDeadlineDetailsProps {
   /** The deadline shown; nothing renders without one. */
@@ -93,23 +100,31 @@ export function PersonalDeadlineDetails({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-lg">
+      <SheetContent
+        side="right"
+        onOpenAutoFocus={(event) => {
+          // Land on the sheet, not on the progress input (which would open with its text selected).
+          event.preventDefault()
+          ;(event.currentTarget as HTMLElement).focus()
+        }}
+      >
         <SheetHeader>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <CategoryChip category={deadline.category} marker="icon" tinted />
-            <StatusBadge status={PRIORITY_DEFINITIONS[deadline.priority]} size="sm" />
-            <StatusBadge status={computed.status} size="sm" />
-          </div>
           <SheetTitle>{deadline.title}</SheetTitle>
-          <SheetDescription>
-            {computed.remaining.isPast
-              ? 'The deadline has passed.'
-              : 'Time remaining until the deadline.'}
+          <SheetDescription asChild>
+            <div className="flex flex-wrap items-baseline gap-x-3 text-ink-2">
+              <DeadlineMeta deadline={deadline} className="text-body text-ink-2" />
+              <StatusBadge status={computed.status} size="md" attentionGlyphOnly />
+              <span className="sr-only">
+                {computed.remaining.isPast
+                  ? 'The deadline has passed.'
+                  : 'Time remaining until the deadline.'}
+              </span>
+            </div>
           </SheetDescription>
         </SheetHeader>
 
-        <SheetBody className="flex flex-col gap-5">
-          <Countdown targetIso={deadline.deadlineAt} variant="large" />
+        <SheetBody className="flex flex-col gap-8 pb-4">
+          <DeadlineCountdown targetIso={deadline.deadlineAt} size="row" />
 
           <DualProgress
             timePercent={computed.timeProgress.clamped * 100}
@@ -117,15 +132,12 @@ export function PersonalDeadlineDetails({
             paceDifference={computed.paceDifference}
           />
 
-          <section
-            aria-labelledby="deadline-progress-heading"
-            className="flex flex-col gap-2 rounded-lg border p-3"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h3 id="deadline-progress-heading" className="text-sm font-medium">
+          <section aria-labelledby="deadline-progress-heading" className="flex flex-col gap-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 id="deadline-progress-heading" className="text-lead text-ink-2">
                 Update work progress
               </h3>
-              <div className="flex items-center gap-1">
+              <div className="flex items-baseline gap-1">
                 <Input
                   type="number"
                   min={0}
@@ -135,9 +147,9 @@ export function PersonalDeadlineDetails({
                     setDraft(Math.min(100, Math.max(0, Number(e.target.value) || 0)))
                   }
                   aria-label="Work progress"
-                  className="tabular w-20"
+                  className="tabular w-16 text-right"
                 />
-                <span className="text-xs text-muted-foreground">%</span>
+                <span className="text-meta text-ink-3">%</span>
               </div>
             </div>
             <Slider
@@ -145,10 +157,10 @@ export function PersonalDeadlineDetails({
               onValueChange={(v) => setDraft(v[0] ?? 0)}
               aria-label="Work progress slider"
             />
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                size="sm"
-                variant="outline"
+            <div className="flex items-center justify-between gap-4">
+              <button
+                type="button"
+                className="link app-no-drag disabled:opacity-50"
                 disabled={update.isPending}
                 onClick={() =>
                   update.mutate({
@@ -158,9 +170,10 @@ export function PersonalDeadlineDetails({
                 }
               >
                 {completed ? 'Reopen' : 'Mark completed'}
-              </Button>
+              </button>
               <Button
                 size="sm"
+                variant="ghost"
                 disabled={!dirty || setProgress.isPending}
                 onClick={() => setProgress.mutate({ id: deadline.id, progress: draft })}
               >
@@ -169,136 +182,108 @@ export function PersonalDeadlineDetails({
             </div>
           </section>
 
-          <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-            <dt className="text-muted-foreground">Tracking start</dt>
-            <dd className="tabular">
-              {format.formatDateTimeWithZone(deadline.trackingStartAt, deadline.timezone)}
-            </dd>
-            <dt className="text-muted-foreground">Deadline</dt>
-            <dd>
+          <dl className="flex flex-col border-b border-line">
+            <Field label="Tracking start">
+              <span className="tabular">
+                {format.formatDateTimeWithZone(deadline.trackingStartAt, deadline.timezone)}
+              </span>
+            </Field>
+            <Field label="Deadline">
               <ZonedTime
                 instantIso={deadline.deadlineAt}
                 originalZone={deadline.timezone}
                 layout="stacked"
               />
-            </dd>
-            <dt className="text-muted-foreground">Timezone</dt>
-            <dd>{deadline.timezone}</dd>
+            </Field>
+            <Field label="Timezone">{deadline.timezone}</Field>
             {deadline.description && (
-              <>
-                <dt className="text-muted-foreground">Description</dt>
-                <dd className="whitespace-pre-wrap">{deadline.description}</dd>
-              </>
+              <Field label="Description">
+                <span className="whitespace-pre-wrap">{deadline.description}</span>
+              </Field>
             )}
-            {deadline.location && (
-              <>
-                <dt className="text-muted-foreground">Location</dt>
-                <dd>{deadline.location}</dd>
-              </>
-            )}
+            {deadline.location && <Field label="Location">{deadline.location}</Field>}
             {deadline.sourceUrl && (
-              <>
-                <dt className="text-muted-foreground">Source</dt>
-                <dd className="min-w-0">
-                  <a
-                    href={deadline.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex max-w-full items-center gap-1 truncate text-primary hover:underline"
-                  >
-                    <span className="truncate">{deadline.sourceUrl}</span>
-                    <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
-                  </a>
-                </dd>
-              </>
+              <Field label="Source">
+                <a
+                  href={deadline.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="link block max-w-full truncate"
+                >
+                  {deadline.sourceUrl}
+                </a>
+              </Field>
             )}
             {tags.length > 0 && (
-              <>
-                <dt className="text-muted-foreground">Tags</dt>
-                <dd className="flex flex-wrap gap-1">
-                  {tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-[10px]">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </dd>
-              </>
+              <Field label="Tags">{tags.map((tag) => `#${tag}`).join(' · ')}</Field>
             )}
-            <dt className="text-muted-foreground">Milestone</dt>
-            <dd>
+            <Field label="Milestone">
               {milestone ? (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto px-0"
+                <button
+                  type="button"
+                  className="link app-no-drag text-left"
                   onClick={() => navigate('timeline', { milestoneId: milestone.id })}
                 >
-                  <Route aria-hidden="true" />
                   {milestone.title}
-                </Button>
+                </button>
               ) : (
-                <span className="text-muted-foreground">Not linked</span>
+                <span className="text-ink-3">Not linked</span>
               )}
-            </dd>
-            <dt className="text-muted-foreground">Calendar</dt>
-            <dd className="flex flex-wrap gap-1.5">
-              {deadline.linkedCalendarEventId ? (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      navigate('calendar', {
-                        date: dateKeyInZone(deadline.deadlineAt, format.zone),
-                        eventId: deadline.linkedCalendarEventId ?? ''
-                      })
-                    }
-                  >
-                    Open in Calendar
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setUnlinkOpen(true)}>
-                    <CalendarX aria-hidden="true" />
-                    Unlink…
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={link.isPending}
-                    onClick={() => link.mutate({ id: deadline.id, mode: 'allDay' })}
-                  >
-                    <CalendarPlus aria-hidden="true" />
-                    Add as all-day
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={link.isPending}
-                    onClick={() => link.mutate({ id: deadline.id, mode: 'exact' })}
-                  >
-                    Add with exact time
-                  </Button>
-                </>
-              )}
-            </dd>
+            </Field>
+            <Field label="Calendar">
+              <span className="flex flex-wrap gap-x-5 gap-y-1">
+                {deadline.linkedCalendarEventId ? (
+                  <>
+                    <button
+                      type="button"
+                      className="link app-no-drag"
+                      onClick={() =>
+                        navigate('calendar', {
+                          date: dateKeyInZone(deadline.deadlineAt, format.zone),
+                          eventId: deadline.linkedCalendarEventId ?? ''
+                        })
+                      }
+                    >
+                      Open in Calendar
+                    </button>
+                    <button
+                      type="button"
+                      className="link-quiet app-no-drag"
+                      onClick={() => setUnlinkOpen(true)}
+                    >
+                      Unlink…
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="link app-no-drag disabled:opacity-50"
+                      disabled={link.isPending}
+                      onClick={() => link.mutate({ id: deadline.id, mode: 'allDay' })}
+                    >
+                      Add as all-day
+                    </button>
+                    <button
+                      type="button"
+                      className="link app-no-drag disabled:opacity-50"
+                      disabled={link.isPending}
+                      onClick={() => link.mutate({ id: deadline.id, mode: 'exact' })}
+                    >
+                      Add with exact time
+                    </button>
+                  </>
+                )}
+              </span>
+            </Field>
           </dl>
         </SheetBody>
 
         <SheetFooter className="sm:justify-between">
-          <Button
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 aria-hidden="true" />
+          <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
             Delete
           </Button>
-          <Button onClick={() => onEdit(deadline)}>
-            <Pencil aria-hidden="true" />
-            Edit
-          </Button>
+          <Button onClick={() => onEdit(deadline)}>Edit</Button>
         </SheetFooter>
 
         <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
@@ -313,7 +298,7 @@ export function PersonalDeadlineDetails({
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <Button
-                variant="outline"
+                variant="ghost"
                 disabled={unlink.isPending}
                 onClick={() =>
                   unlink.mutate(

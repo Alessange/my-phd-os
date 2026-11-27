@@ -1,11 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { emptyCounts } from '@shared/backup/format'
 import type { StorageInfo } from '@shared/types/data'
 import { renderWithProviders } from '@renderer/test/renderWithProviders'
 import { windowApi } from '../../../../../../tests/setup/renderer'
 import { DataSection } from './DataSection'
+import { settingsCommands } from '../commands'
 
 const counts = { ...emptyCounts(), personalDeadlines: 2, habits: 1 }
 const STORAGE: StorageInfo = {
@@ -42,7 +43,7 @@ describe('DataSection', () => {
     renderWithProviders(<DataSection />)
     expect(await screen.findByText('/tmp/my-phd-os-test/my-phd-os.sqlite')).toBeInTheDocument()
     expect(screen.getByTestId('storage-summary')).toHaveTextContent(
-      '2.0 KB · 2 personal deadlines, 1 habits'
+      '2.0 KB · 2 personal deadlines, 1 habit'
     )
   })
 
@@ -57,7 +58,7 @@ describe('DataSection', () => {
     await user.click(await screen.findByRole('button', { name: 'Import backup…' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByTestId('import-contains')).toHaveTextContent(
-      '2 personal deadlines, 1 habits'
+      '2 personal deadlines, 1 habit'
     )
     expect(within(dialog).getByText(/Ignored unknown table/)).toBeInTheDocument()
     expect(windowApi.invoke).not.toHaveBeenCalledWith('data:commitBackupImport', expect.anything())
@@ -70,6 +71,21 @@ describe('DataSection', () => {
       })
     )
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('runs a palette backup command that was sent from another page before this section mounted', async () => {
+    const exportCommand = settingsCommands.find((c) => c.id === 'settings:export-backup')!
+    const importCommand = settingsCommands.find((c) => c.id === 'settings:import-backup')!
+    const navigate = vi.fn()
+    // Settings is not mounted yet: the command navigates, then waits for the section.
+    void exportCommand.run({ page: 'calendar', navigate, close: vi.fn() })
+    expect(navigate).toHaveBeenCalledWith('settings', { section: 'data' })
+    const first = renderWithProviders(<DataSection />)
+    await waitFor(() => expect(windowApi.invoke).toHaveBeenCalledWith('data:exportBackup'))
+    first.unmount()
+    void importCommand.run({ page: 'habits', navigate, close: vi.fn() })
+    renderWithProviders(<DataSection />)
+    await waitFor(() => expect(windowApi.invoke).toHaveBeenCalledWith('data:previewBackupImport'))
   })
 
   it('clears all data only after the exact confirmation phrase is typed', async () => {

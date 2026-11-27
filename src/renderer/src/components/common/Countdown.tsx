@@ -60,7 +60,7 @@ function CountdownTicker({
 
   if (!targetIso) {
     return (
-      <span className={cn('font-medium text-status-tbd', className)} data-countdown="tbd">
+      <span className={cn('text-status-tbd', className)} data-countdown="tbd">
         TBD
       </span>
     )
@@ -72,11 +72,7 @@ function CountdownTicker({
   if (remaining.isPast) {
     return (
       <span
-        className={cn(
-          'tabular font-medium text-status-passed',
-          variant === 'large' && 'text-lg',
-          className
-        )}
+        className={cn('tabular text-status-passed', variant === 'large' && 'text-lg', className)}
         data-countdown="past"
         aria-label={label}
       >
@@ -91,7 +87,7 @@ function CountdownTicker({
   if (variant === 'inline') {
     return (
       <span
-        className={cn('tabular font-medium', emphasized && 'text-status-urgent', className)}
+        className={cn('tabular', emphasized && 'text-status-urgent', className)}
         data-countdown={emphasized ? 'urgent' : 'future'}
         aria-label={`${label} remaining`}
       >
@@ -120,20 +116,18 @@ function CountdownTicker({
           >
             <span
               className={cn(
-                'numeric leading-none font-semibold',
+                'numeric leading-none',
                 variant === 'large'
                   ? index === 0 || emphasize
                     ? 'text-3xl'
-                    : 'text-2xl text-foreground/80'
+                    : 'text-2xl text-ink-2'
                   : 'text-base',
                 emphasize && 'text-status-urgent'
               )}
             >
               {segment.value}
             </span>
-            <span
-              className={cn('text-xs text-muted-foreground', emphasize && 'text-status-urgent')}
-            >
+            <span className={cn('text-xs text-ink-3', emphasize && 'text-status-urgent')}>
               {segment.label}
             </span>
           </span>

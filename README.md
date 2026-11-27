@@ -22,13 +22,15 @@ Windows and Linux builds are configured but have never been built or tested.
 
 - **Calendar** — month, week, day and list views, per-event timezones, repeating events, `.ics`
   import and export.
-- **Deadlines** — the conferences you follow, each a coloured bar with a countdown, plus your own
+- **Deadlines** — the conferences you follow, each a row with a countdown and a thin progress line, plus your own
   deadlines with separate time and work progress.
 - **Timeline** — milestones as bars across a semester, a year or the whole programme.
 - **Habits** — daily and weekly tracking with streaks.
 - **Settings** — formats, conference sources, and JSON backup and restore.
 
 Press `⌘K` for the command palette, `⌘N` to create something, `⌘1`–`⌘5` to switch pages.
+
+Typeface: Linux Biolinum, bundled so it works offline (SIL OFL 1.1; listed under Settings > About).
 
 ## Conferences
 

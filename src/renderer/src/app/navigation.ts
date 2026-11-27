@@ -1,9 +1,22 @@
 import { CalendarDays, Repeat, Route, Settings, Timer, type LucideIcon } from 'lucide-react'
 import { create } from 'zustand'
-import type { LaunchPage, PageId } from '@shared/types/settings'
+import type { DeadlinesTab, LaunchPage, PageId } from '@shared/types/settings'
 import { persistUi } from '@renderer/hooks/useSettings'
 
 export type NavigationParams = Record<string, string>
+
+/**
+ * The one source of the create-action names: the strip's primary button, the page's own button
+ * and the palette's `Create` group all read these, so one action never carries two spellings.
+ * Sentence case throughout (DESIGN.md 7).
+ */
+export const CREATE_LABELS = {
+  event: 'Add event',
+  conference: 'Add conference',
+  personalDeadline: 'Add personal deadline',
+  milestone: 'Add milestone',
+  habit: 'Create habit'
+} as const
 
 export interface PageDefinition {
   id: PageId
@@ -15,7 +28,7 @@ export interface PageDefinition {
   createLabel?: string
   /**
    * Label of the top-bar quick-create button. Uses the same verb as the page's own toolbar
-   * (spec §9.1 `Add Event`, §19 `Add Milestone` / `Create Habit`) so one action never carries two
+   * (`Add event`, `Add milestone` / `Create habit`) so one action never carries two
    * names on screen.
    */
   createActionLabel?: string
@@ -29,7 +42,7 @@ export const PAGES: readonly PageDefinition[] = [
     icon: CalendarDays,
     shortcutIndex: 1,
     createLabel: 'Event',
-    createActionLabel: 'Add Event'
+    createActionLabel: CREATE_LABELS.event
   },
   {
     id: 'deadlines',
@@ -37,7 +50,7 @@ export const PAGES: readonly PageDefinition[] = [
     icon: Timer,
     shortcutIndex: 2,
     createLabel: 'Deadline',
-    createActionLabel: 'Add Deadline'
+    createActionLabel: 'Add deadline'
   },
   {
     id: 'timeline',
@@ -45,7 +58,7 @@ export const PAGES: readonly PageDefinition[] = [
     icon: Route,
     shortcutIndex: 3,
     createLabel: 'Milestone',
-    createActionLabel: 'Add Milestone'
+    createActionLabel: CREATE_LABELS.milestone
   },
   {
     id: 'habits',
@@ -53,10 +66,36 @@ export const PAGES: readonly PageDefinition[] = [
     icon: Repeat,
     shortcutIndex: 4,
     createLabel: 'Habit',
-    createActionLabel: 'Create Habit'
+    createActionLabel: CREATE_LABELS.habit
   },
   { id: 'settings', label: 'Settings', icon: Settings, shortcutIndex: 5 }
 ]
+
+export interface CreateAction {
+  /**
+   * Visible label of the primary create button in the top strip. Its accessible name is this text
+   * plus the shortcut (`Add conference (⌘N)`), so the visible text is contained in the name
+   * (WCAG 2.5.3 Label in Name).
+   */
+  label: string
+}
+
+/**
+ * What the strip's primary button creates on a page. On Deadlines the label follows the active tab
+ * (`Add conference` / `Add personal deadline`): one action, one name, no ambiguity (DESIGN.md 7).
+ */
+export const resolveCreateAction = (
+  page: PageDefinition,
+  deadlinesTab?: DeadlinesTab
+): CreateAction | undefined => {
+  if (page.id === 'deadlines') {
+    return deadlinesTab === 'personal'
+      ? { label: CREATE_LABELS.personalDeadline }
+      : { label: CREATE_LABELS.conference }
+  }
+  if (!page.createLabel || !page.createActionLabel) return undefined
+  return { label: page.createActionLabel }
+}
 
 export const getPage = (id: PageId): PageDefinition =>
   PAGES.find((page) => page.id === id) ?? PAGES[0]

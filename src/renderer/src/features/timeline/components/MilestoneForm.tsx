@@ -1,4 +1,4 @@
-import { Check, Trash2 } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { getCategory } from '@shared/constants/categories'
 import { MILESTONE_STATUS_DEFINITIONS } from '@shared/constants/statuses'
@@ -17,7 +17,6 @@ import {
   type MilestoneCategory,
   type MilestoneStatus
 } from '@shared/types/milestone'
-import { DynamicIcon } from '@renderer/components/common/DynamicIcon'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,29 +38,22 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
-import { SegmentedControl } from '@renderer/components/ui/segmented-control'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@renderer/components/ui/select'
+import { AddRow, PropertyRow } from '@renderer/components/ui/property-row'
 import { Slider } from '@renderer/components/ui/slider'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
-import { chipStyle, cn } from '@renderer/lib/utils'
 import { useCreateMilestone, useDeleteMilestone, useUpdateMilestone } from '../api'
-
-const COLOR_PRESETS = [
-  '#3b82f6',
-  '#ef4444',
-  '#22c55e',
-  '#f59e0b',
-  '#a855f7',
-  '#ec4899',
-  '#14b8a6',
-  '#64748b'
-] as const
 
 /** Default span of a new milestone: about a semester. */
 const DEFAULT_SPAN_DAYS = 183
-
-const isHex = (v: string): boolean => /^#[0-9a-fA-F]{6}$/.test(v)
 
 const STATUS_OPTIONS = Object.values(MILESTONE_STATUS_DEFINITIONS).map((def) => ({
   value: def.id,
@@ -77,7 +69,6 @@ interface FormState {
   category: MilestoneCategory
   status: MilestoneStatus
   progress: number
-  color: string
 }
 
 const emptyFor = (today: string): FormState => ({
@@ -87,8 +78,7 @@ const emptyFor = (today: string): FormState => ({
   target: addDays(today, DEFAULT_SPAN_DAYS),
   category: 'research',
   status: 'not_started',
-  progress: 0,
-  color: COLOR_PRESETS[0]
+  progress: 0
 })
 
 const fromMilestone = (m: Milestone, zone: ZoneInput): FormState => ({
@@ -98,8 +88,7 @@ const fromMilestone = (m: Milestone, zone: ZoneInput): FormState => ({
   target: dateKeyInZone(m.targetAt, zone),
   category: m.category,
   status: m.status,
-  progress: m.progress,
-  color: m.color ?? COLOR_PRESETS[0]
+  progress: m.progress
 })
 
 export interface MilestoneFormProps {
@@ -129,6 +118,9 @@ export function MilestoneForm({
 
   const [state, setState] = useState<FormState>(() => emptyFor(today))
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Validation is shown after the first blur, never on a pristine field.
+  const [touchedTitle, setTouchedTitle] = useState(false)
+  const [descriptionShown, setDescriptionShown] = useState(false)
   // Reset the form when the dialog opens or switches target; derived during render, not in an
   // effect, so a stale draft never lingers across open/close cycles (see HabitForm / SettingsPage).
   const [prevOpen, setPrevOpen] = useState(open)
@@ -139,6 +131,8 @@ export function MilestoneForm({
     if (open) {
       setState(milestone ? fromMilestone(milestone, zone) : emptyFor(today))
       setConfirmDelete(false)
+      setTouchedTitle(false)
+      setDescriptionShown(false)
     }
   }
 
@@ -158,8 +152,7 @@ export function MilestoneForm({
     targetAt: startOfDayInZone(state.target, zone),
     category: state.category,
     status: state.status,
-    progress: state.progress,
-    color: isHex(state.color) ? state.color : undefined
+    progress: state.progress
   })
 
   const submit = async (): Promise<void> => {
@@ -168,9 +161,9 @@ export function MilestoneForm({
       if (milestone) {
         const patchInput: UpdateMilestoneInput = {
           ...buildInput(),
-          // `null` clears a field on update; `undefined` would leave the stored value untouched.
-          description: state.description.trim() || null,
-          color: isHex(state.color) ? state.color : null
+          // `null` clears a field on update; `undefined` would leave the stored value untouched. The
+          // stored colour is never sent: the form has no colour control and must not overwrite it.
+          description: state.description.trim() || null
         }
         await update.mutateAsync({ id: milestone.id, patch: patchInput })
       } else {
@@ -194,182 +187,171 @@ export function MilestoneForm({
     }
   }
 
+  const showErrors = touchedTitle && !titleValid
+  const datesInvalid = !startValid || !targetValid
+  const descriptionOpen = descriptionShown || state.description.length > 0
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{milestone ? 'Edit milestone' : 'Create milestone'}</DialogTitle>
-          <DialogDescription>
-            A milestone is a stretch of your PhD with a start and a target date: coursework,
-            research, a publication, an internship. Track work progress against time.
+          <DialogDescription className="sr-only">
+            A milestone is a stretch of your PhD with a start and a target date. Work progress is
+            tracked against time.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
-          <div className="flex flex-col gap-1.5">
+        <form
+          className="flex flex-col gap-8"
+          onSubmit={(event) => {
+            event.preventDefault()
+            setTouchedTitle(true)
+            void submit()
+          }}
+        >
+          <div className="flex flex-col gap-1">
             <Label htmlFor="milestone-title">Title</Label>
             <Input
               id="milestone-title"
               value={state.title}
               onChange={(e) => patch({ title: e.target.value })}
-              placeholder="e.g. Coursework, Quals, First paper"
+              onBlur={() => setTouchedTitle(true)}
+              placeholder="e.g. Qualifying exam"
               autoComplete="off"
-              aria-invalid={!titleValid}
+              aria-invalid={showErrors || undefined}
+              aria-describedby={showErrors ? 'milestone-title-error' : undefined}
             />
-            {!titleValid && state.title.length > 0 && (
-              <p className="text-xs text-destructive">Title is required.</p>
-            )}
+            {showErrors && <FieldError id="milestone-title-error">Title is required.</FieldError>}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="milestone-desc">Description (optional)</Label>
-            <Textarea
-              id="milestone-desc"
-              value={state.description}
-              onChange={(e) => patch({ description: e.target.value })}
-              placeholder="What does done look like?"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="milestone-start">Start date</Label>
-              <Input
-                id="milestone-start"
-                type="date"
-                value={state.start}
-                onChange={(e) => patch({ start: e.target.value })}
-                aria-invalid={!startValid}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="milestone-target">Target date</Label>
-              <Input
-                id="milestone-target"
-                type="date"
-                value={state.target}
-                onChange={(e) => patch({ target: e.target.value })}
-                aria-invalid={!targetValid || !orderValid}
-              />
-            </div>
-          </div>
-          {startValid && targetValid && !orderValid && (
-            <p className="text-xs text-destructive">Target date must be after the start date.</p>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Category</Label>
-            <div
-              className="grid grid-cols-2 gap-1.5 sm:grid-cols-4"
-              role="group"
-              aria-label="Category"
-            >
-              {MILESTONE_CATEGORIES.map((id) => {
-                const definition = getCategory(id)
-                const active = state.category === id
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => patch({ category: id })}
-                    style={active ? chipStyle(definition.colorToken) : undefined}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                      active
-                        ? 'chip-tint border-transparent'
-                        : 'border-border text-muted-foreground hover:bg-accent'
-                    )}
-                  >
-                    <DynamicIcon name={definition.icon} className="size-3.5 shrink-0" />
-                    <span className="truncate">{definition.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Status</Label>
-            <SegmentedControl
-              aria-label="Status"
-              value={state.status}
-              onValueChange={(status) => patch({ status })}
-              options={STATUS_OPTIONS}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="milestone-progress">Work progress</Label>
-              <span className="tabular text-xs text-muted-foreground">{state.progress}%</span>
-            </div>
-            <Slider
-              id="milestone-progress"
-              value={[state.progress]}
-              onValueChange={(v) => patch({ progress: v[0] ?? 0 })}
-              aria-label="Work progress"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Colour (optional)</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              {COLOR_PRESETS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={`Colour ${c}`}
-                  aria-pressed={state.color === c}
-                  onClick={() => patch({ color: c })}
-                  className={cn(
-                    'size-6 rounded-full border-2 transition-transform',
-                    state.color === c
-                      ? 'border-foreground ring-2 ring-ring ring-offset-1'
-                      : 'border-transparent'
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="milestone-start">Start date</Label>
                 <Input
-                  type="color"
-                  value={isHex(state.color) ? state.color : '#3b82f6'}
-                  onChange={(e) => patch({ color: e.target.value })}
-                  className="size-7 w-auto p-0"
-                  aria-label="Custom colour"
+                  id="milestone-start"
+                  type="date"
+                  value={state.start}
+                  onChange={(e) => patch({ start: e.target.value })}
+                  aria-invalid={!startValid || undefined}
                 />
-                Custom
-              </label>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="milestone-target">Target date</Label>
+                <Input
+                  id="milestone-target"
+                  type="date"
+                  value={state.target}
+                  onChange={(e) => patch({ target: e.target.value })}
+                  aria-invalid={!targetValid || (startValid && !orderValid) || undefined}
+                />
+              </div>
             </div>
-          </div>
-        </div>
-
-        <DialogFooter className="sm:justify-between">
-          <div>
-            {milestone && (
-              <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setConfirmDelete(true)}
-                disabled={busy}
-              >
-                <Trash2 aria-hidden="true" />
-                Delete
-              </Button>
+            {datesInvalid && <FieldError>Enter a start date and a target date.</FieldError>}
+            {!datesInvalid && !orderValid && (
+              <FieldError>Target date must be after the start date.</FieldError>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={submit} disabled={!canSubmit}>
-              <Check aria-hidden="true" />
-              {milestone ? 'Save changes' : 'Create milestone'}
-            </Button>
+
+          <div className="-mt-2 flex flex-col">
+            <PropertyRow label="Category" htmlFor="milestone-category">
+              <Select
+                value={state.category}
+                onValueChange={(category) => patch({ category: category as MilestoneCategory })}
+              >
+                <SelectTrigger
+                  id="milestone-category"
+                  variant="bare"
+                  aria-label="Category"
+                  className="w-auto"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MILESTONE_CATEGORIES.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {getCategory(id).label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </PropertyRow>
+            <PropertyRow label="Status" htmlFor="milestone-status">
+              <Select
+                value={state.status}
+                onValueChange={(status) => patch({ status: status as MilestoneStatus })}
+              >
+                <SelectTrigger
+                  id="milestone-status"
+                  variant="bare"
+                  aria-label="Status"
+                  className="w-auto"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </PropertyRow>
+            <PropertyRow label="Progress" htmlFor="milestone-progress">
+              <div className="flex w-56 items-center gap-4">
+                <Slider
+                  id="milestone-progress"
+                  value={[state.progress]}
+                  onValueChange={(v) => patch({ progress: v[0] ?? 0 })}
+                  aria-label="Work progress"
+                />
+                <span className="tabular w-10 shrink-0 text-right text-body text-ink-2">
+                  {state.progress}%
+                </span>
+              </div>
+            </PropertyRow>
+            {descriptionOpen ? (
+              <div className="flex flex-col gap-1 border-b border-line py-3">
+                <Label htmlFor="milestone-desc">Description</Label>
+                <Textarea
+                  id="milestone-desc"
+                  value={state.description}
+                  onChange={(e) => patch({ description: e.target.value })}
+                  placeholder="What does done look like?"
+                  rows={2}
+                  autoFocus={descriptionShown}
+                />
+              </div>
+            ) : (
+              <AddRow onClick={() => setDescriptionShown(true)}>Add description</AddRow>
+            )}
           </div>
-        </DialogFooter>
+
+          <DialogFooter className="justify-between">
+            <div>
+              {milestone && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={busy}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!canSubmit}>
+                {milestone ? 'Save changes' : 'Create milestone'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
 
         {milestone && (
           <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
@@ -399,5 +381,21 @@ export function MilestoneForm({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** A signal glyph and 13 px message under a field; the field's own rule turns signal via `aria-invalid`. */
+function FieldError({
+  id,
+  children
+}: {
+  id?: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <p id={id} role="alert" className="flex items-center gap-1.5 text-meta text-signal">
+      <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+      {children}
+    </p>
   )
 }

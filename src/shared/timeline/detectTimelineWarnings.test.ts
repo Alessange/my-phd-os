@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Milestone } from '../types/milestone'
 import type { PersonalDeadline } from '../types/personalDeadline'
-import { detectTimelineWarnings } from './detectTimelineWarnings'
+import { detectTimelineWarnings, type TimelineWarning } from './detectTimelineWarnings'
 
 // 2026-09-04 is a Friday (ISO weekday 5). Sep 7 is Monday, Sep 9 is Wednesday.
 const NOW = '2026-09-04T12:00:00.000Z'
@@ -291,5 +291,53 @@ describe('detectTimelineWarnings', () => {
     const b = detectTimelineWarnings(ms, [], NOW, MON)
     expect(b.map((x) => x.id)).toEqual(a.map((x) => x.id))
     expect(a[0].id).toBe('start_after_target:m1')
+  })
+
+  it('prints dates through the supplied formatters and keeps the stable ids untouched', () => {
+    const dates = {
+      instant: (iso: string) => `I<${iso.slice(0, 10)}>`,
+      dateKey: (k: string) => `K<${k}>`
+    }
+    const ms = [
+      milestone({
+        id: 'm1',
+        title: 'Reversed',
+        startAt: '2027-12-31T00:00:00.000Z',
+        targetAt: '2027-06-30T00:00:00.000Z'
+      }),
+      milestone({
+        id: 'm2',
+        title: 'Old',
+        startAt: '2026-01-01T00:00:00.000Z',
+        targetAt: '2026-08-01T00:00:00.000Z'
+      })
+    ]
+    const ds = [
+      deadline({
+        id: 'd1',
+        title: 'Paper A',
+        priority: 'high',
+        deadlineAt: '2026-09-09T12:00:00.000Z'
+      }),
+      deadline({
+        id: 'd2',
+        title: 'Paper B',
+        priority: 'critical',
+        deadlineAt: '2026-09-10T12:00:00.000Z'
+      })
+    ]
+    const w = detectTimelineWarnings(ms, ds, NOW, MON, dates)
+    const byRule = (rule: string): TimelineWarning | undefined => w.find((x) => x.rule === rule)
+    expect(byRule('start_after_target')?.detail).toBe(
+      'Start I<2027-12-31> is after target I<2027-06-30>; the dates look reversed.'
+    )
+    expect(byRule('milestone_passed_incomplete')?.detail).toContain('targeted for I<2026-08-01>')
+    const busy = byRule('many_high_priority_deadlines_same_week')
+    expect(busy?.title).toBe('2 high-priority deadlines in the week of K<2026-09-07>')
+    expect(busy?.id).toBe('many_high_priority_deadlines_same_week:2026-09-07')
+    // Without formatters the text keeps the UTC date.
+    expect(
+      detectTimelineWarnings(ms, ds, NOW, MON).find((x) => x.rule === 'start_after_target')?.detail
+    ).toContain('Start 2027-12-31 is after target 2027-06-30')
   })
 })

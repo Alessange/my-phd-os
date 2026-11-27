@@ -1,22 +1,30 @@
-import { Bookmark } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { nearestFollowedDeadline } from '@shared/conferences/views'
 import { EMPTY_STATES } from '@shared/constants/emptyStates'
+import { urgencyLevel } from '@shared/conferences/views'
 import { tryResolveZone } from '@shared/dates/zones'
 import { useNavigation } from '@renderer/app/navigation'
-import { Countdown } from '@renderer/components/common/Countdown'
 import { EmptyState } from '@renderer/components/common/EmptyState'
 import { ErrorState } from '@renderer/components/common/ErrorState'
 import { LoadingState } from '@renderer/components/common/LoadingState'
-import { StatusBadge } from '@renderer/components/common/StatusBadge'
+import { StatusMark } from '@renderer/components/ui/status-mark'
 import { useFormat } from '@renderer/hooks/useFormat'
 import { useNow } from '@renderer/hooks/useNow'
 import { useFollowedConferences } from '../api'
+import { DeadlineCountdown } from './DeadlineCountdown'
 
 /**
  * Nearest followed conference deadline (Calendar right panel, spec §9.4 / §12.6). Unfollowed
  * conferences never appear here; opens the card on the Deadlines page.
  */
-export function FollowedConferenceCompact(): React.JSX.Element {
+export interface FollowedConferenceCompactProps {
+  /** Render nothing (instead of the empty line) when no followed deadline is upcoming; the caller shows one shared line. */
+  hideEmpty?: boolean
+}
+
+export function FollowedConferenceCompact({
+  hideEmpty = false
+}: FollowedConferenceCompactProps): React.JSX.Element | null {
   const format = useFormat()
   const nowIso = useNow({ precision: 'minute' })
   const navigate = useNavigation((state) => state.navigate)
@@ -34,28 +42,41 @@ export function FollowedConferenceCompact(): React.JSX.Element {
       />
     )
   const nearest = nearestFollowedDeadline(query.data, nowIso)
-  if (!nearest || !nearest.deadlineAt)
-    return (
-      <EmptyState variant="compact" icon={Bookmark} title={EMPTY_STATES.nearestDeadline.title} />
+  if (!nearest || !nearest.deadlineAt) {
+    return hideEmpty ? null : (
+      <EmptyState variant="compact" title={EMPTY_STATES.nearestDeadline.title} />
     )
+  }
 
   const zoneLabel = nearest.originalTimezoneLabel ?? nearest.originalTimezone
   const zone = zoneLabel ? tryResolveZone(zoneLabel) : undefined
+  const urgent = urgencyLevel(nearest, nowIso) === 'urgent'
+  const localText = format.formatDateTimeWithZone(nearest.deadlineAt)
+  const originalText = zone ? format.formatDateTimeWithZone(nearest.deadlineAt, zone) : undefined
   return (
     <button
       type="button"
       onClick={() => navigate('deadlines', { tab: 'conference', id: nearest.id })}
-      className="flex w-full flex-col gap-1 rounded-md border bg-card px-3 py-2 text-left shadow-xs transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+      className="app-no-drag flex w-full flex-col items-start gap-1 rounded-sm text-left"
       data-conference-id={nearest.id}
     >
-      <span className="flex items-center justify-between gap-2">
-        <span className="truncate text-[13px] font-medium">{nearest.title}</span>
-        <StatusBadge status={nearest.status} size="sm" />
+      <span className="text-body w-full truncate text-ink">{nearest.title}</span>
+      <DeadlineCountdown targetIso={nearest.deadlineAt} status={nearest.status} size="compact" />
+      <span className="text-meta flex items-center gap-2 text-ink-3">
+        Conference
+        {urgent && (
+          <StatusMark
+            label="Urgent"
+            colorToken="status-urgent"
+            glyph={<CircleAlert aria-hidden="true" />}
+          />
+        )}
       </span>
-      <Countdown targetIso={nearest.deadlineAt} variant="inline" className="text-xs font-medium" />
-      <span className="tabular text-[11px] text-muted-foreground">
-        {format.formatDateTimeWithZone(nearest.deadlineAt, zone)}
-        {zone && ` · Local: ${format.formatDateTimeWithZone(nearest.deadlineAt)}`}
+      <span
+        className="text-meta tabular text-ink-3"
+        title={originalText && originalText !== localText ? `Original: ${originalText}` : undefined}
+      >
+        {localText}
       </span>
     </button>
   )

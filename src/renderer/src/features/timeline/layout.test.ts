@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { Milestone } from '@shared/types/milestone'
 import {
   axisTicks,
+  barLabelSide,
   barLayout,
   computeTimelineWindow,
+  daysPastTarget,
   markerInBar,
   nowFractionInWindow,
   packLanes,
@@ -273,5 +275,35 @@ describe('axisTicks', () => {
     const tokyo = axisTicks(w, 'year', 'Asia/Tokyo', 1).filter((t) => t.major)[0]
     // Midnight Jul 1 in Tokyo is 15:00 Jun 30 UTC: nine hours earlier than midnight UTC.
     expect(utc.ms - tokyo.ms).toBe(9 * 60 * 60 * 1000)
+  })
+})
+
+describe('barLabelSide', () => {
+  const bar = (
+    left: number,
+    width: number,
+    clippedEnd = false
+  ): { left: number; width: number; clippedEnd: boolean } => ({ left, width, clippedEnd })
+
+  it('prints the value to the right of a bar that ends well inside the plot', () => {
+    expect(barLabelSide(bar(0.1, 0.5))).toBe('right')
+  })
+
+  it('moves the value to the left of the start when the bar ends at the plot edge', () => {
+    expect(barLabelSide(bar(0.5, 0.45))).toBe('left')
+    expect(barLabelSide(bar(0.6, 0.4, true))).toBe('left')
+  })
+
+  it('puts the value below a bar that spans nearly the whole plot', () => {
+    expect(barLabelSide(bar(0, 1, true))).toBe('below')
+    expect(barLabelSide(bar(0.02, 0.97))).toBe('below')
+  })
+})
+
+describe('daysPastTarget', () => {
+  it('counts whole days after the target and never goes negative', () => {
+    expect(daysPastTarget('2026-11-16T17:00:00.000Z', '2026-11-26T18:48:00.000Z')).toBe(10)
+    expect(daysPastTarget('2026-11-26T17:00:00.000Z', '2026-11-26T18:48:00.000Z')).toBe(0)
+    expect(daysPastTarget('2026-12-01T00:00:00.000Z', '2026-11-26T18:48:00.000Z')).toBe(0)
   })
 })
